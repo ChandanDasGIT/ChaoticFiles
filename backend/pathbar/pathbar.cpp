@@ -59,6 +59,23 @@ bool isVirtual(const std::string& path)
     return path == kTrashLocation || path == kRecentLocation;
 }
 
+std::string fileUrl(const std::string& path)
+{
+    static const char digits[] = "0123456789ABCDEF";
+    std::string url = "file://";
+    for (const unsigned char c : path) {
+        const bool plain = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+                        || c == '/' || c == '-' || c == '_' || c == '.' || c == '~';
+        if (plain) url += static_cast<char>(c);
+        else {
+            url += '%';
+            url += digits[c >> 4];
+            url += digits[c & 15];
+        }
+    }
+    return url;
+}
+
 std::string homeDirectory()
 {
     if (const char* home = std::getenv("HOME"); home && *home) return normalize(home);

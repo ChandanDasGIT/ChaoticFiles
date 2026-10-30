@@ -16,6 +16,7 @@ inline constexpr const char* kRecentLocation = "recent:///";
 bool isVirtual(const std::string& path);
 
 std::string homeDirectory();
+std::string fileUrl(const std::string& path);      // file:///home/me/My%20File
 std::string normalize(const std::string& path);    // removes "." and ".." and repeated or trailing "/"
 std::string parent(const std::string& path);       // the parent folder; "/" stays "/"
 std::string baseName(const std::string& path);

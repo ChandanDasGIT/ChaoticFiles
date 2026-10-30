@@ -3,6 +3,7 @@
 #include <QQmlApplicationEngine>
 
 #include "wrapper/tabsWrap/tabscontroller.h"
+#include "wrapper/thumbnailsWrap/thumbnailprovider.h"
 
 int main(int argc, char *argv[])
 {
@@ -27,6 +28,7 @@ int main(int argc, char *argv[])
         &app,
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
+    engine.addImageProvider("thumb", new ThumbnailProvider);
     engine.loadFromModule("ChaoticFiles", "Main");
 
     return QGuiApplication::exec();

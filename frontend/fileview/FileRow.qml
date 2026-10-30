@@ -19,7 +19,7 @@ Rectangle {
     required property bool isCurrent
     required property bool isCut
 
-    property string dragText: ""           // file URLs, set when the mouse goes down
+    property alias dragText: itemArea.dragText
 
     signal pressedWith(int button, int modifiers, real sceneX, real sceneY)
     signal releasedWithoutDrag(int modifiers)
@@ -30,9 +30,9 @@ Rectangle {
     width: ListView.view.width - 2 * Theme.rowMargin
     height: Theme.rowHeight
     radius: Theme.rowRadius
-    color: dropArea.containsDrag ? Theme.selectionHoverBg
-         : isSelected ? (area.containsMouse ? Theme.selectionHoverBg : Theme.selectionBg)
-         : area.containsMouse ? Theme.hoverBg : "transparent"
+    color: itemArea.containsDrag ? Theme.selectionHoverBg
+         : isSelected ? (itemArea.containsMouse ? Theme.selectionHoverBg : Theme.selectionBg)
+         : itemArea.containsMouse ? Theme.hoverBg : "transparent"
     opacity: isCut ? Theme.cutOpacity : 1
 
     // ---- name ----
@@ -90,7 +90,7 @@ Rectangle {
         leftPadding: Theme.rowPadding
         text: root.typeText
         textFormat: Text.PlainText
-        elide: Text.ElideRight
+        elide: Text.ElideMiddle
         font.pixelSize: Theme.smallFontSize
         color: Theme.textMuted
     }
@@ -106,45 +106,13 @@ Rectangle {
         color: Theme.textMuted
     }
 
-    // what a drag carries: it stays still, and the system draws the drag
-    Item {
-        id: dragItem
-        Drag.dragType: Drag.Automatic
-        Drag.active: area.drag.active
-        Drag.supportedActions: Qt.CopyAction | Qt.MoveAction | Qt.LinkAction
-        Drag.mimeData: ({"text/uri-list": root.dragText})
-    }
-
-    // files dragged onto a folder go into it
-    DropArea {
-        id: dropArea
+    FileItemArea {
+        id: itemArea
         anchors.fill: parent
-        enabled: root.isDirectory
-        onEntered: (drag) => { drag.accepted = drag.hasUrls }
-        onDropped: (drop) => {
-            drop.accept(Qt.CopyAction)
-            root.urlsDropped(drop.urls)
-        }
-    }
-
-    MouseArea {
-        id: area
-        anchors.fill: parent
-        hoverEnabled: true
-        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-        drag.target: pressedButtons & Qt.LeftButton ? dragItem : null
-        drag.threshold: 8
-        onPressed: (mouse) => {
-            const scene = mapToItem(null, mouse.x, mouse.y)
-            root.pressedWith(mouse.button, mouse.modifiers, scene.x, scene.y)
-        }
-        onReleased: (mouse) => {
-            if (mouse.button === Qt.LeftButton && !drag.active) root.releasedWithoutDrag(mouse.modifiers)
-            dragItem.x = 0
-            dragItem.y = 0
-        }
-        onDoubleClicked: (mouse) => {
-            if (mouse.button === Qt.LeftButton) root.doubleClicked()
-        }
+        isDirectory: root.isDirectory
+        onPressedWith: (button, modifiers, sceneX, sceneY) => root.pressedWith(button, modifiers, sceneX, sceneY)
+        onReleasedWithoutDrag: (modifiers) => root.releasedWithoutDrag(modifiers)
+        onDoubleClicked: root.doubleClicked()
+        onUrlsDropped: (urls) => root.urlsDropped(urls)
     }
 }

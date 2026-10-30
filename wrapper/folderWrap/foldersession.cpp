@@ -1,5 +1,6 @@
 #include "foldersession.h"
 
+#include "filetype/filetype.h"
 #include "format/format.h"
 #include "pathbar/pathbar.h"
 #include "recent/recentfiles.h"
@@ -94,6 +95,26 @@ QString FolderSession::selectionText() const
     QString text = QStringLiteral("%1 selected").arg(view.selectedCount());
     if (const std::uint64_t size = view.selectedSize()) text += QStringLiteral(" (%1)").arg(qs(Format::size(size)));
     return text;
+}
+
+QString FolderSession::currentPath() const
+{
+    const int row = currentRow();
+    return row >= 0 ? qs(m_tab->view.at(row).path) : QString();
+}
+
+QVariantMap FolderSession::currentItem() const
+{
+    const int row = currentRow();
+    if (row < 0) return {};
+    const Entry& entry = m_tab->view.at(row);
+    return {
+        {"name", qs(entry.name)},
+        {"type", qs(entry.typeName)},
+        {"size", entry.isDirectory() ? QString() : qs(Format::exactSize(entry.size))},
+        {"date", qs(Format::date(entry.modified))},
+        {"category", QString::fromLatin1(categoryName(entry.category))},
+    };
 }
 
 void FolderSession::setShowHidden(bool show)

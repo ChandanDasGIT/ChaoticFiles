@@ -138,6 +138,9 @@ Window {
     Shortcut { sequences: ["Alt+Up"]; onActivated: window.session.goUp() }
     Shortcut { sequences: ["F5", "Ctrl+R"]; onActivated: window.session.refresh() }
     Shortcut { sequences: ["Ctrl+F"]; onActivated: searchBar.start() }
+    Shortcut { sequences: ["Ctrl+1"]; onActivated: SettingsController.viewMode = 0 }
+    Shortcut { sequences: ["Ctrl+2"]; onActivated: SettingsController.viewMode = 1 }
+    Shortcut { sequences: ["F3"]; onActivated: SettingsController.showPreview = !SettingsController.showPreview }
     Shortcut { sequences: ["Ctrl+H"]; onActivated: SettingsController.showHidden = !SettingsController.showHidden }
     Shortcut { sequences: ["Alt+Return", "Alt+Enter"]; onActivated: actions.properties() }
     Shortcut { sequences: ["Ctrl+C"]; onActivated: actions.copy() }
@@ -223,6 +226,12 @@ Window {
                         onBackgroundMenuRequested: (sceneX, sceneY) => window.showBackgroundMenu(sceneX, sceneY)
                     }
                 }
+            }
+
+            PreviewPanel {
+                Layout.fillHeight: true
+                visible: SettingsController.showPreview
+                session: window.session
             }
         }
 

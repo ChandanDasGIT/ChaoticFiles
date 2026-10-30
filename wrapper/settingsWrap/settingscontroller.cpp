@@ -5,6 +5,10 @@
 
 namespace {
 
+constexpr int kMinGridSize = 48;
+constexpr int kMaxGridSize = 256;
+constexpr int kGridStep = 16;
+
 // Desktops that tile windows have no use for minimise and maximise buttons.
 bool isTilingDesktop()
 {
@@ -35,6 +39,10 @@ SettingsController::SettingsController(QObject* parent)
     , m_themeMode(m_settings.value("theme/mode", 0).toInt())
     , m_showHidden(m_settings.value("view/showHidden", false).toBool())
     , m_windowButtons(m_settings.value("window/buttons", 0).toInt())
+    , m_viewMode(m_settings.value("view/mode", 0).toInt())
+    , m_gridSize(m_settings.value("view/gridSize", 96).toInt())
+    , m_showThumbnails(m_settings.value("view/thumbnails", true).toBool())
+    , m_showPreview(m_settings.value("view/preview", false).toBool())
 {
     connect(&m_systemTheme, &SystemTheme::changed, this, &SettingsController::systemDarkChanged);
 }
@@ -61,6 +69,39 @@ void SettingsController::setWindowButtons(int mode)
     m_windowButtons = mode;
     m_settings.setValue("window/buttons", mode);
     emit windowButtonsChanged();
+}
+
+void SettingsController::setViewMode(int mode)
+{
+    if (mode == m_viewMode) return;
+    m_viewMode = mode;
+    m_settings.setValue("view/mode", mode);
+    emit viewChanged();
+}
+
+void SettingsController::zoomGrid(int steps)
+{
+    const int size = qBound(kMinGridSize, m_gridSize + steps * kGridStep, kMaxGridSize);
+    if (size == m_gridSize) return;
+    m_gridSize = size;
+    m_settings.setValue("view/gridSize", size);
+    emit viewChanged();
+}
+
+void SettingsController::setShowThumbnails(bool show)
+{
+    if (show == m_showThumbnails) return;
+    m_showThumbnails = show;
+    m_settings.setValue("view/thumbnails", show);
+    emit viewChanged();
+}
+
+void SettingsController::setShowPreview(bool show)
+{
+    if (show == m_showPreview) return;
+    m_showPreview = show;
+    m_settings.setValue("view/preview", show);
+    emit viewChanged();
 }
 
 bool SettingsController::windowButtonsVisible() const

@@ -36,23 +36,6 @@ std::vector<std::string> split(const std::string& text, char separator)
     return parts;
 }
 
-std::string fileUrl(const std::string& path)
-{
-    static const char digits[] = "0123456789ABCDEF";
-    std::string url = "file://";
-    for (const unsigned char c : path) {
-        const bool plain = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
-                        || c == '/' || c == '-' || c == '_' || c == '.' || c == '~';
-        if (plain) url += static_cast<char>(c);
-        else {
-            url += '%';
-            url += digits[c >> 4];
-            url += digits[c & 15];
-        }
-    }
-    return url;
-}
-
 // the words of an Exec= line, with quotes removed
 std::vector<std::string> execWords(const std::string& exec)
 {
@@ -185,7 +168,7 @@ std::vector<std::string> commandFor(const std::string& exec, const std::vector<s
             const bool asUrl = word == "%u" || word == "%U";
             const bool many = word == "%F" || word == "%U";
             for (std::size_t i = 0; i < paths.size() && (many || i == 0); ++i)
-                command.push_back(asUrl ? fileUrl(paths[i]) : paths[i]);
+                command.push_back(asUrl ? PathBar::fileUrl(paths[i]) : paths[i]);
             placed = true;
         } else if (word.size() == 2 && word[0] == '%') {
             continue;                                  // %i %c %k and old codes

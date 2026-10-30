@@ -8,6 +8,7 @@
 
 #include <QElapsedTimer>
 #include <QObject>
+#include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 #include <memory>
 
@@ -36,6 +37,8 @@ class FolderSession : public QObject {
     Q_PROPERTY(int selectedCount READ selectedCount NOTIFY selectionChanged)
     Q_PROPERTY(QString selectionText READ selectionText NOTIFY selectionChanged)
     Q_PROPERTY(int currentRow READ currentRow NOTIFY selectionChanged)
+    Q_PROPERTY(QString currentPath READ currentPath NOTIFY selectionChanged)
+    Q_PROPERTY(QVariantMap currentItem READ currentItem NOTIFY selectionChanged)    // {name, type, size, date, category}
     Q_PROPERTY(int sortKey READ sortKey NOTIFY sortChanged)
     Q_PROPERTY(bool sortAscending READ sortAscending NOTIFY sortChanged)
 
@@ -61,6 +64,8 @@ public:
     int selectedCount() const { return m_tab->view.selectedCount(); }
     QString selectionText() const;
     int currentRow() const { return m_tab->view.currentRow(); }
+    QString currentPath() const;
+    QVariantMap currentItem() const;
     int sortKey() const { return static_cast<int>(m_tab->view.sort().key); }
     bool sortAscending() const { return m_tab->view.sort().ascending; }
 

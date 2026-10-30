@@ -29,21 +29,32 @@ Rectangle {
         session: root.session
         anchors.left: buttons.right
         anchors.leftMargin: Theme.toolbarMargin
-        anchors.right: settingsButton.left
+        anchors.right: viewButtons.left
         anchors.rightMargin: Theme.toolbarMargin
         anchors.verticalCenter: parent.verticalCenter
         onFinished: root.addressFinished()
     }
 
-    ToolbarButton {
-        id: settingsButton
+    Row {
+        id: viewButtons
         anchors.right: parent.right
         anchors.rightMargin: Theme.toolbarMargin
         anchors.verticalCenter: parent.verticalCenter
-        icon: Icons.settings
-        onClicked: {
-            const corner = mapToItem(null, width, height)
-            root.settingsRequested(corner.x, corner.y)
+
+        ToolbarButton {
+            icon: SettingsController.viewMode === 0 ? Icons.grid : Icons.list
+            onClicked: SettingsController.viewMode = SettingsController.viewMode === 0 ? 1 : 0
+        }
+        ToolbarButton {
+            icon: Icons.preview
+            onClicked: SettingsController.showPreview = !SettingsController.showPreview
+        }
+        ToolbarButton {
+            icon: Icons.settings
+            onClicked: {
+                const corner = mapToItem(null, width, height)
+                root.settingsRequested(corner.x, corner.y)
+            }
         }
     }
 }

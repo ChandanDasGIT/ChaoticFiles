@@ -39,6 +39,7 @@ QtObject {
     readonly property color dialogFieldBg: isDark ? "#333333" : "#ffffff"
     readonly property color closeHoverBg: "#c42b1c"
     readonly property color closeHoverText: "#ffffff"
+    readonly property color bandFill:     isDark ? "#3360cdff" : "#33005fb8"   // rubber band selection
     readonly property color scrollbarHandle:      isDark ? "#5c5c5c" : "#b5b8bd"
     readonly property color scrollbarHandleHover: isDark ? "#7a7a7a" : "#8f9298"
 
@@ -113,8 +114,14 @@ QtObject {
     readonly property int columnType:       170
     readonly property int columnSize:       100
     readonly property int wheelRows:        3
+    readonly property int gridPadding:      8
+    readonly property int gridTextHeight:   56
     readonly property int scrollbarWidth:   10
     readonly property real hiddenOpacity:   0.6
+
+    // ---- preview panel ----
+    readonly property int previewWidth:     300
+    readonly property int previewPadding:   14
 
     // ---- status bar ----
     readonly property int statusBarHeight:  26

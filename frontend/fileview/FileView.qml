@@ -9,25 +9,30 @@ FocusScope {
     signal rowMenuRequested(int row, bool isDirectory, string path, string name, real sceneX, real sceneY)
     signal backgroundMenuRequested(real sceneX, real sceneY)
 
-    readonly property int pageRows: Math.max(1, Math.floor(list.height / Theme.rowHeight) - 1)
+    readonly property bool gridMode: SettingsController.viewMode === 1
+    readonly property var view: gridMode ? grid : list
+    readonly property int gridColumns: Math.max(1, Math.floor(grid.width / grid.cellWidth))
+    readonly property int rowStep: gridMode ? gridColumns : 1
+    readonly property int pageRows: gridMode ? Math.max(1, Math.floor(grid.height / grid.cellHeight)) * gridColumns
+                                             : Math.max(1, Math.floor(list.height / Theme.rowHeight) - 1)
     readonly property int keyboardModifiers: Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier
 
     function keepCurrentInView() {
-        if (session.currentRow >= 0) list.positionViewAtIndex(session.currentRow, ListView.Contain)
+        if (session.currentRow >= 0) view.positionViewAtIndex(session.currentRow, gridMode ? GridView.Contain : ListView.Contain)
     }
 
     function scrollTo(y) {
-        const lowest = list.originY + Math.max(0, list.contentHeight - list.height)
-        list.contentY = Math.max(list.originY, Math.min(lowest, y))
+        const lowest = view.originY + Math.max(0, view.contentHeight - view.height)
+        view.contentY = Math.max(view.originY, Math.min(lowest, y))
     }
 
     Connections {
         target: root.session
         property real savedY: 0
-        function onAboutToRefresh() { savedY = list.contentY }
+        function onAboutToRefresh() { savedY = root.view.contentY }
         function onRefreshed() { root.scrollTo(savedY); Qt.callLater(root.keepCurrentInView) }
         function onSelectionChanged() { Qt.callLater(root.keepCurrentInView) }
-        function onLocationChanged() { list.contentY = list.originY }
+        function onLocationChanged() { root.view.contentY = root.view.originY }
     }
 
     // ---- the keyboard ----
@@ -35,8 +40,10 @@ FocusScope {
         const shift = (event.modifiers & Qt.ShiftModifier) !== 0
         const plain = (event.modifiers & keyboardModifiers) === 0
         switch (event.key) {
-        case Qt.Key_Up:       session.moveCurrent(-1, shift); break
-        case Qt.Key_Down:     session.moveCurrent(1, shift); break
+        case Qt.Key_Up:       session.moveCurrent(-rowStep, shift); break
+        case Qt.Key_Down:     session.moveCurrent(rowStep, shift); break
+        case Qt.Key_Left:     if (gridMode) session.moveCurrent(-1, shift); else return; break
+        case Qt.Key_Right:    if (gridMode) session.moveCurrent(1, shift); else return; break
         case Qt.Key_PageUp:   session.moveCurrent(-pageRows, shift); break
         case Qt.Key_PageDown: session.moveCurrent(pageRows, shift); break
         case Qt.Key_Home:     session.moveCurrentTo(0, shift); break
@@ -55,6 +62,7 @@ FocusScope {
 
     ColumnHeader {
         id: header
+        visible: !root.gridMode
         width: parent.width
         kind: root.session.headerKind
         sortKey: root.session.sortKey
@@ -62,8 +70,35 @@ FocusScope {
         onSortRequested: (key) => root.session.sortBy(key)
     }
 
+    // ---- what a row and a grid cell do with the mouse ----
+    function pressed(item, button, modifiers, sceneX, sceneY) {
+        root.forceActiveFocus()
+        if (button === Qt.LeftButton) {
+            // a press on a selected item may start dragging all of them, so it waits for the release
+            item.wasSelected = item.isSelected && modifiers === 0
+            if (!item.wasSelected) session.click(item.index, modifiers)
+            item.dragText = session.selectedUrlText()
+        } else if (button === Qt.RightButton) {
+            session.contextClick(item.index)
+            rowMenuRequested(item.index, item.isDirectory, item.path, item.name, sceneX, sceneY)
+        } else if (item.isDirectory) {
+            TabsController.openInBackground(item.path)
+        }
+    }
+
+    function wheel(event) {
+        if (event.modifiers & Qt.ControlModifier) {
+            SettingsController.zoomGrid(event.angleDelta.y > 0 ? 1 : -1)
+            return
+        }
+        const step = event.pixelDelta.y !== 0 ? event.pixelDelta.y
+                                              : event.angleDelta.y / 120 * Theme.wheelRows * Theme.rowHeight
+        scrollTo(view.contentY - step)
+    }
+
     ListView {
         id: list
+        visible: !root.gridMode
         anchors.top: header.bottom
         anchors.left: parent.left
         anchors.right: parent.right
@@ -72,63 +107,84 @@ FocusScope {
         clip: true
         interactive: false                 // the mouse selects here; the wheel and the scrollbar scroll
         boundsBehavior: Flickable.StopAtBounds
-        model: root.session.model
+        model: root.gridMode ? null : root.session.model
         cacheBuffer: 0
 
         delegate: FileRow {
-            onPressedWith: (button, modifiers, sceneX, sceneY) => {
-                root.forceActiveFocus()
-                if (button === Qt.LeftButton) {
-                    // a press on a selected row may start dragging all of them, so it waits for the release
-                    wasSelected = isSelected && modifiers === 0
-                    if (!wasSelected) root.session.click(index, modifiers)
-                    dragText = root.session.selectedUrlText()
-                } else if (button === Qt.RightButton) {
-                    root.session.contextClick(index)
-                    root.rowMenuRequested(index, isDirectory, path, name, sceneX, sceneY)
-                } else if (isDirectory) {
-                    TabsController.openInBackground(path)
-                }
-            }
+            id: row
             property bool wasSelected: false
+            onPressedWith: (button, modifiers, sceneX, sceneY) => root.pressed(row, button, modifiers, sceneX, sceneY)
             onReleasedWithoutDrag: (modifiers) => { if (wasSelected) root.session.click(index, modifiers) }
             onDoubleClicked: root.session.openRow(index)
             onUrlsDropped: (urls) => OperationsController.dropUrls(urls, path)
         }
 
-        // the space under the last row
-        MouseArea {
-            anchors.fill: parent
-            z: -1
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
-            onPressed: (mouse) => {
-                root.forceActiveFocus()
-                root.session.clearSelection()
-                if (mouse.button === Qt.RightButton) {
-                    const scene = mapToItem(null, mouse.x, mouse.y)
-                    root.backgroundMenuRequested(scene.x, scene.y)
-                }
+        ViewBackground {
+            session: root.session
+            view: list
+            rowsIn: (left, top, right, bottom) => {
+                const rows = []
+                const last = Math.min(root.session.itemCount - 1, Math.floor(bottom / Theme.rowHeight))
+                for (let row = Math.floor(top / Theme.rowHeight); row <= last; ++row) rows.push(row)
+                return rows
             }
-        }
-
-        // files dragged onto the empty part go into this folder
-        DropArea {
-            anchors.fill: parent
-            z: -2
-            onEntered: (drag) => { drag.accepted = drag.hasUrls && root.session.canWrite }
-            onDropped: (drop) => {
-                drop.accept(Qt.CopyAction)
-                OperationsController.dropUrls(drop.urls, root.session.path)
-            }
+            onMenuRequested: (sceneX, sceneY) => root.backgroundMenuRequested(sceneX, sceneY)
         }
 
         WheelHandler {
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-            onWheel: (event) => {
-                const step = event.pixelDelta.y !== 0 ? event.pixelDelta.y
-                                                      : event.angleDelta.y / 120 * Theme.wheelRows * Theme.rowHeight
-                root.scrollTo(list.contentY - step)
+            acceptedModifiers: Qt.KeyboardModifierMask
+            onWheel: (event) => root.wheel(event)
+        }
+
+        ScrollBar.vertical: ThinScrollBar {}
+    }
+
+    GridView {
+        id: grid
+        visible: root.gridMode
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: Theme.rowMargin
+        clip: true
+        interactive: false
+        boundsBehavior: Flickable.StopAtBounds
+        model: root.gridMode ? root.session.model : null
+        cacheBuffer: 0
+        cellWidth: Math.max(SettingsController.gridSize + 2 * Theme.gridPadding, width / Math.max(1, Math.floor(width / (SettingsController.gridSize + 2 * Theme.gridPadding))))
+        cellHeight: SettingsController.gridSize + Theme.gridTextHeight
+
+        delegate: FileCell {
+            id: cell
+            property bool wasSelected: false
+            onPressedWith: (button, modifiers, sceneX, sceneY) => root.pressed(cell, button, modifiers, sceneX, sceneY)
+            onReleasedWithoutDrag: (modifiers) => { if (wasSelected) root.session.click(index, modifiers) }
+            onDoubleClicked: root.session.openRow(index)
+            onUrlsDropped: (urls) => OperationsController.dropUrls(urls, path)
+        }
+
+        ViewBackground {
+            session: root.session
+            view: grid
+            rowsIn: (left, top, right, bottom) => {
+                const rows = []
+                const columns = root.gridColumns
+                for (let y = Math.floor(top / grid.cellHeight); y <= Math.floor(bottom / grid.cellHeight); ++y)
+                    for (let x = Math.floor(left / grid.cellWidth); x <= Math.floor(right / grid.cellWidth) && x < columns; ++x) {
+                        const row = y * columns + x
+                        if (row < root.session.itemCount) rows.push(row)
+                    }
+                return rows
             }
+            onMenuRequested: (sceneX, sceneY) => root.backgroundMenuRequested(sceneX, sceneY)
+        }
+
+        WheelHandler {
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+            acceptedModifiers: Qt.KeyboardModifierMask
+            onWheel: (event) => root.wheel(event)
         }
 
         ScrollBar.vertical: ThinScrollBar {}
@@ -136,7 +192,7 @@ FocusScope {
 
     // ---- empty folder, or a folder that can't be opened ----
     Column {
-        anchors.centerIn: list
+        anchors.centerIn: parent
         spacing: 10
         visible: root.session.itemCount === 0 && !root.session.loading
 

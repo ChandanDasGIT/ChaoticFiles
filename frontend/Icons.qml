@@ -30,6 +30,9 @@ QtObject {
     readonly property string minimize:      "\uf068"   // minus
     readonly property string maximize:      "\uf0c8"   // square
     readonly property string restore:       "\uf2d2"   // window-restore
+    readonly property string grid:          "\uf00a"   // table-cells
+    readonly property string list:          "\uf03a"   // list
+    readonly property string preview:       "\uf2d0"   // window-maximize
     readonly property string settings:      "\uf013"   // gear
 
     // ---- menus ----
