@@ -29,6 +29,8 @@ struct TransferResult {
     bool cancelled = false;
     std::vector<std::string> errors;                          // sentences for the user
     std::vector<std::pair<std::string, std::string>> done;    // top-level items: from, to
+    std::uint64_t merged = 0;      // folders merged into an existing folder: not in `done`, because that folder
+                                   // was there before, so undoing must never touch it
     std::uint64_t skipped = 0;
 };
 

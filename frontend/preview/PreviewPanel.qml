@@ -100,7 +100,7 @@ Rectangle {
                 text: PreviewController.text
                 textFormat: Text.PlainText
                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                font.family: "monospace"
+                font.family: Theme.monoFontFamily
                 font.pixelSize: Theme.smallFontSize - 1
                 color: Theme.text
             }

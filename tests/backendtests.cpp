@@ -720,8 +720,14 @@ static void testTransfer(const fs::path& root)
     touch(to / "folder" / "mine.txt", "mine");
     touch(to / "folder" / "inner" / "deep.txt", "old deep");
     Transfer merge(TransferKind::Copy, {item("folder")}, dest, answering(ConflictChoice::Skip));
-    merge.run();
+    result = merge.run();
     CHECK(contentOf(to / "folder" / "mine.txt") == "mine" && contentOf(to / "folder" / "inner" / "deep.txt") == "old deep");
+    CHECK(result.done.empty());                           // the folder was already there: undo must leave it alone
+
+    fs::remove(to / "folder" / "inner" / "deep.txt");
+    Transfer cleanMerge(TransferKind::Copy, {item("folder")}, dest, {});
+    result = cleanMerge.run();
+    CHECK(result.done.empty() && result.merged == 1 && contentOf(to / "folder" / "inner" / "deep.txt") == "deep");
 
     // a move: instant on one disk, and the source goes
     reset();

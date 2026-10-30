@@ -239,8 +239,9 @@ void OperationsController::transfer(TransferKind kind, const QStringList& paths,
                     step.pairs.emplace_back(undoKind == UndoStep::Kind::Moved ? from : std::string(), to);
                 m_undo.push(std::move(step));
                 emit undoChanged();
-                emit message(countText(doneVerb, static_cast<qsizetype>(result.done.size())) + QStringLiteral("."));
             }
+            const auto finished = static_cast<qsizetype>(result.done.size() + result.merged);
+            if (finished > 0) emit message(countText(doneVerb, finished) + QStringLiteral("."));
             reportProblems(QStringLiteral("Some items were not transferred"), result.errors);
             finishOperation(id);
         });

@@ -67,6 +67,7 @@ QtObject {
 
     // ---- fonts ----
     readonly property string fontFamily: Qt.application.font.family
+    readonly property string monoFontFamily: "monospace"
     readonly property int fontSize:      13
     readonly property int smallFontSize: 12
     readonly property int iconSize:      14

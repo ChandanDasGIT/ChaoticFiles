@@ -203,7 +203,7 @@ bool Transfer::processItem(const std::string& source, const std::string& request
     if (exists && source != target && S_ISDIR(from.st_mode) && S_ISDIR(existing.st_mode)) {
         const bool complete = copyFolder(source, target);
         if (complete && m_kind == TransferKind::Move && rmdir(source.c_str()) != 0) fail(source, errno);
-        if (complete && topLevel) m_result.done.emplace_back(source, target);
+        if (complete && topLevel) ++m_result.merged;
         return complete;
     }
 
