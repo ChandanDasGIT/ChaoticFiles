@@ -39,6 +39,7 @@ QtObject {
     readonly property string newTab:        "\uf0fe"   // square-plus
     readonly property string eye:           "\uf06e"   // eye
     readonly property string warning:       "\uf071"   // triangle-exclamation
+    readonly property string info:          "\uf05a"   // circle-info
     readonly property string lock:          "\uf023"   // lock
     readonly property string link:          "\uf0c1"   // link
 

@@ -288,11 +288,17 @@ void FolderSession::sortBy(int key)
     emit selectionChanged();
 }
 
-void FolderSession::copyPaths()
+QStringList FolderSession::selectedPaths() const
 {
     QStringList paths;
-    for (const std::string& path : m_tab->view.selectedPaths()) paths << qs(path);
+    for (const std::string& selected : m_tab->view.selectedPaths()) paths << qs(selected);
     if (paths.isEmpty()) paths << path();
+    return paths;
+}
+
+void FolderSession::copyPaths()
+{
+    const QStringList paths = selectedPaths();
     QGuiApplication::clipboard()->setText(paths.join(QLatin1Char('\n')));
     emit message(paths.size() == 1 ? QStringLiteral("Path copied.") : QStringLiteral("%1 paths copied.").arg(paths.size()));
 }

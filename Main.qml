@@ -13,12 +13,18 @@ Window {
         if (view) view.forceActiveFocus()
     }
 
+    function showProperties() {
+        PropertiesController.show(window.session.selectedPaths())
+    }
+
     function showRowMenu(isDirectory, path, sceneX, sceneY) {
         const entries = [{text: "Open", icon: Icons.open, shortcut: "Enter", action: () => window.session.openCurrent()}]
         if (isDirectory)
             entries.push({text: "Open in New Tab", icon: Icons.newTab, action: () => TabsController.openInBackground(path)})
         entries.push({separator: true})
         entries.push({text: "Copy Path", icon: Icons.copy, action: () => window.session.copyPaths()})
+        entries.push({separator: true})
+        entries.push({text: "Properties", icon: Icons.info, shortcut: "Alt+Enter", action: window.showProperties})
         rowMenu.entries = entries
         rowMenu.openAt(sceneX, sceneY)
     }
@@ -30,6 +36,8 @@ Window {
              action: () => SettingsController.showHidden = !SettingsController.showHidden},
             {separator: true},
             {text: "Copy Path", icon: Icons.copy, action: () => window.session.copyPaths()},
+            {separator: true},
+            {text: "Properties", icon: Icons.info, shortcut: "Alt+Enter", action: window.showProperties},
         ]
         rowMenu.openAt(sceneX, sceneY)
     }
@@ -80,6 +88,7 @@ Window {
     Shortcut { sequences: ["Alt+Up"]; onActivated: window.session.goUp() }
     Shortcut { sequences: ["F5", "Ctrl+R"]; onActivated: window.session.refresh() }
     Shortcut { sequences: ["Ctrl+H"]; onActivated: SettingsController.showHidden = !SettingsController.showHidden }
+    Shortcut { sequences: ["Alt+Return", "Alt+Enter"]; onActivated: window.showProperties() }
     Shortcut { sequences: ["Ctrl+Q"]; onActivated: Qt.quit() }
 
     // the side buttons of a mouse
@@ -167,6 +176,10 @@ Window {
         anchors.fill: parent
         targetWindow: window
         visible: window.visibility === Window.Windowed
+    }
+
+    PropertiesDialog {
+        onClosed: window.focusFiles()
     }
 
     PopupMenu {

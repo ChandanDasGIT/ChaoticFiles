@@ -31,6 +31,12 @@ QtObject {
     readonly property color selectionBg:  isDark ? "#3a4a57" : "#cfe4f7"
     readonly property color selectionHoverBg: isDark ? "#445665" : "#bfdaf3"
     readonly property color danger:       isDark ? "#ff6b6b" : "#c42b1c"
+    readonly property color accentFill:   isDark ? "#0067c0" : "#005fb8"   // a main button
+    readonly property color dangerFill:   "#c42b1c"
+    readonly property color textOnAccent:     "#ffffff"                         // text on those buttons
+    readonly property color scrim:        isDark ? "#99000000" : "#55000000"
+    readonly property color dialogBg:     isDark ? "#2b2b2b" : "#f9f9fa"
+    readonly property color dialogFieldBg: isDark ? "#333333" : "#ffffff"
     readonly property color closeHoverBg: "#c42b1c"
     readonly property color closeHoverText: "#ffffff"
     readonly property color scrollbarHandle:      isDark ? "#5c5c5c" : "#b5b8bd"
@@ -124,6 +130,26 @@ QtObject {
     readonly property int menuRowPadding:   10
     readonly property int menuRadius:       8
     readonly property int menuShortcutSpace: 70     // room for a shortcut or check mark on the right
+
+    // ---- dialogs ----
+    readonly property int dialogPadding:    18
+    readonly property int dialogMargin:     24
+    readonly property int dialogRadius:     10
+    readonly property int dialogTitleSize:  16
+    readonly property int dialogWidth:      420
+    readonly property int dialogButtonHeight: 32
+    readonly property int dialogButtonMinWidth: 88
+    readonly property int dialogButtonPadding: 14
+    readonly property int progressHeight:   6
+
+    // ---- properties ----
+    readonly property int propertiesWidth:  700
+    readonly property int propertiesHeight: 600
+    readonly property int propertyLabelWidth: 170
+    readonly property int propertyRowPadding: 10
+    readonly property int propertyCopySize: 24
+    readonly property int propertyTabHeight: 28
+    readonly property int propertyTabPadding: 12
 
     // ---- window ----
     readonly property int windowWidth:      1120

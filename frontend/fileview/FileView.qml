@@ -113,17 +113,7 @@ FocusScope {
             }
         }
 
-        ScrollBar.vertical: ScrollBar {
-            id: scrollBar
-            policy: ScrollBar.AsNeeded
-            contentItem: Rectangle {
-                implicitWidth: Theme.scrollbarWidth / 2
-                radius: width / 2
-                color: scrollBar.hovered || scrollBar.pressed ? Theme.scrollbarHandleHover : Theme.scrollbarHandle
-                opacity: scrollBar.size < 1 ? 1 : 0
-            }
-            background: Item {}
-        }
+        ScrollBar.vertical: ThinScrollBar {}
     }
 
     // ---- empty folder, or a folder that can't be opened ----

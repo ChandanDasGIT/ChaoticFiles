@@ -76,6 +76,7 @@ public:
     Q_INVOKABLE void clearSelection();
     Q_INVOKABLE void typeAhead(const QString& text);
     Q_INVOKABLE void sortBy(int key);                        // the same column again flips the order
+    Q_INVOKABLE QStringList selectedPaths() const;           // the selection, or the folder itself if nothing is selected
     Q_INVOKABLE void copyPaths();                            // the selection's full paths, one per line
 
 signals:

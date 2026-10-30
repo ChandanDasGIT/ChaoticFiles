@@ -29,6 +29,19 @@ Sidebar and status bar
 - The Trash is the one Linux desktops share, so files trashed by other apps appear in it. Moving files to it comes later.
 - Item count, selection count and size, free disk space.
 
+Properties (Alt+Enter)
+- General: every date to the nanosecond, size and size on disk, full and real path.
+- Permissions: owner, group, mode, special bits, what you can actually do, ACLs, capabilities.
+- Filesystem: inode, device, links, blocks, mount, filesystem and its options, disk space, file flags.
+- Attributes: every extended attribute, including the SELinux context.
+- Btrfs: subvolume, extents, compressed extents, shared and exclusive space.
+- Link: target, final target, broken or not, the whole chain.
+- Content: MIME type, the same description as the file command, and details by kind: text, images with EXIF,
+  audio and video, PDF, programs, archives.
+- Folders: total size, counts and largest files, worked out in the background. Several items: totals and shared values.
+- Hashes on request: MD5, SHA-1, SHA-256, SHA-512, BLAKE3, with progress and cancel.
+- Every value can be copied, and Copy All gives a plain text report.
+
 Interface
 - Dark, light and system themes. System follows the desktop's dark or light preference.
 - Draws its own title bar. Window buttons are off by default on tiling desktops, and can be switched on.
