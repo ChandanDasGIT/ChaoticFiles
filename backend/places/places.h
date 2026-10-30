@@ -6,6 +6,7 @@ struct Place {
     std::string name;
     std::string path;
     std::string kind;       // "home", "recent", "desktop", "documents", "downloads", "music", "pictures", "videos", "root", "trash", "drive"
+    std::string device = {};  // a drive's /dev/sdb1
 };
 
 namespace Places {

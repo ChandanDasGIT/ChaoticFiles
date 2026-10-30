@@ -13,6 +13,8 @@ Window {
         if (view) view.forceActiveFocus()
     }
 
+    function key(id) { return ShortcutsController.label(id) }
+
     function showRowMenu(isDirectory, path, name, sceneX, sceneY) {
         const count = window.session.selectedItems().length
         const a = actions
@@ -22,7 +24,7 @@ Window {
                 {text: "Restore", icon: Icons.restoreItem, action: a.restore},
                 {text: "Delete Permanently", icon: Icons.trash, action: a.deletePermanently},
                 {separator: true},
-                {text: "Properties", icon: Icons.info, shortcut: "Alt+Enter", action: a.properties},
+                {text: "Properties", icon: Icons.info, shortcut: key("properties"), action: a.properties},
             ]
         } else {
             entries.push({text: "Open", icon: Icons.open, shortcut: "Enter", action: a.open})
@@ -33,20 +35,20 @@ Window {
             } else
                 entries.push({text: "Open With…", icon: Icons.open, action: a.openWith})
             entries.push({separator: true})
-            entries.push({text: "Cut", icon: Icons.cut, shortcut: "Ctrl+X", action: a.cut})
-            entries.push({text: "Copy", icon: Icons.copy, shortcut: "Ctrl+C", action: a.copy})
-            entries.push({text: "Rename…", icon: Icons.rename, shortcut: "F2", enabled: count === 1, action: a.rename})
+            entries.push({text: "Cut", icon: Icons.cut, shortcut: key("cut"), action: a.cut})
+            entries.push({text: "Copy", icon: Icons.copy, shortcut: key("copy"), action: a.copy})
+            entries.push({text: "Rename…", icon: Icons.rename, shortcut: key("rename"), enabled: count === 1, action: a.rename})
             entries.push({text: "Create Link", icon: Icons.link, action: a.createLinks})
             entries.push({separator: true})
             entries.push({text: "Compress…", icon: Icons.archive, action: a.compress})
             if (OperationsController.isArchive(name))
                 entries.push({text: "Extract Here", icon: Icons.extract, action: a.extract})
             entries.push({separator: true})
-            entries.push({text: "Move to Trash", icon: Icons.trash, shortcut: "Del", action: a.moveToTrash})
-            entries.push({text: "Delete Permanently…", icon: Icons.warning, shortcut: "Shift+Del", action: a.deletePermanently})
+            entries.push({text: "Move to Trash", icon: Icons.trash, shortcut: key("trash"), action: a.moveToTrash})
+            entries.push({text: "Delete Permanently…", icon: Icons.warning, shortcut: key("deleteForever"), action: a.deletePermanently})
             entries.push({separator: true})
             entries.push({text: "Copy Path", icon: Icons.copy, action: () => window.session.copyPaths()})
-            entries.push({text: "Properties", icon: Icons.info, shortcut: "Alt+Enter", action: a.properties})
+            entries.push({text: "Properties", icon: Icons.info, shortcut: key("properties"), action: a.properties})
         }
         rowMenu.entries = entries
         rowMenu.openAt(sceneX, sceneY)
@@ -57,32 +59,43 @@ Window {
         if (window.session.isTrash) {
             rowMenu.entries = [
                 {text: "Empty Trash…", icon: Icons.trash, action: a.emptyTrash},
-                {text: "Refresh", icon: Icons.refresh, shortcut: "F5", action: () => window.session.refresh()},
+                {text: "Refresh", icon: Icons.refresh, shortcut: key("refresh"), action: () => window.session.refresh()},
             ]
         } else {
             rowMenu.entries = [
-                {text: "New Folder…", icon: Icons.newFolder, shortcut: "Ctrl+Shift+N", enabled: window.session.canWrite, action: a.newFolder},
+                {text: "New Folder…", icon: Icons.newFolder, shortcut: key("newFolder"), enabled: window.session.canWrite, action: a.newFolder},
                 {text: "New File…", icon: Icons.newFile, enabled: window.session.canWrite, action: a.newFile},
                 {separator: true},
-                {text: "Paste", icon: Icons.paste, shortcut: "Ctrl+V", enabled: ClipboardController.canPaste && window.session.canWrite, action: a.paste},
-                {text: OperationsController.undoText, icon: Icons.undo, shortcut: "Ctrl+Z", enabled: OperationsController.canUndo, action: () => OperationsController.undo()},
+                {text: "Paste", icon: Icons.paste, shortcut: key("paste"), enabled: ClipboardController.canPaste && window.session.canWrite, action: a.paste},
+                {text: OperationsController.undoText, icon: Icons.undo, shortcut: key("undo"), enabled: OperationsController.canUndo, action: () => OperationsController.undo()},
                 {separator: true},
-                {text: "Refresh", icon: Icons.refresh, shortcut: "F5", action: () => window.session.refresh()},
-                {text: "Show Hidden Files", icon: Icons.eye, shortcut: "Ctrl+H", checked: SettingsController.showHidden,
+                {text: "Refresh", icon: Icons.refresh, shortcut: key("refresh"), action: () => window.session.refresh()},
+                {text: "Show Hidden Files", icon: Icons.eye, shortcut: key("showHidden"), checked: SettingsController.showHidden,
                  action: () => SettingsController.showHidden = !SettingsController.showHidden},
                 {text: "Open Terminal Here", icon: Icons.terminal, enabled: window.session.canWrite, action: a.openTerminal},
                 {separator: true},
                 {text: "Copy Path", icon: Icons.copy, action: () => window.session.copyPaths()},
-                {text: "Properties", icon: Icons.info, shortcut: "Alt+Enter", action: a.properties},
+                {text: "Properties", icon: Icons.info, shortcut: key("properties"), action: a.properties},
             ]
         }
         rowMenu.openAt(sceneX, sceneY)
     }
 
     function showPlaceMenu(place, sceneX, sceneY) {
-        const entries = [{text: "Open in New Tab", icon: Icons.newTab, action: () => TabsController.openInBackground(place.path)}]
+        const entries = []
+        if (place.kind !== "drive" || place.mounted)
+            entries.push({text: "Open in New Tab", icon: Icons.newTab, action: () => TabsController.openInBackground(place.path)})
         if (place.kind === "bookmark")
             entries.push({text: "Remove Bookmark", icon: Icons.close, action: () => PlacesController.removeBookmark(place.path)})
+        if (place.kind === "drive" && place.mounted)
+            entries.push({text: "Unmount", icon: Icons.eject, action: () => PlacesController.unmount(place.device)})
+        if (place.kind === "drive" && !place.mounted)
+            entries.push({text: "Mount", icon: Icons.drive, action: () => PlacesController.mount(place.device)})
+        if (place.kind === "network")
+            entries.push({text: "Disconnect", icon: Icons.eject, action: () => PlacesController.disconnectShare(place.uri)})
+        if (place.kind === "trash")
+            entries.push({text: "Empty Trash…", icon: Icons.trash, action: actions.emptyTrash})
+        if (entries.length === 0) return
         rowMenu.entries = entries
         rowMenu.openAt(sceneX, sceneY)
     }
@@ -95,10 +108,11 @@ Window {
             {text: "Dark", checked: mode === 1, action: () => SettingsController.themeMode = 1},
             {text: "Light", checked: mode === 2, action: () => SettingsController.themeMode = 2},
             {separator: true},
-            {text: "Show Hidden Files", icon: Icons.eye, shortcut: "Ctrl+H", checked: SettingsController.showHidden,
+            {text: "Show Hidden Files", icon: Icons.eye, shortcut: key("showHidden"), checked: SettingsController.showHidden,
              action: () => SettingsController.showHidden = !SettingsController.showHidden},
-            {text: "Show Window Buttons", checked: SettingsController.windowButtonsVisible,
-             action: () => SettingsController.windowButtons = SettingsController.windowButtonsVisible ? 2 : 1},
+            {text: "Connect to Server…", icon: Icons.network, action: actions.connectToServer},
+            {separator: true},
+            {text: "Settings…", icon: Icons.settings, shortcut: key("settings"), action: () => settingsDialog.open()},
         ]
         settingsMenu.openAt(sceneX - Theme.menuMinWidth - 2 * Theme.menuPadding, sceneY + 2)
     }
@@ -121,37 +135,44 @@ Window {
         function onMessage(text) { statusBar.showMessage(text) }
     }
     Connections {
+        target: PlacesController
+        function onMounted(path) { window.session.navigate(path) }
+        function onProblem(title, text) { actions.showError(title, text) }
+    }
+    Connections {
         target: OperationsController
         function onMessage(text) { statusBar.showMessage(text) }
         function onOperationFinished() { window.session.refresh() }
     }
 
-    // ---- shortcuts ----
-    Shortcut { sequences: ["Ctrl+T"]; onActivated: TabsController.newTab() }
-    Shortcut { sequences: ["Ctrl+W"]; onActivated: TabsController.closeCurrent() }
-    Shortcut { sequences: ["Ctrl+Tab", "Ctrl+PgDown"]; onActivated: TabsController.nextTab() }
-    Shortcut { sequences: ["Ctrl+Shift+Tab", "Ctrl+PgUp"]; onActivated: TabsController.previousTab() }
-    Shortcut { sequences: ["Ctrl+Shift+T"]; onActivated: TabsController.reopenTab() }
-    Shortcut { sequences: ["Ctrl+L", "Alt+D"]; onActivated: navigationBar.addressBar.startEditing() }
-    Shortcut { sequences: ["Alt+Left"]; onActivated: window.session.goBack() }
-    Shortcut { sequences: ["Alt+Right"]; onActivated: window.session.goForward() }
-    Shortcut { sequences: ["Alt+Up"]; onActivated: window.session.goUp() }
-    Shortcut { sequences: ["F5", "Ctrl+R"]; onActivated: window.session.refresh() }
-    Shortcut { sequences: ["Ctrl+F"]; onActivated: searchBar.start() }
-    Shortcut { sequences: ["Ctrl+1"]; onActivated: SettingsController.viewMode = 0 }
-    Shortcut { sequences: ["Ctrl+2"]; onActivated: SettingsController.viewMode = 1 }
-    Shortcut { sequences: ["F3"]; onActivated: SettingsController.showPreview = !SettingsController.showPreview }
-    Shortcut { sequences: ["Ctrl+H"]; onActivated: SettingsController.showHidden = !SettingsController.showHidden }
-    Shortcut { sequences: ["Alt+Return", "Alt+Enter"]; onActivated: actions.properties() }
-    Shortcut { sequences: ["Ctrl+C"]; onActivated: actions.copy() }
-    Shortcut { sequences: ["Ctrl+X"]; onActivated: actions.cut() }
-    Shortcut { sequences: ["Ctrl+V"]; onActivated: actions.paste() }
-    Shortcut { sequences: ["Ctrl+Z"]; onActivated: OperationsController.undo() }
-    Shortcut { sequences: ["F2"]; onActivated: actions.rename() }
-    Shortcut { sequences: ["Del"]; onActivated: actions.moveToTrash() }
-    Shortcut { sequences: ["Shift+Del"]; onActivated: actions.deletePermanently() }
-    Shortcut { sequences: ["Ctrl+Shift+N"]; onActivated: actions.newFolder() }
-    Shortcut { sequences: ["Ctrl+Q"]; onActivated: Qt.quit() }
+    // ---- shortcuts: the keys are in ShortcutsController, and can be changed in the settings ----
+    ActionShortcut { name: "newTab"; onActivated: TabsController.newTab() }
+    ActionShortcut { name: "closeTab"; onActivated: TabsController.closeCurrent() }
+    ActionShortcut { name: "nextTab"; onActivated: TabsController.nextTab() }
+    ActionShortcut { name: "previousTab"; onActivated: TabsController.previousTab() }
+    ActionShortcut { name: "reopenTab"; onActivated: TabsController.reopenTab() }
+    ActionShortcut { name: "address"; onActivated: navigationBar.addressBar.startEditing() }
+    ActionShortcut { name: "back"; onActivated: window.session.goBack() }
+    ActionShortcut { name: "forward"; onActivated: window.session.goForward() }
+    ActionShortcut { name: "up"; onActivated: window.session.goUp() }
+    ActionShortcut { name: "refresh"; onActivated: window.session.refresh() }
+    ActionShortcut { name: "search"; onActivated: searchBar.start() }
+    ActionShortcut { name: "showHidden"; onActivated: SettingsController.showHidden = !SettingsController.showHidden }
+    ActionShortcut { name: "detailsView"; onActivated: SettingsController.viewMode = 0 }
+    ActionShortcut { name: "gridView"; onActivated: SettingsController.viewMode = 1 }
+    ActionShortcut { name: "preview"; onActivated: SettingsController.showPreview = !SettingsController.showPreview }
+    ActionShortcut { name: "properties"; onActivated: actions.properties() }
+    ActionShortcut { name: "copy"; onActivated: actions.copy() }
+    ActionShortcut { name: "cut"; onActivated: actions.cut() }
+    ActionShortcut { name: "paste"; onActivated: actions.paste() }
+    ActionShortcut { name: "undo"; onActivated: OperationsController.undo() }
+    ActionShortcut { name: "rename"; onActivated: actions.rename() }
+    ActionShortcut { name: "trash"; onActivated: actions.moveToTrash() }
+    ActionShortcut { name: "deleteForever"; onActivated: actions.deletePermanently() }
+    ActionShortcut { name: "newFolder"; onActivated: actions.newFolder() }
+    ActionShortcut { name: "terminal"; onActivated: actions.openTerminal() }
+    ActionShortcut { name: "settings"; onActivated: settingsDialog.open() }
+    ActionShortcut { name: "quit"; onActivated: Qt.quit() }
 
     // the side buttons of a mouse
     TapHandler {
@@ -268,6 +289,11 @@ Window {
     }
 
     PropertiesDialog {
+        onClosed: window.focusFiles()
+    }
+
+    SettingsDialog {
+        id: settingsDialog
         onClosed: window.focusFiles()
     }
 

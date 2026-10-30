@@ -70,6 +70,8 @@ QtObject {
     readonly property string recent:        "\uf017"   // clock
     readonly property string bookmark:      "\uf02e"   // bookmark
     readonly property string search:        "\uf002"   // magnifying-glass
+    readonly property string eject:         "\uf052"   // eject
+    readonly property string network:       "\uf6ff"   // network-wired
     readonly property string root:          "\uf233"   // server
     readonly property string trash:         "\uf1f8"   // trash
 
@@ -125,6 +127,7 @@ QtObject {
         case "trash":     return trash
         case "recent":    return recent
         case "bookmark":  return bookmark
+        case "network":   return network
         default:          return drive
         }
     }

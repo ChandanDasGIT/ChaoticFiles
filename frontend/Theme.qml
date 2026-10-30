@@ -159,6 +159,12 @@ QtObject {
     readonly property int operationHeight:  68
     readonly property real cutOpacity:      0.5
 
+    // ---- settings ----
+    readonly property int settingsWidth:    560
+    readonly property int settingsHeight:   620
+    readonly property int settingsRowHeight: 42
+    readonly property int shortcutBoxWidth: 190
+
     // ---- properties ----
     readonly property int propertiesWidth:  700
     readonly property int propertiesHeight: 600

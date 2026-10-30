@@ -97,7 +97,7 @@ Place driveFromMountInfo(const std::string& line)
 
     mountPoint = unescape(mountPoint);
     if (source.rfind("/dev/", 0) != 0 || source.rfind("/dev/loop", 0) == 0 || isSystemMount(mountPoint)) return {};
-    return {PathBar::baseName(mountPoint), mountPoint, "drive"};
+    return {PathBar::baseName(mountPoint), mountPoint, "drive", source};
 }
 
 std::vector<Place> drives()

@@ -4,12 +4,14 @@
 #include "archive/archiver.h"
 #include "contentinfo/contentinfo.h"
 #include "directory/directorylister.h"
+#include "drives/drives.h"
 #include "fileops/fileops.h"
 #include "filetype/filetype.h"
 #include "folderview/folderview.h"
 #include "format/format.h"
 #include "hashing/hashing.h"
 #include "navigation/navigationhistory.h"
+#include "network/networkshares.h"
 #include "pathbar/pathbar.h"
 #include "permissions/permissions.h"
 #include "places/places.h"
@@ -17,7 +19,9 @@
 #include "search/filesearch.h"
 #include "properties/properties.h"
 #include "recent/recentfiles.h"
+#include "shortcuts/shortcutmap.h"
 #include "tabs/tabmanager.h"
+#include "thumbnails/thumbnails.h"
 #include "transfer/transfer.h"
 #include "trash/trash.h"
 #include "undo/undostack.h"
@@ -938,6 +942,73 @@ static void testRecent(const fs::path& root)
     CHECK(RecentFiles::list().empty());
 }
 
+static void testShortcuts()
+{
+    ShortcutMap map;
+    CHECK(map.keysOf("copy").size() == 1 && map.keysOf("copy")[0] == "Ctrl+C");
+    CHECK(map.keysOf("nextTab").size() == 2);
+    CHECK(map.keysOf("nothing").empty());
+
+    map.set("copy", "Ctrl+Y");
+    CHECK(map.keysOf("copy")[0] == "Ctrl+Y" && map.isCustom("copy"));
+
+    map.set("paste", "Ctrl+Y");                      // one key, one action
+    CHECK(map.keysOf("copy").empty() && map.keysOf("paste")[0] == "Ctrl+Y");
+
+    map.set("refresh", "");
+    CHECK(map.keysOf("refresh").empty());
+
+    map.resetAll();
+    CHECK(map.keysOf("copy")[0] == "Ctrl+C" && !map.isCustom("copy"));
+
+    // every default key is used once
+    std::vector<std::string> seen;
+    for (const ShortcutAction& action : map.actions())
+        for (const std::string& key : action.defaults) {
+            CHECK(std::find(seen.begin(), seen.end(), key) == seen.end());
+            seen.push_back(key);
+        }
+}
+
+static void testDrives()
+{
+    const auto drives = Drives::parseLsblk(
+        "PATH=\"/dev/sda1\" LABEL=\"My Disk\" FSTYPE=\"ext4\" SIZE=\"1073741824\" MOUNTPOINT=\"\" TYPE=\"part\"\n"
+        "PATH=\"/dev/sdb\" LABEL=\"\" FSTYPE=\"\" SIZE=\"2048\" MOUNTPOINT=\"/mnt/a b\" TYPE=\"disk\"\n");
+    CHECK(drives.size() == 2);
+    CHECK(drives[0].device == "/dev/sda1" && drives[0].label == "My Disk" && drives[0].size == 1073741824);
+    CHECK(drives[0].displayName() == "My Disk" && drives[1].displayName() == "2.0 KiB Volume");
+    CHECK(drives[1].mountPoint == "/mnt/a b");
+    CHECK(Places::driveFromMountInfo("36 25 8:17 / /run/media/me/USB rw - ext4 /dev/sdb1 rw").device == "/dev/sdb1");
+}
+
+static void testNetwork()
+{
+    const NetworkShare smb = NetworkShares::parseMountName("smb-share:server=nas,share=files");
+    CHECK(smb.name == "files on nas" && smb.uri == "smb://nas/files");
+    CHECK(smb.path == NetworkShares::mountsFolder() + "/smb-share:server=nas,share=files");
+
+    const NetworkShare sftp = NetworkShares::parseMountName("sftp:host=server.local,port=2222,user=me");
+    CHECK(sftp.name == "server.local" && sftp.uri == "sftp://me@server.local:2222/");
+
+    CHECK(NetworkShares::parseMountName("something-else").uri.empty());
+    CHECK(NetworkShares::parseMountName("mtp:host=phone").uri.empty());
+
+    CHECK(NetworkShares::normalizeAddress(" nas/files ") == "smb://nas/files");
+    CHECK(NetworkShares::normalizeAddress("sftp://me@host") == "sftp://me@host");
+    CHECK(NetworkShares::normalizeAddress("\\\\nas\\files") == "smb://nas/files");
+}
+
+static void testThumbnails(const fs::path& root)
+{
+    setenv("XDG_CACHE_HOME", (root / "cache").c_str(), 1);
+    // the name the thumbnail specification gives: the MD5 of the file's URL
+    CHECK(Thumbnails::cachePath("/tmp/a b.png") == (root / "cache" / "thumbnails" / "large").string() + "/"
+          + Hashing::hashText("MD5", "file:///tmp/a%20b.png") + ".png");
+    CHECK(Thumbnails::ensureCacheFolder() && fs::is_directory(root / "cache" / "thumbnails" / "large"));
+    CHECK(!Thumbnails::generate("/nope", "other", (root / "x.png").string(), 256, {}));
+}
+
 int main()
 {
     char pattern[] = "/tmp/chaoticfiles-tests-XXXXXX";
@@ -970,6 +1041,10 @@ int main()
     testApps();
     testSearch(root);
     testRecent(root);
+    testShortcuts();
+    testDrives();
+    testNetwork();
+    testThumbnails(root);
 
     fs::remove_all(root);
     if (failures == 0) std::printf("All backend tests passed.\n");

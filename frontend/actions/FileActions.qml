@@ -127,6 +127,8 @@ Item {
             notice.ask({title: "No terminal was found", text: "Set the TERMINAL environment variable to your terminal app.", cancelText: ""})
     }
 
+    function connectToServer() { connectDialog.ask() }
+
     function showError(title, text) { notice.ask({title: title, text: text, cancelText: ""}) }
 
     Connections {
@@ -144,5 +146,6 @@ Item {
     ConfirmDialog { id: confirm; onClosed: root.dialogClosed() }
     ConfirmDialog { id: notice; onClosed: root.dialogClosed() }
     OpenWithDialog { id: openWithDialog; onClosed: root.dialogClosed() }
+    ConnectDialog { id: connectDialog; onClosed: root.dialogClosed() }
     ConflictDialog { onClosed: root.dialogClosed() }
 }

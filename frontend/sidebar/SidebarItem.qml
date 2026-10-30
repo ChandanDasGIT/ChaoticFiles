@@ -7,6 +7,7 @@ Rectangle {
     property string name: ""
     property string icon: ""
     property bool active: false
+    property bool dimmed: false            // a drive that is not mounted yet
     signal clicked()
     signal middleClicked()
     signal menuRequested(real sceneX, real sceneY)
@@ -37,7 +38,7 @@ Rectangle {
         text: root.name
         elide: Text.ElideRight
         font.pixelSize: Theme.fontSize
-        color: Theme.text
+        color: root.dimmed ? Theme.textMuted : Theme.text
     }
     DropArea {
         id: dropArea
