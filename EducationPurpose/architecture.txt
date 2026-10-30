@@ -4,109 +4,242 @@ The three layers: frontend/ (QML) talks to wrapper/ (Qt C++), and wrapper/ talks
 Left out: build/ (generated, not part of the code).
 
 ChaoticFiles/
-├── backend/                            // pure C++20 engine, no Qt: built as its own static library, fileengine
-│   ├── directory/                      // reading a folder
-│   │   ├── directorylister.h           // listDirectory, and DirectoryLister, which runs it on a thread and can be cancelled
-│   │   └── directorylister.cpp         // reads names, details and types, sorts, turns errors into sentences
-│   ├── diskspace/                      // free space
-│   │   ├── diskspace.h                 // DiskSpace and readDiskSpace
-│   │   └── diskspace.cpp               // asks statvfs
-│   ├── entry/                          // one file or folder
-│   │   ├── entry.h                     // Entry, EntryKind, FileCategory, readEntry
-│   │   └── entry.cpp                   // asks statx; a link takes its kind and size from its target
-│   ├── filetype/                       // what kind of file
-│   │   ├── filetype.h                  // detectFileType and categoryName
-│   │   └── filetype.cpp                // table of extensions; does not read the file
-│   ├── folderview/                     // what one tab shows
-│   │   ├── folderview.h                // sorted, filtered rows and the selection, kept by name
-│   │   └── folderview.cpp              // hiding, click modes, keyboard movement, type-to-select
-│   ├── format/                         // text for the screen
-│   │   ├── format.h                    // namespace Format: size, date, item count
-│   │   └── format.cpp                  // its implementation
-│   ├── navigation/                     // back and forward
-│   │   ├── navigationhistory.h         // the folders one tab has visited
-│   │   └── navigationhistory.cpp       // visit, goBack, goForward
-│   ├── pathbar/                        // the address bar's logic
-│   │   ├── pathbar.h                   // namespace PathBar: split, parent, subfolders, resolve, suggestions
-│   │   └── pathbar.cpp                 // handles ~, relative paths and file:// addresses
-│   ├── places/                         // the sidebar's logic
-│   │   ├── places.h                    // namespace Places: user folders and mounted drives
-│   │   └── places.cpp                  // reads user-dirs.dirs and /proc/self/mountinfo, adds the Trash
-│   ├── sorting/                        // ordering
-│   │   ├── sorting.h                   // SortKey, SortSettings, naturalCompare, sortEntries
-│   │   └── sorting.cpp                 // natural order, folders first
-│   ├── tabs/                           // the open tabs
-│   │   ├── tabmanager.h                // Tab (history and FolderView) and TabManager
-│   │   └── tabmanager.cpp              // open, close, move, reopen
-│   ├── trash/                          // the shared Trash
-│   │   ├── trash.h                     // namespace Trash: where it is, and creating it
-│   │   └── trash.cpp                   // follows the freedesktop.org Trash specification
-│   └── watcher/                        // noticing changes
-│       ├── folderwatcher.h             // calls back when a folder changes
-│       └── folderwatcher.cpp           // inotify on its own thread, groups bursts of changes
-├── dependencies/                       // third-party code; nothing yet
-│   └── README.md                       // says so
-├── EducationPurpose/                   // this explanation of the project
-│   └── architecture.txt                // this file
-├── frontend/                           // everything you see
-│   ├── addressbar/                     // the address bar
-│   │   ├── AddressBar.qml              // folders as buttons, or a text field with suggestions
-│   │   └── PathSegment.qml             // one folder and its arrow
-│   ├── fileview/                       // the file list
-│   │   ├── ColumnHeader.qml            // the column titles; click to sort
-│   │   ├── FileRow.qml                 // one row; draws and reports clicks
-│   │   └── FileView.qml                // the list of one tab, its keyboard and its empty or error message
-│   ├── popupmenu/                      // things that pop up
-│   │   ├── FolderPopup.qml             // the list of folders under the address bar
-│   │   ├── PopupMenu.qml               // a menu built from a list of entries
-│   │   └── PopupMenuItem.qml           // one row of a menu
-│   ├── sidebar/                        // the left side
-│   │   ├── Sidebar.qml                 // places and drives
-│   │   └── SidebarItem.qml             // one place
-│   ├── statusbar/                      // the bottom line
-│   │   └── StatusBar.qml               // counts, messages, free space
-│   ├── tabbar/                         // the title bar
-│   │   ├── BrowserTab.qml              // one tab in the Windows 11 shape
-│   │   └── BrowserTabBar.qml           // the tabs, "+", dragging tabs, free space that moves the window
-│   ├── toolbar/                        // the row under the tabs
-│   │   ├── NavigationBar.qml           // back, forward, up, refresh, address bar, settings
-│   │   └── ToolbarButton.qml           // one icon button
-│   ├── window/                         // parts of the window itself
-│   │   ├── ResizeHandles.qml           // invisible strips along the edges that resize the window
-│   │   └── WindowButtons.qml           // minimise, maximise, close
-│   ├── Icons.qml                       // singleton: every icon as a  style code
-│   └── Theme.qml                       // singleton: every colour and size; dark, light or system
-├── resources/                          // files built into the app
-│   └── fonts/                          // fonts
-│       └── fa-solid-900.ttf            // Font Awesome 6 Free Solid, the icon font
-├── tests/                              // tests, no Qt
-│   └── backendtests.cpp                // the engine's tests, run by ctest
-├── wrapper/                            // Qt C++ between QML and the engine: controllers and list models
-│   ├── folderWrap/                     // one tab's folder for QML
-│   │   ├── foldermodel.h               // list model of the rows; owns nothing, asks FolderView (FolderModel)
-│   │   ├── foldermodel.cpp             // its implementation
-│   │   ├── foldersession.h             // a tab's folder, navigation and selection (FolderSession)
-│   │   └── foldersession.cpp           // starts listings, takes results on the UI thread, opens files, copies paths
-│   ├── pathbarWrap/                    // the address bar for QML
-│   │   ├── pathbarcontroller.h         // passes questions to the engine's PathBar (PathBarController)
-│   │   └── pathbarcontroller.cpp       // its implementation
-│   ├── placesWrap/                     // the sidebar for QML
-│   │   ├── placescontroller.h          // places and drives as lists (PlacesController)
-│   │   └── placescontroller.cpp        // creates the Trash if needed, checks for drive changes every 3 seconds
-│   ├── settingsWrap/                   // settings for QML
-│   │   ├── settingscontroller.h        // theme, hidden files, window buttons (SettingsController)
-│   │   ├── settingscontroller.cpp      // reads and writes QSettings
-│   │   ├── systemtheme.h               // whether the desktop prefers dark (SystemTheme)
-│   │   └── systemtheme.cpp             // asks the freedesktop settings portal, falls back to Qt
-│   └── tabsWrap/                       // the tabs for QML
-│       ├── tabscontroller.h            // list model of tabs, and every tab action (TabsController)
-│       └── tabscontroller.cpp          // keeps one FolderSession per tab
-├── .gitignore                          // what git leaves out
-├── CLAUDE.md                           // the rules and layout, for AI assistants
-├── CMakeLists.txt                      // the build: fileengine library, app and QML module, tests
-├── Features.txt                        // feature list
-├── LICENSE                             // the GNU GPL v3 license
-├── main.cpp                            // start of the program: opens tabs, loads Main.qml
-├── Main.qml                            // the window: layout, shortcuts, menus
-├── README.md                           // what it is and how to build it
-└── ROADMAP.md                          // the plan
+├── backend/                                // pure C++20 engine, no Qt: built as its own static library, fileengine
+│   ├── apps/                               // installed apps
+│   │   ├── desktopapps.cpp                 // parses Exec lines without a shell, starts apps
+│   │   └── desktopapps.h                   // reads .desktop files; apps for a file type, Open With, the terminal
+│   ├── archive/                            // archives
+│   │   ├── archiver.cpp                    // picks the program by extension; removes a failed archive
+│   │   └── archiver.h                      // compress and extract through tar, zip, unzip and 7z
+│   ├── btrfs/                              // btrfs details
+│   │   ├── btrfsinfo.cpp                   // FIEMAP and INO_LOOKUP ioctls; needs no root
+│   │   └── btrfsinfo.h                     // subvolume, extents, shared and exclusive space
+│   ├── contentinfo/                        // what is inside a file
+│   │   ├── archiveinfo.cpp                 // counts through tar or 7z
+│   │   ├── contentinfo.cpp                 // MIME type and type description, then the matching reader
+│   │   ├── contentinfo.h                   // namespace ContentInfo: one reader per kind of file
+│   │   ├── elfinfo.cpp                     // reads ELF headers: architecture, libraries, interpreter, stripped
+│   │   ├── imageinfo.cpp                   // reads image headers and EXIF
+│   │   ├── mediainfo.cpp                   // audio and video through ffprobe
+│   │   ├── pdfinfo.cpp                     // PDF details through pdfinfo
+│   │   └── textinfo.cpp                    // lines, words, characters, line endings
+│   ├── directory/                          // reading a folder
+│   │   ├── directorylister.cpp             // reads, sorts, and also lists the Trash and Recent
+│   │   └── directorylister.h               // listDirectory, and DirectoryLister, which runs it on a thread and can be cancelled
+│   ├── diskspace/                          // free space
+│   │   ├── diskspace.cpp                   // asks statvfs
+│   │   └── diskspace.h                     // DiskSpace and readDiskSpace
+│   ├── drives/                             // disks
+│   │   ├── drives.cpp                      // lsblk and udisksctl
+│   │   └── drives.h                        // what is plugged in; mount and unmount
+│   ├── entry/                              // one file or folder
+│   │   ├── entry.cpp                       // asks statx; a link takes its kind and size from its target
+│   │   └── entry.h                         // Entry, EntryKind, FileCategory, readEntry
+│   ├── fileflags/                          // lsattr flags
+│   │   ├── fileflags.cpp                   // the FS_IOC_GETFLAGS ioctl, for regular files and folders only
+│   │   └── fileflags.h                     // FileFlags::read
+│   ├── fileops/                            // small changes to the disk
+│   │   ├── fileops.cpp                     // nothing here overwrites; removeTree never follows links or crosses disks
+│   │   └── fileops.h                       // new file, new folder, link, rename, delete, protected folders
+│   ├── filetype/                           // what kind of file
+│   │   ├── filetype.cpp                    // table of extensions; does not read the file
+│   │   └── filetype.h                      // detectFileType and categoryName
+│   ├── folderscan/                         // adding up a folder
+│   │   ├── folderscan.cpp                  // walks without following links
+│   │   └── folderscan.h                    // counts, sizes, largest files
+│   ├── folderview/                         // what one tab shows
+│   │   ├── folderview.cpp                  // hiding, filtering, click modes, keyboard movement, type-to-select
+│   │   └── folderview.h                    // sorted, filtered rows and the selection, kept by path
+│   ├── format/                             // text for the screen
+│   │   ├── format.cpp                      // its implementation
+│   │   └── format.h                        // namespace Format: sizes, dates, counts
+│   ├── hashing/                            // file hashes
+│   │   ├── hashing.cpp                     // one pass over the file for all of them
+│   │   └── hashing.h                       // MD5, SHA-1, SHA-256, SHA-512, BLAKE3
+│   ├── magic/                              // detailed file types
+│   │   ├── magicfile.cpp                   // dlopen of libmagic.so.1
+│   │   └── magicfile.h                     // libmagic, loaded when needed, so it is optional
+│   ├── mounts/                             // mounted filesystems
+│   │   ├── mounts.cpp                      // reads /proc/self/mountinfo
+│   │   └── mounts.h                        // Mount and namespace Mounts
+│   ├── navigation/                         // back and forward
+│   │   ├── navigationhistory.cpp           // visit, goBack, goForward
+│   │   └── navigationhistory.h             // the folders one tab has visited
+│   ├── network/                            // NAS and servers
+│   │   ├── networkshares.cpp               // gio mount; the password goes through standard input
+│   │   └── networkshares.h                 // SMB and SFTP through gvfs
+│   ├── pathbar/                            // the address bar's logic
+│   │   ├── pathbar.cpp                     // handles ~, relative paths and file:// addresses
+│   │   └── pathbar.h                       // namespace PathBar: split, parent, subfolders, resolve, suggestions, the Trash and Recent locations
+│   ├── permissions/                        // permissions
+│   │   ├── permissions.cpp                 // reads the binary ACL and capability formats
+│   │   └── permissions.h                   // names, rwx text, ACLs, capabilities
+│   ├── places/                             // the sidebar's logic
+│   │   ├── places.cpp                      // reads user-dirs.dirs and /proc/self/mountinfo
+│   │   └── places.h                        // namespace Places: user folders and mounted drives
+│   ├── process/                            // other programs
+│   │   ├── process.cpp                     // fork and exec, never a shell
+│   │   └── process.h                       // run a program and collect its output, or start one by itself
+│   ├── properties/                         // the properties report
+│   │   ├── properties.cpp                  // General, Permissions, Filesystem, Attributes, Link, Btrfs, Contents
+│   │   ├── properties.h                    // namespace Properties: collect every section
+│   │   └── propertyreport.h                // PropertyRow and PropertySection
+│   ├── recent/                             // recent files
+│   │   ├── recentfiles.cpp                 // its implementation
+│   │   └── recentfiles.h                   // this app's list, and other apps' recently-used.xbel, read only
+│   ├── search/                             // searching
+│   │   ├── filesearch.cpp                  // sends matches in batches; no links, one disk
+│   │   └── filesearch.h                    // FileSearch::run walks a folder tree
+│   ├── shortcuts/                          // keyboard shortcuts
+│   │   ├── shortcutmap.cpp                 // the default keys; a key belongs to one action only
+│   │   └── shortcutmap.h                   // which keys do what
+│   ├── sorting/                            // ordering
+│   │   ├── sorting.cpp                     // natural order, folders first
+│   │   └── sorting.h                       // SortKey, SortSettings, naturalCompare, sortEntries
+│   ├── tabs/                               // the open tabs
+│   │   ├── tabmanager.cpp                  // open, close, move, reopen
+│   │   └── tabmanager.h                    // Tab (history and FolderView) and TabManager
+│   ├── tasks/                              // background work
+│   │   ├── backgroundjob.cpp               // its implementation
+│   │   └── backgroundjob.h                 // a thread that is never waited for, and can be cancelled
+│   ├── thumbnails/                         // thumbnails
+│   │   ├── thumbnails.cpp                  // names in the cache; video and PDF through other programs
+│   │   └── thumbnails.h                    // the shared thumbnail cache
+│   ├── transfer/                           // copy and move
+│   │   ├── transfer.cpp                    // conflicts, merging, reflinks, temporary files, pause and cancel
+│   │   └── transfer.h                      // Transfer: the safety rules are at the top of this file
+│   ├── trash/                              // the shared Trash
+│   │   ├── trash.cpp                       // follows the freedesktop.org Trash specification, on every disk
+│   │   └── trash.h                         // namespace Trash: move in, restore, list, empty
+│   ├── undo/                               // undo
+│   │   ├── undostack.cpp                   // keeps the last 50 steps
+│   │   └── undostack.h                     // what was done and how to take it back
+│   ├── watcher/                            // noticing changes
+│   │   ├── folderwatcher.cpp               // inotify on its own thread, groups bursts of changes
+│   │   └── folderwatcher.h                 // calls back when a folder changes
+│   └── xattrs/                             // 
+│       ├── xattrs.cpp                      // 
+│       └── xattrs.h                        // 
+├── dependencies/                           // third-party code
+│   ├── blake3/                             // the official BLAKE3 C code, portable part
+│   │   ├── blake3.c                        // unchanged
+│   │   ├── blake3.h                        // unchanged
+│   │   ├── blake3_dispatch.c               // unchanged
+│   │   ├── blake3_impl.h                   // unchanged
+│   │   ├── blake3_portable.c               // unchanged
+│   │   └── LICENSE_CC0                     // its license
+│   └── README.md                           // what is here and what is used at run time
+├── EducationPurpose/                       // this explanation of the project
+│   └── architecture.txt                    // this file
+├── frontend/                               // everything you see
+│   ├── actions/                            // what the keys and menus do
+│   │   ├── ActionShortcut.qml              // a shortcut whose keys come from the settings
+│   │   └── FileActions.qml                 // every action on files, and the dialogs they use
+│   ├── addressbar/                         // the address bar
+│   │   ├── AddressBar.qml                  // folders as buttons, or a text field with suggestions
+│   │   └── PathSegment.qml                 // one folder and its arrow
+│   ├── common/                             // small shared parts
+│   │   └── ThinScrollBar.qml               // the scrollbar used everywhere
+│   ├── dialogs/                            // dialogs
+│   │   ├── ConfirmDialog.qml               // a question or a notice
+│   │   ├── ConflictDialog.qml              // "already exists": replace, skip, keep both
+│   │   ├── ConnectDialog.qml               // connect to a NAS or server
+│   │   ├── DialogButton.qml                // a button with a word on it
+│   │   ├── DialogFrame.qml                 // the look all dialogs share
+│   │   ├── NameDialog.qml                  // asks for a name
+│   │   └── OpenWithDialog.qml              // choose an app
+│   ├── fileview/                           // the file list
+│   │   ├── ColumnHeader.qml                // the column titles; click to sort
+│   │   ├── FileCell.qml                    // one item in the grid
+│   │   ├── FileItemArea.qml                // mouse, drag and drop, shared by rows and cells
+│   │   ├── FileRow.qml                     // one row in the list
+│   │   ├── FileView.qml                    // the list and grid of one tab, and its keyboard
+│   │   └── ViewBackground.qml              // empty space: rubber band selection and drops
+│   ├── operations/                         // running jobs
+│   │   └── OperationsPanel.qml             // progress, pause and cancel
+│   ├── popupmenu/                          // things that pop up
+│   │   ├── FolderPopup.qml                 // the list of folders under the address bar
+│   │   ├── PopupMenu.qml                   // a menu built from a list of entries
+│   │   └── PopupMenuItem.qml               // one row of a menu
+│   ├── preview/                            // the preview panel
+│   │   └── PreviewPanel.qml                // picture or text of the current file
+│   ├── properties/                         // the properties window
+│   │   ├── PropertiesDialog.qml            // tabs of properties and hashes
+│   │   └── PropertyRow.qml                 // one property
+│   ├── search/                             // searching
+│   │   └── SearchBar.qml                   // filter as you type, or all subfolders
+│   ├── settings/                           // the settings window
+│   │   ├── SettingsDialog.qml              // every setting and shortcut
+│   │   ├── SettingsSection.qml             // a title with a choice of buttons
+│   │   └── ShortcutRow.qml                 // one shortcut; click and press keys
+│   ├── sidebar/                            // the left side
+│   │   ├── Sidebar.qml                     // places, bookmarks, drives, network
+│   │   └── SidebarItem.qml                 // one place
+│   ├── statusbar/                          // the bottom line
+│   │   └── StatusBar.qml                   // counts, messages, free space
+│   ├── tabbar/                             // the title bar
+│   │   ├── BrowserTab.qml                  // one tab in the Windows 11 shape
+│   │   └── BrowserTabBar.qml               // the tabs, "+", dragging tabs, free space that moves the window
+│   ├── toolbar/                            // the row under the tabs
+│   │   ├── NavigationBar.qml               // back, forward, up, refresh, address bar, view buttons, settings
+│   │   └── ToolbarButton.qml               // one icon button
+│   ├── window/                             // parts of the window itself
+│   │   ├── ResizeHandles.qml               // invisible strips along the edges that resize the window
+│   │   └── WindowButtons.qml               // minimise, maximise, close
+│   ├── Icons.qml                           // singleton: every icon as a \uf04b style code
+│   └── Theme.qml                           // singleton: every colour and size; dark, light or system
+├── resources/                              // files built into the app
+│   └── fonts/                              // fonts
+│       └── fa-solid-900.ttf                // Font Awesome 6 Free Solid, the icon font
+├── tests/                                  // tests, no Qt
+│   └── backendtests.cpp                    // the engine's tests, run by ctest
+├── wrapper/                                // Qt C++ between QML and the engine: controllers and list models
+│   ├── appsWrap/                           // Open With for QML
+│   │   ├── appscontroller.cpp              // its implementation
+│   │   └── appscontroller.h                // apps for a file, and the terminal (AppsController)
+│   ├── clipboardWrap/                      // cut, copy, paste
+│   │   ├── clipboardcontroller.cpp         // its implementation
+│   │   └── clipboardcontroller.h           // in the format other file managers use (ClipboardController)
+│   ├── folderWrap/                         // one tab's folder for QML
+│   │   ├── foldermodel.cpp                 // its implementation
+│   │   ├── foldermodel.h                   // list model of the rows; owns nothing, asks FolderView (FolderModel)
+│   │   ├── foldersession.cpp               // starts listings, takes results on the UI thread, opens files
+│   │   └── foldersession.h                 // a tab's folder, navigation, selection, search (FolderSession)
+│   ├── operationsWrap/                     // everything that changes the disk
+│   │   ├── operationscontroller.cpp        // starts engine work on background threads and reports back
+│   │   └── operationscontroller.h          // list model of running jobs, conflicts, undo (OperationsController)
+│   ├── pathbarWrap/                        // the address bar for QML
+│   │   ├── pathbarcontroller.cpp           // its implementation
+│   │   └── pathbarcontroller.h             // passes questions to the engine's PathBar (PathBarController)
+│   ├── placesWrap/                         // the sidebar for QML
+│   │   ├── placescontroller.cpp            // creates the Trash if needed; checks drives every 4 seconds off the UI thread
+│   │   └── placescontroller.h              // places, bookmarks, drives, network shares (PlacesController)
+│   ├── previewWrap/                        // the preview panel for QML
+│   │   ├── previewcontroller.cpp           // its implementation
+│   │   └── previewcontroller.h             // the start of a text file (PreviewController)
+│   ├── propertiesWrap/                     // the properties window for QML
+│   │   ├── propertiescontroller.cpp        // its implementation
+│   │   └── propertiescontroller.h          // fills the window from background threads (PropertiesController)
+│   ├── settingsWrap/                       // settings for QML
+│   │   ├── settingscontroller.cpp          // reads and writes QSettings
+│   │   ├── settingscontroller.h            // theme, view, hidden files, window buttons (SettingsController)
+│   │   ├── systemtheme.cpp                 // asks the freedesktop settings portal, falls back to Qt
+│   │   └── systemtheme.h                   // whether the desktop prefers dark (SystemTheme)
+│   ├── shortcutsWrap/                      // shortcuts for QML
+│   │   ├── shortcutscontroller.cpp         // saves changes in QSettings
+│   │   └── shortcutscontroller.h           // the keys of each action (ShortcutsController)
+│   ├── tabsWrap/                           // the tabs for QML
+│   │   ├── tabscontroller.cpp              // keeps one FolderSession per tab
+│   │   └── tabscontroller.h                // list model of tabs, and every tab action (TabsController)
+│   └── thumbnailsWrap/                     // thumbnails for QML
+│       ├── thumbnailprovider.cpp           // makes thumbnails off the UI thread, a few at a time
+│       └── thumbnailprovider.h             // image://thumb/ for QML (ThumbnailProvider)
+├── .gitignore                              // what git leaves out
+├── CLAUDE.md                               // the rules and layout, for AI assistants
+├── CMakeLists.txt                          // the build: BLAKE3, fileengine library, app and QML module, tests
+├── Features.txt                            // feature list
+├── LICENSE                                 // the GNU GPL v3 license
+├── main.cpp                                // start of the program: opens tabs, loads Main.qml
+├── Main.qml                                // the window: layout, shortcuts, menus
+├── README.md                               // what it is and how to build it
+└── ROADMAP.md                              // the plan

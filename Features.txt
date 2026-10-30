@@ -1,4 +1,4 @@
-ChaoticFiles 0.1 is a Qt 6 / QML file manager for Linux. The engine is plain C++20 and does not depend on Qt.
+ChaoticFiles is a Qt 6 / QML file manager for Linux. The engine is plain C++20 and does not depend on Qt.
 
 Browsing
 - Folder list with name, date modified, type and size.
@@ -16,6 +16,7 @@ Tabs
 - New tab Ctrl+T, close Ctrl+W or middle click, switch with Ctrl+Tab, reopen with Ctrl+Shift+T.
 - Drag a tab to reorder. Tabs shrink as more open, then the strip scrolls with the wheel.
 - Each tab has its own folder, history, sorting, selection and scroll position.
+- Drop files on a tab to put them in its folder.
 - Middle click a folder, or right click it, to open it in a new tab.
 
 Address bar
@@ -24,9 +25,19 @@ Address bar
 - Click the empty part or press Ctrl+L to type a path. ~ works, and folders are suggested as you type.
 - Long paths collapse into a "…" button.
 
+Views and search
+- Details and grid views. Ctrl+1, Ctrl+2. Ctrl+wheel changes the grid size.
+- Thumbnails for images, video and PDF, in the cache other Linux apps share.
+- Rubber band selection: drag from an empty part of the list or grid.
+- Preview panel (F3): a picture or the start of the text of the current file.
+- Ctrl+F filters the folder as you type. All Subfolders searches everything below it, showing each result's folder.
+
 Sidebar and status bar
-- Home, the standard user folders, the file system, the Trash, and mounted drives, which update by themselves.
-- The Trash is the one Linux desktops share, so files trashed by other apps appear in it. Moving files to it comes later.
+- Home, Recent, the standard user folders, the file system, the Trash.
+- Bookmarks: add a folder from its right click menu.
+- Drives update by themselves. Click one that is not mounted to mount it; right click to unmount.
+- NAS and servers: Connect to Server in the gear menu, for SMB and SFTP. Passwords are not stored.
+- Recent shows files opened here and in other Linux apps.
 - Item count, selection count and size, free disk space.
 
 Properties (Alt+Enter)
@@ -62,4 +73,5 @@ File operations
 Interface
 - Dark, light and system themes. System follows the desktop's dark or light preference.
 - Draws its own title bar. Window buttons are off by default on tiling desktops, and can be switched on.
-- Right click menus on files and on empty space. Copy Path.
+- Right click menus on files, empty space and sidebar items. Copy Path.
+- Settings window (Ctrl+,), with editable keyboard shortcuts and Restore Defaults.
