@@ -9,10 +9,11 @@ Rectangle {
     property bool active: false
     signal clicked()
     signal middleClicked()
+    signal urlsDropped(var urls)
 
     implicitHeight: Theme.sidebarRowHeight
     radius: Theme.controlRadius
-    color: active ? Theme.selectionBg : area.containsMouse ? Theme.hoverBg : "transparent"
+    color: active || dropArea.containsDrag ? Theme.selectionBg : area.containsMouse ? Theme.hoverBg : "transparent"
 
     Text {
         id: iconText
@@ -36,6 +37,15 @@ Rectangle {
         elide: Text.ElideRight
         font.pixelSize: Theme.fontSize
         color: Theme.text
+    }
+    DropArea {
+        id: dropArea
+        anchors.fill: parent
+        onEntered: (drag) => { drag.accepted = drag.hasUrls }
+        onDropped: (drop) => {
+            drop.accept(Qt.CopyAction)
+            root.urlsDropped(drop.urls)
+        }
     }
     MouseArea {
         id: area

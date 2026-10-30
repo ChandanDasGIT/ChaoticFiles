@@ -70,6 +70,7 @@ FolderSession* TabsController::insertTab(const std::shared_ptr<Tab>& tab, int in
 {
     auto* session = new FolderSession(tab, SettingsController::instance()->showHidden(), this);
     connect(session, &FolderSession::message, this, &TabsController::message);
+    session->setCutPaths(m_cutPaths);
     beginInsertRows({}, index, index);
     m_sessions.insert(index, session);
     endInsertRows();
@@ -155,6 +156,12 @@ void TabsController::moveTab(int from, int to)
     m_sessions.move(from, to);
     endMoveRows();
     updateCurrent(currentSession());
+}
+
+void TabsController::setCutPaths(const QStringList& paths)
+{
+    m_cutPaths = paths;
+    for (FolderSession* session : m_sessions) session->setCutPaths(paths);
 }
 
 void TabsController::reopenTab()

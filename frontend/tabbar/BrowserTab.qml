@@ -15,6 +15,7 @@ Item {
     signal dragStarted(real sceneX)
     signal dragMoved(real sceneX)
     signal dragEnded()
+    signal urlsDropped(var urls)
 
     readonly property bool hovered: tabArea.containsMouse || closeArea.containsMouse
 
@@ -59,6 +60,16 @@ Item {
         width: 1
         height: parent.height / 2
         color: Theme.divider
+    }
+
+    // files dragged onto a tab go into its folder
+    DropArea {
+        anchors.fill: parent
+        onEntered: (drag) => { drag.accepted = drag.hasUrls }
+        onDropped: (drop) => {
+            drop.accept(Qt.CopyAction)
+            root.urlsDropped(drop.urls)
+        }
     }
 
     // ---- click: select. Middle click: close. Drag: reorder ----

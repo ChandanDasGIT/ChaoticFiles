@@ -30,6 +30,7 @@ Rectangle {
                     active: root.session?.path === modelData.path
                     onClicked: root.session.navigate(modelData.path)
                     onMiddleClicked: TabsController.openInBackground(modelData.path)
+                    onUrlsDropped: (urls) => OperationsController.dropUrls(urls, modelData.path)
                 }
             }
 
@@ -54,6 +55,7 @@ Rectangle {
                     active: root.session?.path === modelData.path
                     onClicked: root.session.navigate(modelData.path)
                     onMiddleClicked: TabsController.openInBackground(modelData.path)
+                    onUrlsDropped: (urls) => OperationsController.dropUrls(urls, modelData.path)
                 }
             }
         }

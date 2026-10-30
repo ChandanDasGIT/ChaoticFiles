@@ -23,10 +23,10 @@ QVariant FolderModel::data(const QModelIndex& index, int role) const
     switch (role) {
     case NameRole: return QString::fromStdString(entry.name);
     case PathRole: return QString::fromStdString(entry.path);
-    case TypeRole: return QString::fromStdString(entry.typeName);
+    case TypeRole: return QString::fromStdString(entry.location.empty() ? entry.typeName : entry.location);
     case SizeRole:
         return entry.isDirectory() || entry.brokenLink ? QString() : QString::fromStdString(Format::size(entry.size));
-    case ModifiedRole: return QString::fromStdString(Format::date(entry.modified));
+    case ModifiedRole: return entry.modified ? QString::fromStdString(Format::date(entry.modified)) : QString();
     case CategoryRole: return QString::fromLatin1(categoryName(entry.category));
     case IsDirectoryRole: return entry.isDirectory();
     case IsLinkRole: return entry.symlink;
@@ -34,6 +34,7 @@ QVariant FolderModel::data(const QModelIndex& index, int role) const
     case IsBrokenRole: return entry.brokenLink;
     case IsSelectedRole: return m_view->isSelected(row);
     case IsCurrentRole: return m_view->currentRow() == row;
+    case IsCutRole: return m_view->isCut(row);
     default: return {};
     }
 }
@@ -44,12 +45,12 @@ QHash<int, QByteArray> FolderModel::roleNames() const
         {NameRole, "name"}, {PathRole, "path"}, {TypeRole, "typeText"}, {SizeRole, "sizeText"},
         {ModifiedRole, "modifiedText"}, {CategoryRole, "category"}, {IsDirectoryRole, "isDirectory"},
         {IsLinkRole, "isLink"}, {IsHiddenRole, "isHidden"}, {IsBrokenRole, "isBroken"},
-        {IsSelectedRole, "isSelected"}, {IsCurrentRole, "isCurrent"},
+        {IsSelectedRole, "isSelected"}, {IsCurrentRole, "isCurrent"}, {IsCutRole, "isCut"},
     };
 }
 
 void FolderModel::selectionChanged()
 {
     if (m_view->count() == 0) return;
-    emit dataChanged(index(0), index(m_view->count() - 1), {IsSelectedRole, IsCurrentRole});
+    emit dataChanged(index(0), index(m_view->count() - 1), {IsSelectedRole, IsCurrentRole, IsCutRole});
 }

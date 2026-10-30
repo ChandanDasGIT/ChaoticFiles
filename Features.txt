@@ -42,6 +42,23 @@ Properties (Alt+Enter)
 - Hashes on request: MD5, SHA-1, SHA-256, SHA-512, BLAKE3, with progress and cancel.
 - Every value can be copied, and Copy All gives a plain text report.
 
+File operations
+- New folder, new file, rename (F2), create link. None of these ever replaces an existing item.
+- Cut, copy and paste, also with other Linux file managers. Cut items are shown faded.
+- Drag and drop onto folders, the empty part of the list, the sidebar and tabs. Same disk moves, another disk
+  copies; hold Ctrl to copy or Shift to move.
+- Progress for each running job, with pause and cancel. Several jobs can run at once.
+- "Already exists" dialog: replace, skip, keep both, or cancel, for one item or all of them.
+- Copies use reflinks on btrfs, so they are instant and take no extra space.
+- A cancelled or failed copy leaves no half-written file, and a replaced file stays until the new one is complete.
+- A move across disks deletes the original only after everything has arrived.
+- Move to Trash (Del), restore, empty, delete permanently (Shift+Del) with a warning.
+- The Trash covers every disk, and shows where each item came from and when it was deleted.
+- /, the folders directly under it, and Home can't be trashed or deleted.
+- Undo (Ctrl+Z) for rename, move, Trash, new items and copies. Undoing a copy moves it to the Trash.
+- Open With, showing the apps that fit, or all apps. Open Terminal Here.
+- Compress to .tar.gz, .tar.xz, .tar.zst, .zip or .7z. Extract always goes into a new folder.
+
 Interface
 - Dark, light and system themes. System follows the desktop's dark or light preference.
 - Draws its own title bar. Window buttons are off by default on tiling desktops, and can be switched on.

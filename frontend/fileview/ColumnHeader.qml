@@ -4,6 +4,7 @@ import QtQuick
 Rectangle {
     id: root
 
+    property bool inTrash: false
     property int sortKey: 0
     property bool sortAscending: true
     signal sortRequested(int key)
@@ -58,8 +59,8 @@ Rectangle {
             key: 0
             width: parent.width - Theme.columnModified - Theme.columnType - Theme.columnSize
         }
-        Column { title: "Date modified"; key: 1; width: Theme.columnModified }
-        Column { title: "Type"; key: 2; width: Theme.columnType }
+        Column { title: root.inTrash ? "Date deleted" : "Date modified"; key: 1; width: Theme.columnModified }
+        Column { title: root.inTrash ? "Original location" : "Type"; key: 2; width: Theme.columnType }
         Column { title: "Size"; key: 3; width: Theme.columnSize; alignRight: true }
     }
 

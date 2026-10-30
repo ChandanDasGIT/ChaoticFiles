@@ -2,11 +2,13 @@
 
 #include "format/format.h"
 #include "pathbar/pathbar.h"
+#include "trash/trash.h"
 
 #include <QClipboard>
 #include <QDesktopServices>
 #include <QGuiApplication>
 #include <QUrl>
+#include <unordered_set>
 
 namespace {
 
@@ -45,6 +47,30 @@ void FolderSession::stop()
 }
 
 QString FolderSession::path() const { return qs(m_tab->history.current()); }
+
+bool FolderSession::canGoUp() const
+{
+    const std::string& path = m_tab->history.current();
+    return path != "/" && !PathBar::isVirtual(path);
+}
+
+bool FolderSession::isTrash() const
+{
+    return m_tab->history.current() == PathBar::kTrashLocation;
+}
+
+bool FolderSession::canWrite() const
+{
+    return !PathBar::isVirtual(m_tab->history.current());
+}
+
+void FolderSession::setCutPaths(const QStringList& paths)
+{
+    std::unordered_set<std::string> cut;
+    for (const QString& path : paths) cut.insert(path.toStdString());
+    m_tab->view.setCutPaths(std::move(cut));
+    m_model.selectionChanged();
+}
 
 QString FolderSession::title() const { return qs(PathBar::tabTitle(m_tab->history.current())); }
 
@@ -117,7 +143,10 @@ void FolderSession::finishLoad(const std::shared_ptr<ListResult>& result, quint6
     } else {
         const bool unchanged = sameFolder && m_error.isEmpty() && view.matches(result->entries, result->sort);
         m_error.clear();
-        if (!unchanged) {
+        if (unchanged) {
+            if (!focusName.empty()) view.selectName(focusName);
+            m_model.selectionChanged();
+        } else {
             if (sameFolder) emit aboutToRefresh();
             m_model.beginChange();
             if (!sameFolder) view.clear();
@@ -132,7 +161,8 @@ void FolderSession::finishLoad(const std::shared_ptr<ListResult>& result, quint6
     if (m_watchedPath != result->path || !result->ok) {
         m_watchedPath = result->ok ? result->path : std::string();
         if (result->ok) {
-            m_watcher.watch(result->path, [this] {
+            const std::string real = result->path == PathBar::kTrashLocation ? Trash::filesDirectory() : result->path;
+            m_watcher.watch(real, [this] {
                 QMetaObject::invokeMethod(this, [this] { folderChanged(); }, Qt::QueuedConnection);
             });
         } else {
@@ -190,6 +220,11 @@ void FolderSession::goUp()
 void FolderSession::refresh()
 {
     load({});
+}
+
+void FolderSession::refreshAndSelect(const QString& name)
+{
+    load(name.toStdString());
 }
 
 // ---------------------------------------------------------------- rows
@@ -294,6 +329,21 @@ QStringList FolderSession::selectedPaths() const
     for (const std::string& selected : m_tab->view.selectedPaths()) paths << qs(selected);
     if (paths.isEmpty()) paths << path();
     return paths;
+}
+
+QStringList FolderSession::selectedItems() const
+{
+    QStringList paths;
+    for (const std::string& selected : m_tab->view.selectedPaths()) paths << qs(selected);
+    return paths;
+}
+
+QString FolderSession::selectedUrlText() const
+{
+    QStringList urls;
+    for (const std::string& selected : m_tab->view.selectedPaths())
+        urls << QString::fromLatin1(QUrl::fromLocalFile(qs(selected)).toEncoded());
+    return urls.join(QStringLiteral("\r\n"));
 }
 
 void FolderSession::copyPaths()

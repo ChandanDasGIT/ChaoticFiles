@@ -3,6 +3,7 @@
 
 #include <QAbstractListModel>
 #include <QList>
+#include <QStringList>
 #include <QtQml/qqmlregistration.h>
 
 class FolderSession;
@@ -46,6 +47,8 @@ public:
     Q_INVOKABLE void moveTab(int from, int to);
     Q_INVOKABLE void reopenTab();
 
+    void setCutPaths(const QStringList& paths);
+
 signals:
     void currentChanged();
     void reopenChanged();
@@ -59,4 +62,5 @@ private:
 
     TabManager m_tabs;
     QList<FolderSession*> m_sessions;
+    QStringList m_cutPaths;
 };

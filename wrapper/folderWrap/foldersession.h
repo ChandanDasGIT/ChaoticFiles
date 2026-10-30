@@ -23,6 +23,8 @@ class FolderSession : public QObject {
     Q_PROPERTY(bool canGoBack READ canGoBack NOTIFY locationChanged)
     Q_PROPERTY(bool canGoForward READ canGoForward NOTIFY locationChanged)
     Q_PROPERTY(bool canGoUp READ canGoUp NOTIFY locationChanged)
+    Q_PROPERTY(bool isTrash READ isTrash NOTIFY locationChanged)
+    Q_PROPERTY(bool canWrite READ canWrite NOTIFY locationChanged)         // whether new items can be put here
     Q_PROPERTY(bool loading READ loading NOTIFY stateChanged)
     Q_PROPERTY(QString error READ error NOTIFY stateChanged)
     Q_PROPERTY(int itemCount READ itemCount NOTIFY stateChanged)
@@ -43,7 +45,9 @@ public:
     QString title() const;
     bool canGoBack() const { return m_tab->history.canGoBack(); }
     bool canGoForward() const { return m_tab->history.canGoForward(); }
-    bool canGoUp() const { return m_tab->history.current() != "/"; }
+    bool canGoUp() const;
+    bool isTrash() const;
+    bool canWrite() const;
     bool loading() const { return m_loading; }
     QString error() const { return m_error; }
     int itemCount() const { return m_tab->view.count(); }
@@ -57,6 +61,7 @@ public:
 
     const std::shared_ptr<Tab>& tab() const { return m_tab; }
     void setShowHidden(bool show);
+    void setCutPaths(const QStringList& paths);
     void setActive(bool active);           // a tab in the background reads its folder when it comes forward
     void stop();                           // the tab is closing: no more listings or change reports
 
@@ -65,6 +70,7 @@ public:
     Q_INVOKABLE void goForward();
     Q_INVOKABLE void goUp();
     Q_INVOKABLE void refresh();
+    Q_INVOKABLE void refreshAndSelect(const QString& name);
 
     Q_INVOKABLE void openRow(int row);                       // double click or Enter
     Q_INVOKABLE void openCurrent();
@@ -77,6 +83,8 @@ public:
     Q_INVOKABLE void typeAhead(const QString& text);
     Q_INVOKABLE void sortBy(int key);                        // the same column again flips the order
     Q_INVOKABLE QStringList selectedPaths() const;           // the selection, or the folder itself if nothing is selected
+    Q_INVOKABLE QStringList selectedItems() const;           // only what is selected: anything that changes files uses this
+    Q_INVOKABLE QString selectedUrlText() const;             // for dragging: file URLs, one per line
     Q_INVOKABLE void copyPaths();                            // the selection's full paths, one per line
 
 signals:

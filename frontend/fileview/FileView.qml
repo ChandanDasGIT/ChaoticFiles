@@ -6,7 +6,7 @@ FocusScope {
     id: root
 
     required property var session
-    signal rowMenuRequested(int row, bool isDirectory, string path, real sceneX, real sceneY)
+    signal rowMenuRequested(int row, bool isDirectory, string path, string name, real sceneX, real sceneY)
     signal backgroundMenuRequested(real sceneX, real sceneY)
 
     readonly property int pageRows: Math.max(1, Math.floor(list.height / Theme.rowHeight) - 1)
@@ -56,6 +56,7 @@ FocusScope {
     ColumnHeader {
         id: header
         width: parent.width
+        inTrash: root.session.isTrash
         sortKey: root.session.sortKey
         sortAscending: root.session.sortAscending
         onSortRequested: (key) => root.session.sortBy(key)
@@ -78,15 +79,21 @@ FocusScope {
             onPressedWith: (button, modifiers, sceneX, sceneY) => {
                 root.forceActiveFocus()
                 if (button === Qt.LeftButton) {
-                    root.session.click(index, modifiers)
+                    // a press on a selected row may start dragging all of them, so it waits for the release
+                    wasSelected = isSelected && modifiers === 0
+                    if (!wasSelected) root.session.click(index, modifiers)
+                    dragText = root.session.selectedUrlText()
                 } else if (button === Qt.RightButton) {
                     root.session.contextClick(index)
-                    root.rowMenuRequested(index, isDirectory, path, sceneX, sceneY)
+                    root.rowMenuRequested(index, isDirectory, path, name, sceneX, sceneY)
                 } else if (isDirectory) {
                     TabsController.openInBackground(path)
                 }
             }
+            property bool wasSelected: false
+            onReleasedWithoutDrag: (modifiers) => { if (wasSelected) root.session.click(index, modifiers) }
             onDoubleClicked: root.session.openRow(index)
+            onUrlsDropped: (urls) => OperationsController.dropUrls(urls, path)
         }
 
         // the space under the last row
@@ -101,6 +108,17 @@ FocusScope {
                     const scene = mapToItem(null, mouse.x, mouse.y)
                     root.backgroundMenuRequested(scene.x, scene.y)
                 }
+            }
+        }
+
+        // files dragged onto the empty part go into this folder
+        DropArea {
+            anchors.fill: parent
+            z: -2
+            onEntered: (drag) => { drag.accepted = drag.hasUrls && root.session.canWrite }
+            onDropped: (drop) => {
+                drop.accept(Qt.CopyAction)
+                OperationsController.dropUrls(drop.urls, root.session.path)
             }
         }
 
@@ -135,7 +153,8 @@ FocusScope {
             anchors.horizontalCenter: parent.horizontalCenter
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
-            text: root.session.error !== "" ? root.session.error : "This folder is empty."
+            text: root.session.error !== "" ? root.session.error
+                : root.session.isTrash ? "The Trash is empty." : "This folder is empty."
             font.pixelSize: Theme.fontSize
             color: Theme.textMuted
         }

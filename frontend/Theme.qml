@@ -142,6 +142,12 @@ QtObject {
     readonly property int dialogButtonPadding: 14
     readonly property int progressHeight:   6
 
+    readonly property int conflictWidth:    500
+    readonly property int openWithHeight:   460
+    readonly property int operationsWidth:  340
+    readonly property int operationHeight:  68
+    readonly property real cutOpacity:      0.5
+
     // ---- properties ----
     readonly property int propertiesWidth:  700
     readonly property int propertiesHeight: 600

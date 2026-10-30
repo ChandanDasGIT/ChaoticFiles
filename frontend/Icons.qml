@@ -40,6 +40,18 @@ QtObject {
     readonly property string eye:           "\uf06e"   // eye
     readonly property string warning:       "\uf071"   // triangle-exclamation
     readonly property string info:          "\uf05a"   // circle-info
+    readonly property string cut:           "\uf0c4"   // scissors
+    readonly property string paste:         "\uf0ea"   // paste
+    readonly property string rename:        "\uf304"   // pen
+    readonly property string undo:          "\uf0e2"   // arrow-rotate-left
+    readonly property string restoreItem:      "\uf1da"   // clock-rotate-left
+    readonly property string archive:       "\uf187"   // box-archive
+    readonly property string extract:       "\uf466"   // box-open
+    readonly property string terminal:      "\uf120"   // terminal
+    readonly property string newFolder:     "\uf65e"   // folder-plus
+    readonly property string newFile:       "\uf15b"   // file
+    readonly property string play:          "\uf04b"   // play
+    readonly property string pause:         "\uf04c"   // pause
     readonly property string lock:          "\uf023"   // lock
     readonly property string link:          "\uf0c1"   // link
 

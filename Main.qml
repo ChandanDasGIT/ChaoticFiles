@@ -13,32 +13,67 @@ Window {
         if (view) view.forceActiveFocus()
     }
 
-    function showProperties() {
-        PropertiesController.show(window.session.selectedPaths())
-    }
-
-    function showRowMenu(isDirectory, path, sceneX, sceneY) {
-        const entries = [{text: "Open", icon: Icons.open, shortcut: "Enter", action: () => window.session.openCurrent()}]
-        if (isDirectory)
-            entries.push({text: "Open in New Tab", icon: Icons.newTab, action: () => TabsController.openInBackground(path)})
-        entries.push({separator: true})
-        entries.push({text: "Copy Path", icon: Icons.copy, action: () => window.session.copyPaths()})
-        entries.push({separator: true})
-        entries.push({text: "Properties", icon: Icons.info, shortcut: "Alt+Enter", action: window.showProperties})
+    function showRowMenu(isDirectory, path, name, sceneX, sceneY) {
+        const count = window.session.selectedItems().length
+        const a = actions
+        let entries = []
+        if (window.session.isTrash) {
+            entries = [
+                {text: "Restore", icon: Icons.restoreItem, action: a.restore},
+                {text: "Delete Permanently", icon: Icons.trash, action: a.deletePermanently},
+                {separator: true},
+                {text: "Properties", icon: Icons.info, shortcut: "Alt+Enter", action: a.properties},
+            ]
+        } else {
+            entries.push({text: "Open", icon: Icons.open, shortcut: "Enter", action: a.open})
+            if (isDirectory)
+                entries.push({text: "Open in New Tab", icon: Icons.newTab, action: () => TabsController.openInBackground(path)})
+            else
+                entries.push({text: "Open With…", icon: Icons.open, action: a.openWith})
+            entries.push({separator: true})
+            entries.push({text: "Cut", icon: Icons.cut, shortcut: "Ctrl+X", action: a.cut})
+            entries.push({text: "Copy", icon: Icons.copy, shortcut: "Ctrl+C", action: a.copy})
+            entries.push({text: "Rename…", icon: Icons.rename, shortcut: "F2", enabled: count === 1, action: a.rename})
+            entries.push({text: "Create Link", icon: Icons.link, action: a.createLinks})
+            entries.push({separator: true})
+            entries.push({text: "Compress…", icon: Icons.archive, action: a.compress})
+            if (OperationsController.isArchive(name))
+                entries.push({text: "Extract Here", icon: Icons.extract, action: a.extract})
+            entries.push({separator: true})
+            entries.push({text: "Move to Trash", icon: Icons.trash, shortcut: "Del", action: a.moveToTrash})
+            entries.push({text: "Delete Permanently…", icon: Icons.warning, shortcut: "Shift+Del", action: a.deletePermanently})
+            entries.push({separator: true})
+            entries.push({text: "Copy Path", icon: Icons.copy, action: () => window.session.copyPaths()})
+            entries.push({text: "Properties", icon: Icons.info, shortcut: "Alt+Enter", action: a.properties})
+        }
         rowMenu.entries = entries
         rowMenu.openAt(sceneX, sceneY)
     }
 
     function showBackgroundMenu(sceneX, sceneY) {
-        rowMenu.entries = [
-            {text: "Refresh", icon: Icons.refresh, shortcut: "F5", action: () => window.session.refresh()},
-            {text: "Show Hidden Files", icon: Icons.eye, shortcut: "Ctrl+H", checked: SettingsController.showHidden,
-             action: () => SettingsController.showHidden = !SettingsController.showHidden},
-            {separator: true},
-            {text: "Copy Path", icon: Icons.copy, action: () => window.session.copyPaths()},
-            {separator: true},
-            {text: "Properties", icon: Icons.info, shortcut: "Alt+Enter", action: window.showProperties},
-        ]
+        const a = actions
+        if (window.session.isTrash) {
+            rowMenu.entries = [
+                {text: "Empty Trash…", icon: Icons.trash, action: a.emptyTrash},
+                {text: "Refresh", icon: Icons.refresh, shortcut: "F5", action: () => window.session.refresh()},
+            ]
+        } else {
+            rowMenu.entries = [
+                {text: "New Folder…", icon: Icons.newFolder, shortcut: "Ctrl+Shift+N", enabled: window.session.canWrite, action: a.newFolder},
+                {text: "New File…", icon: Icons.newFile, enabled: window.session.canWrite, action: a.newFile},
+                {separator: true},
+                {text: "Paste", icon: Icons.paste, shortcut: "Ctrl+V", enabled: ClipboardController.canPaste && window.session.canWrite, action: a.paste},
+                {text: OperationsController.undoText, icon: Icons.undo, shortcut: "Ctrl+Z", enabled: OperationsController.canUndo, action: () => OperationsController.undo()},
+                {separator: true},
+                {text: "Refresh", icon: Icons.refresh, shortcut: "F5", action: () => window.session.refresh()},
+                {text: "Show Hidden Files", icon: Icons.eye, shortcut: "Ctrl+H", checked: SettingsController.showHidden,
+                 action: () => SettingsController.showHidden = !SettingsController.showHidden},
+                {text: "Open Terminal Here", icon: Icons.terminal, enabled: window.session.canWrite, action: a.openTerminal},
+                {separator: true},
+                {text: "Copy Path", icon: Icons.copy, action: () => window.session.copyPaths()},
+                {text: "Properties", icon: Icons.info, shortcut: "Alt+Enter", action: a.properties},
+            ]
+        }
         rowMenu.openAt(sceneX, sceneY)
     }
 
@@ -75,6 +110,11 @@ Window {
         function onCurrentChanged() { Qt.callLater(window.focusFiles) }
         function onMessage(text) { statusBar.showMessage(text) }
     }
+    Connections {
+        target: OperationsController
+        function onMessage(text) { statusBar.showMessage(text) }
+        function onOperationFinished() { window.session.refresh() }
+    }
 
     // ---- shortcuts ----
     Shortcut { sequences: ["Ctrl+T"]; onActivated: TabsController.newTab() }
@@ -88,7 +128,15 @@ Window {
     Shortcut { sequences: ["Alt+Up"]; onActivated: window.session.goUp() }
     Shortcut { sequences: ["F5", "Ctrl+R"]; onActivated: window.session.refresh() }
     Shortcut { sequences: ["Ctrl+H"]; onActivated: SettingsController.showHidden = !SettingsController.showHidden }
-    Shortcut { sequences: ["Alt+Return", "Alt+Enter"]; onActivated: window.showProperties() }
+    Shortcut { sequences: ["Alt+Return", "Alt+Enter"]; onActivated: actions.properties() }
+    Shortcut { sequences: ["Ctrl+C"]; onActivated: actions.copy() }
+    Shortcut { sequences: ["Ctrl+X"]; onActivated: actions.cut() }
+    Shortcut { sequences: ["Ctrl+V"]; onActivated: actions.paste() }
+    Shortcut { sequences: ["Ctrl+Z"]; onActivated: OperationsController.undo() }
+    Shortcut { sequences: ["F2"]; onActivated: actions.rename() }
+    Shortcut { sequences: ["Del"]; onActivated: actions.moveToTrash() }
+    Shortcut { sequences: ["Shift+Del"]; onActivated: actions.deletePermanently() }
+    Shortcut { sequences: ["Ctrl+Shift+N"]; onActivated: actions.newFolder() }
     Shortcut { sequences: ["Ctrl+Q"]; onActivated: Qt.quit() }
 
     // the side buttons of a mouse
@@ -150,8 +198,8 @@ Window {
                         required property bool isCurrent
                         anchors.fill: parent
                         visible: isCurrent
-                        onRowMenuRequested: (row, isDirectory, path, sceneX, sceneY) => {
-                            window.showRowMenu(isDirectory, path, sceneX, sceneY)
+                        onRowMenuRequested: (row, isDirectory, path, name, sceneX, sceneY) => {
+                            window.showRowMenu(isDirectory, path, name, sceneX, sceneY)
                         }
                         onBackgroundMenuRequested: (sceneX, sceneY) => window.showBackgroundMenu(sceneX, sceneY)
                     }
@@ -176,6 +224,19 @@ Window {
         anchors.fill: parent
         targetWindow: window
         visible: window.visibility === Window.Windowed
+    }
+
+    OperationsPanel {
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: Theme.toolbarMargin
+        anchors.bottomMargin: Theme.statusBarHeight + Theme.toolbarMargin
+    }
+
+    FileActions {
+        id: actions
+        session: window.session
+        onDialogClosed: window.focusFiles()
     }
 
     PropertiesDialog {

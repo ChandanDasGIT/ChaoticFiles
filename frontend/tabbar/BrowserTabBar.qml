@@ -115,6 +115,7 @@ Rectangle {
 
                     onClicked: TabsController.selectTab(index)
                     onCloseRequested: TabsController.closeTab(index)
+                    onUrlsDropped: (urls) => OperationsController.dropUrls(urls, session.path)
 
                     // while dragged the tab follows the mouse; when let go it slides into its place
                     readonly property bool beingDragged: root.dragIndex === index
