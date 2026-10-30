@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(ChaoticFiles VERSION 0.1 LANGUAGES CXX)
+project(ChaoticFiles VERSION 0.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,6 +11,15 @@ find_package(Threads REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.10)
 
+# ---------------------------------------------------------------- third-party code
+# BLAKE3's portable C code only: slower than its assembly, and needs nothing but a C compiler.
+add_library(blake3 STATIC
+    dependencies/blake3/blake3.c
+    dependencies/blake3/blake3_dispatch.c
+    dependencies/blake3/blake3_portable.c)
+target_include_directories(blake3 PUBLIC dependencies/blake3)
+target_compile_definitions(blake3 PRIVATE BLAKE3_NO_SSE2 BLAKE3_NO_SSE41 BLAKE3_NO_AVX2 BLAKE3_NO_AVX512)
+
 # ---------------------------------------------------------------- the engine (no Qt)
 # Everything under backend/ is plain C++20. It is built as its own library and does not link to Qt,
 # so a Qt include in there fails to compile.
@@ -19,7 +28,7 @@ file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS
 
 add_library(fileengine STATIC ${ENGINE_SOURCES})
 target_include_directories(fileengine PUBLIC "${CMAKE_CURRENT_LIST_DIR}/backend")
-target_link_libraries(fileengine PUBLIC Threads::Threads)
+target_link_libraries(fileengine PUBLIC Threads::Threads ${CMAKE_DL_LIBS} blake3)
 target_compile_options(fileengine PRIVATE -Wall -Wextra)
 
 # ---------------------------------------------------------------- the app

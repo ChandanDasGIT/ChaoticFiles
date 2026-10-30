@@ -1,12 +1,17 @@
 // Tests for the engine. No Qt and no test library: a failed CHECK prints its line and the program
 // ends with a non-zero code. Files are created under a temporary folder that is removed afterwards.
+#include "contentinfo/contentinfo.h"
 #include "directory/directorylister.h"
 #include "filetype/filetype.h"
 #include "folderview/folderview.h"
 #include "format/format.h"
+#include "hashing/hashing.h"
 #include "navigation/navigationhistory.h"
 #include "pathbar/pathbar.h"
+#include "permissions/permissions.h"
 #include "places/places.h"
+#include "process/process.h"
+#include "properties/properties.h"
 #include "tabs/tabmanager.h"
 #include "trash/trash.h"
 #include "watcher/folderwatcher.h"
@@ -369,6 +374,137 @@ static void testTrash(const fs::path& root)
     CHECK(places.back().kind == "trash" && places.back().path == files);
 }
 
+static std::string rowValue(const std::vector<PropertySection>& sections, const std::string& title, const std::string& label)
+{
+    for (const PropertySection& section : sections)
+        if (section.title == title)
+            for (const PropertyRow& row : section.rows)
+                if (row.label == label) return row.value;
+    return "<missing>";
+}
+
+static std::string rowValue(const std::vector<PropertyRow>& rows, const std::string& label)
+{
+    return rowValue({{"x", rows}}, "x", label);
+}
+
+static void testHashing(const fs::path& root)
+{
+    CHECK(Hashing::hashText("MD5", "abc") == "900150983cd24fb0d6963f7d28e17f72");
+    CHECK(Hashing::hashText("SHA-1", "abc") == "a9993e364706816aba3e25717850c26c9cd0d89d");
+    CHECK(Hashing::hashText("SHA-256", "abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+    CHECK(Hashing::hashText("SHA-512", "abc") == "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a"
+                                                 "2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f");
+    CHECK(Hashing::hashText("BLAKE3", "abc") == "6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85");
+    CHECK(Hashing::hashText("MD5", "") == "d41d8cd98f00b204e9800998ecf8427e");
+    CHECK(Hashing::hashText("SHA-256", std::string(1000, 'a')) == "41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3");
+    CHECK(Hashing::hashText("SHA-512", std::string(200, 'a')) == Hashing::hashText("SHA-512", std::string(200, 'a')));
+
+    const fs::path file = root / "hash-me";
+    touch(file, "abc");
+    std::uint64_t seen = 0;
+    const auto results = Hashing::hashFile(file.string(), [&seen](std::uint64_t done, std::uint64_t) { seen = done; }, {});
+    CHECK(results.size() == 5 && seen == 3);
+    CHECK(results[2].name == "SHA-256" && results[2].value == Hashing::hashText("SHA-256", "abc"));
+    CHECK(Hashing::hashFile(file.string(), {}, [] { return true; }).empty());
+    CHECK(Hashing::hashFile((root / "missing").string(), {}, {}).empty());
+}
+
+static void testPermissions()
+{
+    CHECK(Permissions::modeText(S_IFREG | 0644) == "-rw-r--r--");
+    CHECK(Permissions::modeText(S_IFDIR | 01777) == "drwxrwxrwt");
+    CHECK(Permissions::modeText(S_IFREG | 04755) == "-rwsr-xr-x");
+    CHECK(Permissions::octalText(S_IFDIR | 0755) == "0755");
+
+    // version 2, then user::rw-, user 0:r--, group::r--, mask::r--, other::---
+    const unsigned char acl[] = {2, 0, 0, 0,
+                                 1, 0, 6, 0, 255, 255, 255, 255,
+                                 2, 0, 4, 0, 0, 0, 0, 0,
+                                 4, 0, 4, 0, 255, 255, 255, 255,
+                                 16, 0, 4, 0, 255, 255, 255, 255,
+                                 32, 0, 0, 0, 255, 255, 255, 255};
+    const auto lines = Permissions::parseAcl(std::string(reinterpret_cast<const char*>(acl), sizeof acl));
+    CHECK(lines.size() == 5 && lines[0] == "user::rw-" && lines[1] == "user:root:r--" && lines[4] == "other::---");
+
+    // cap_net_raw (bit 13) permitted and effective, revision 2
+    const unsigned char caps[] = {1, 0, 0, 2, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    CHECK(Permissions::parseCapabilities(std::string(reinterpret_cast<const char*>(caps), sizeof caps)) == "cap_net_raw=ep");
+}
+
+static void testProperties(const fs::path& root)
+{
+    const fs::path folder = root / "props";
+    fs::create_directories(folder / "inner");
+    touch(folder / "a.txt", "hello world\nsecond line\n");
+    touch(folder / "inner" / ".hidden", "12345");
+    fs::create_symlink("a.txt", folder / "link");
+    fs::create_symlink("nothing", folder / "bad");
+    fs::create_hard_link(folder / "a.txt", folder / "hard");
+    chmod((folder / "a.txt").c_str(), 0640);
+
+    const auto file = Properties::collect((folder / "a.txt").string());
+    CHECK(rowValue(file, "General", "Name") == "a.txt");
+    CHECK(rowValue(file, "General", "Size") == "24 bytes");
+    CHECK(rowValue(file, "General", "Type") == "Text File");
+    CHECK(rowValue(file, "Permissions", "Octal") == "0640");
+    CHECK(rowValue(file, "Permissions", "Mode") == "-rw-r-----");
+    CHECK(rowValue(file, "Permissions", "Others can") == "None");
+    CHECK(rowValue(file, "Filesystem", "Hard links") == "2");
+    CHECK(rowValue(file, "Filesystem", "Filesystem type") != "<missing>");
+
+    const auto link = Properties::collect((folder / "link").string());
+    CHECK(rowValue(link, "Link", "Points to") == "a.txt");
+    CHECK(rowValue(link, "Link", "Status") == "Working");
+    CHECK(rowValue(link, "Link", "Final target") == fs::canonical(folder / "a.txt").string());
+    CHECK(rowValue(Properties::collect((folder / "bad").string()), "Link", "Status").rfind("Broken", 0) == 0);
+
+    CHECK(rowValue(Properties::collect((folder / "gone").string()), "General", "Error") != "<missing>");
+
+    const auto selection = Properties::collectSelection({(folder / "a.txt").string(), (folder / "inner").string()});
+    CHECK(rowValue(selection, "General", "Files") == "1" && rowValue(selection, "General", "Folders") == "1");
+    CHECK(rowValue(selection, "General", "Location") == folder.string());
+    CHECK(rowValue(selection, "General", "Mode").rfind("Mixed", 0) == 0);
+
+    const FolderScan scan = scanFolder(folder.string(), {}, {});
+    CHECK(scan.finished && scan.files == 3 && scan.folders == 1 && scan.links == 2 && scan.hidden == 1);
+    CHECK(scan.totalSize == 53 && scan.largest.size() == 3 && scan.largest[0].first == 24);
+    CHECK(!scanFolder(folder.string(), {}, [] { return true; }).finished);
+}
+
+static void testContent(const fs::path& root)
+{
+    const fs::path text = root / "t.txt";
+    touch(text, "one two\r\nthree\n");
+    const auto rows = ContentInfo::text(text.string());
+    CHECK(rowValue(rows, "Lines") == "2" && rowValue(rows, "Words") == "3");
+    CHECK(rowValue(rows, "Line endings") == "LF (1), CRLF (1)");
+
+    // a 2 by 3 PNG: only its header matters here
+    std::string png("\x89PNG\r\n\x1a\n\0\0\0\rIHDR\0\0\0\2\0\0\0\3\x08\x06\0\0\0", 33);
+    touch(root / "p.png", png);
+    CHECK(rowValue(ContentInfo::image((root / "p.png").string()), "Dimensions") == "2 × 3 pixels");
+
+    const auto self = ContentInfo::elf("/proc/self/exe");
+    CHECK(rowValue(self, "Architecture") == "x86-64");
+    CHECK(rowValue(self, "Interpreter").find("ld-linux") != std::string::npos);
+    CHECK(rowValue(self, "Linking") == "Dynamic");
+}
+
+static void testProcess()
+{
+    CHECK(!Process::findProgram("sh").empty());
+    CHECK(Process::findProgram("no-such-program-here").empty());
+    const auto echo = Process::run({"sh", "-c", "printf hello; printf oops >&2; exit 3"});
+    CHECK(echo.started && echo.exitCode == 3 && echo.output == "hello" && echo.errors == "oops");
+    CHECK(Process::run({"cat"}, {}, "piped").output == "piped");
+    CHECK(!Process::run({"no-such-program-here"}).started);
+    const auto stopped = Process::run({"sleep", "30"}, [] { return true; });
+    CHECK(stopped.cancelled);
+    CHECK(!Process::startDetached({"no-such-program-here"}));
+    CHECK(Process::startDetached({"true"}));
+}
+
 int main()
 {
     char pattern[] = "/tmp/chaoticfiles-tests-XXXXXX";
@@ -389,6 +525,11 @@ int main()
     testLister(root);
     testWatcher(root);
     testTrash(root);
+    testHashing(root);
+    testPermissions();
+    testProperties(root);
+    testContent(root);
+    testProcess();
 
     fs::remove_all(root);
     if (failures == 0) std::printf("All backend tests passed.\n");
