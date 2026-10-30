@@ -2,6 +2,9 @@
 
 #include "format/format.h"
 #include "pathbar/pathbar.h"
+#include "recent/recentfiles.h"
+#include "search/filesearch.h"
+#include "settingscontroller.h"
 #include "trash/trash.h"
 
 #include <QClipboard>
@@ -13,6 +16,7 @@
 namespace {
 
 constexpr int kTypeAheadPauseMs = 1000;
+constexpr std::size_t kMaxSearchResults = 50000;
 
 QString qs(const std::string& text) { return QString::fromStdString(text); }
 
@@ -43,6 +47,7 @@ void FolderSession::stop()
 {
     ++m_generation;
     m_lister.cancel();
+    m_searchJob.cancel();
     m_watcher.stop();
 }
 
@@ -57,6 +62,12 @@ bool FolderSession::canGoUp() const
 bool FolderSession::isTrash() const
 {
     return m_tab->history.current() == PathBar::kTrashLocation;
+}
+
+int FolderSession::headerKind() const
+{
+    if (isTrash()) return 1;
+    return m_searching || m_tab->history.current() == PathBar::kRecentLocation ? 2 : 0;
 }
 
 bool FolderSession::canWrite() const
@@ -107,6 +118,8 @@ void FolderSession::setActive(bool active)
 void FolderSession::load(const std::string& focusName)
 {
     const quint64 generation = ++m_generation;
+    m_searchJob.cancel();
+    m_searching = false;
     m_stale = false;
     m_loading = true;
     emit stateChanged();
@@ -176,6 +189,7 @@ void FolderSession::finishLoad(const std::shared_ptr<ListResult>& result, quint6
 
 void FolderSession::folderChanged()
 {
+    if (m_searching) return;               // the results stay until the search ends
     if (m_active) load({});
     else m_stale = true;
 }
@@ -240,6 +254,8 @@ void FolderSession::openRow(int row)
         navigate(qs(entry.path));
     } else if (!QDesktopServices::openUrl(QUrl::fromLocalFile(qs(entry.path)))) {
         emit message(QStringLiteral("No app could open \"%1\".").arg(qs(entry.name)));
+    } else {
+        RecentFiles::add(entry.path);
     }
 }
 
@@ -344,6 +360,80 @@ QString FolderSession::selectedUrlText() const
     for (const std::string& selected : m_tab->view.selectedPaths())
         urls << QString::fromLatin1(QUrl::fromLocalFile(qs(selected)).toEncoded());
     return urls.join(QStringLiteral("\r\n"));
+}
+
+void FolderSession::setFilter(const QString& text)
+{
+    emit aboutToRefresh();
+    m_model.beginChange();
+    m_tab->view.setFilter(text.toStdString());
+    m_model.endChange();
+    emit refreshed();
+    emit stateChanged();
+    emit selectionChanged();
+}
+
+void FolderSession::search(const QString& text)
+{
+    const std::string root = m_tab->history.current();
+    if (PathBar::isVirtual(root)) return;
+
+    const quint64 generation = ++m_generation;
+    m_lister.cancel();
+    m_searching = true;
+    m_loading = true;
+    m_model.beginChange();
+    m_tab->view.setFilter({});
+    m_tab->view.clear();
+    m_model.endChange();
+    emit stateChanged();
+    emit selectionChanged();
+
+    const std::string query = text.toStdString();
+    const bool showHidden = SettingsController::instance()->showHidden();
+    m_searchJob.start([this, root, query, showHidden, generation](const BackgroundJob::Handle& handle) {
+        const auto toUi = [this, &handle, generation](std::function<void()> work) {
+            handle.post([this, generation, work = std::move(work)] {
+                QMetaObject::invokeMethod(this, [this, generation, work] {
+                    if (generation == m_generation) work();
+                }, Qt::QueuedConnection);
+            });
+        };
+        FileSearch::run(root, query, showHidden, kMaxSearchResults, [&](std::vector<Entry> batch) {
+            auto shared = std::make_shared<std::vector<Entry>>(std::move(batch));
+            toUi([this, shared] {
+                emit aboutToRefresh();
+                m_model.beginChange();
+                m_tab->view.addEntries(std::move(*shared));
+                m_model.endChange();
+                emit refreshed();
+                emit stateChanged();
+                emit selectionChanged();
+            });
+        }, [&handle] { return handle.cancelled(); });
+        toUi([this] {
+            m_loading = false;
+            emit stateChanged();
+        });
+    });
+}
+
+void FolderSession::endSearch()
+{
+    setFilter({});
+    if (m_searching) {
+        m_shownPath.clear();               // the rows are results, so the folder must load in full
+        load({});
+    }
+}
+
+void FolderSession::selectRows(const QVariantList& rows, bool add)
+{
+    std::vector<int> list;
+    list.reserve(static_cast<std::size_t>(rows.size()));
+    for (const QVariant& row : rows) list.push_back(row.toInt());
+    m_tab->view.selectRows(list, add);
+    selectionUpdated();
 }
 
 void FolderSession::copyPaths()

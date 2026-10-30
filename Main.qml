@@ -26,9 +26,11 @@ Window {
             ]
         } else {
             entries.push({text: "Open", icon: Icons.open, shortcut: "Enter", action: a.open})
-            if (isDirectory)
+            if (isDirectory) {
                 entries.push({text: "Open in New Tab", icon: Icons.newTab, action: () => TabsController.openInBackground(path)})
-            else
+                if (!PlacesController.isBookmarked(path))
+                    entries.push({text: "Add to Bookmarks", icon: Icons.bookmark, action: () => PlacesController.addBookmark(path)})
+            } else
                 entries.push({text: "Open With…", icon: Icons.open, action: a.openWith})
             entries.push({separator: true})
             entries.push({text: "Cut", icon: Icons.cut, shortcut: "Ctrl+X", action: a.cut})
@@ -74,6 +76,14 @@ Window {
                 {text: "Properties", icon: Icons.info, shortcut: "Alt+Enter", action: a.properties},
             ]
         }
+        rowMenu.openAt(sceneX, sceneY)
+    }
+
+    function showPlaceMenu(place, sceneX, sceneY) {
+        const entries = [{text: "Open in New Tab", icon: Icons.newTab, action: () => TabsController.openInBackground(place.path)}]
+        if (place.kind === "bookmark")
+            entries.push({text: "Remove Bookmark", icon: Icons.close, action: () => PlacesController.removeBookmark(place.path)})
+        rowMenu.entries = entries
         rowMenu.openAt(sceneX, sceneY)
     }
 
@@ -127,6 +137,7 @@ Window {
     Shortcut { sequences: ["Alt+Right"]; onActivated: window.session.goForward() }
     Shortcut { sequences: ["Alt+Up"]; onActivated: window.session.goUp() }
     Shortcut { sequences: ["F5", "Ctrl+R"]; onActivated: window.session.refresh() }
+    Shortcut { sequences: ["Ctrl+F"]; onActivated: searchBar.start() }
     Shortcut { sequences: ["Ctrl+H"]; onActivated: SettingsController.showHidden = !SettingsController.showHidden }
     Shortcut { sequences: ["Alt+Return", "Alt+Enter"]; onActivated: actions.properties() }
     Shortcut { sequences: ["Ctrl+C"]; onActivated: actions.copy() }
@@ -165,6 +176,13 @@ Window {
             onAddressFinished: window.focusFiles()
         }
 
+        SearchBar {
+            id: searchBar
+            Layout.fillWidth: true
+            session: window.session
+            onFinished: window.focusFiles()
+        }
+
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: 1
@@ -179,6 +197,7 @@ Window {
             Sidebar {
                 Layout.fillHeight: true
                 session: window.session
+                onPlaceMenuRequested: (place, sceneX, sceneY) => window.showPlaceMenu(place, sceneX, sceneY)
             }
 
             Rectangle {

@@ -1,5 +1,6 @@
 #include "placescontroller.h"
 
+#include "pathbar/pathbar.h"
 #include "places/places.h"
 #include "trash/trash.h"
 
@@ -29,6 +30,41 @@ PlacesController::PlacesController(QObject* parent)
     Trash::ensureExists();
     connect(&m_timer, &QTimer::timeout, this, &PlacesController::updateDrives);
     m_timer.start(kDriveCheckMs);
+}
+
+QVariantList PlacesController::bookmarks() const
+{
+    QVariantList list;
+    for (const QString& path : m_settings.value("places/bookmarks").toStringList()) {
+        list.append(QVariantMap {
+            {"name", QString::fromStdString(PathBar::tabTitle(path.toStdString()))},
+            {"path", path},
+            {"kind", QStringLiteral("bookmark")},
+        });
+    }
+    return list;
+}
+
+void PlacesController::addBookmark(const QString& path)
+{
+    QStringList paths = m_settings.value("places/bookmarks").toStringList();
+    if (paths.contains(path)) return;
+    paths << path;
+    m_settings.setValue("places/bookmarks", paths);
+    emit bookmarksChanged();
+}
+
+void PlacesController::removeBookmark(const QString& path)
+{
+    QStringList paths = m_settings.value("places/bookmarks").toStringList();
+    if (paths.removeAll(path) == 0) return;
+    m_settings.setValue("places/bookmarks", paths);
+    emit bookmarksChanged();
+}
+
+bool PlacesController::isBookmarked(const QString& path) const
+{
+    return m_settings.value("places/bookmarks").toStringList().contains(path);
 }
 
 void PlacesController::updateDrives()

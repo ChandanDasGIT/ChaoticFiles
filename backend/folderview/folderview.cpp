@@ -1,5 +1,7 @@
 #include "folderview/folderview.h"
 
+#include "search/filesearch.h"
+
 #include <algorithm>
 #include <cctype>
 
@@ -38,12 +40,28 @@ void FolderView::setShowHidden(bool show)
     rebuildRows();
 }
 
+void FolderView::setFilter(const std::string& text)
+{
+    m_filter = text;
+    rebuildRows();
+}
+
+void FolderView::addEntries(std::vector<Entry> entries)
+{
+    m_all.insert(m_all.end(), std::make_move_iterator(entries.begin()), std::make_move_iterator(entries.end()));
+    sortEntries(m_all, m_sort);
+    rebuildRows();
+}
+
 void FolderView::rebuildRows()
 {
     m_rows.clear();
     m_rows.reserve(m_all.size());
-    for (std::size_t i = 0; i < m_all.size(); ++i)
-        if (m_showHidden || !m_all[i].hidden) m_rows.push_back(static_cast<int>(i));
+    for (std::size_t i = 0; i < m_all.size(); ++i) {
+        if (!m_showHidden && m_all[i].hidden) continue;
+        if (!m_filter.empty() && !FileSearch::nameMatches(m_all[i].name, m_filter)) continue;
+        m_rows.push_back(static_cast<int>(i));
+    }
 
     // anything that left the list leaves the selection too
     std::unordered_set<std::string> kept;
@@ -129,6 +147,13 @@ void FolderView::moveCurrent(int row, bool extend)
 void FolderView::selectAll()
 {
     for (int row = 0; row < count(); ++row) m_selected.insert(at(row).path);
+}
+
+void FolderView::selectRows(const std::vector<int>& rows, bool add)
+{
+    if (!add) m_selected.clear();
+    for (const int row : rows)
+        if (row >= 0 && row < count()) m_selected.insert(at(row).path);
 }
 
 void FolderView::clearSelection()

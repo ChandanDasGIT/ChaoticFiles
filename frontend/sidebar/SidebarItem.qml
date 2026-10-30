@@ -9,6 +9,7 @@ Rectangle {
     property bool active: false
     signal clicked()
     signal middleClicked()
+    signal menuRequested(real sceneX, real sceneY)
     signal urlsDropped(var urls)
 
     implicitHeight: Theme.sidebarRowHeight
@@ -51,10 +52,16 @@ Rectangle {
         id: area
         anchors.fill: parent
         hoverEnabled: true
-        acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+        acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
         onClicked: (mouse) => {
-            if (mouse.button === Qt.MiddleButton) root.middleClicked()
-            else root.clicked()
+            if (mouse.button === Qt.MiddleButton) {
+                root.middleClicked()
+            } else if (mouse.button === Qt.RightButton) {
+                const scene = mapToItem(null, mouse.x, mouse.y)
+                root.menuRequested(scene.x, scene.y)
+            } else {
+                root.clicked()
+            }
         }
     }
 }

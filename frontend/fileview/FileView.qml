@@ -56,7 +56,7 @@ FocusScope {
     ColumnHeader {
         id: header
         width: parent.width
-        inTrash: root.session.isTrash
+        kind: root.session.headerKind
         sortKey: root.session.sortKey
         sortAscending: root.session.sortAscending
         onSortRequested: (key) => root.session.sortBy(key)
@@ -154,6 +154,7 @@ FocusScope {
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
             text: root.session.error !== "" ? root.session.error
+                : root.session.isSearching ? "Nothing found."
                 : root.session.isTrash ? "The Trash is empty." : "This folder is empty."
             font.pixelSize: Theme.fontSize
             color: Theme.textMuted

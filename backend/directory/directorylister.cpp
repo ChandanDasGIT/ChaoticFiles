@@ -2,6 +2,7 @@
 
 #include "filetype/filetype.h"
 #include "pathbar/pathbar.h"
+#include "recent/recentfiles.h"
 #include "trash/trash.h"
 
 #include <atomic>
@@ -70,10 +71,34 @@ static ListResult listTrash(const SortSettings& sort)
     return result;
 }
 
+static ListResult listRecent(const SortSettings& sort)
+{
+    ListResult result;
+    result.path = PathBar::kRecentLocation;
+    result.sort = sort;
+    for (const std::string& path : RecentFiles::list()) {
+        const std::string folder = PathBar::parent(path);
+        const int fd = open(folder.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        if (fd < 0) continue;
+        Entry entry;
+        const bool found = readEntry(fd, folder, PathBar::baseName(path), entry);
+        close(fd);
+        if (!found) continue;
+        entry.hidden = false;
+        detectFileType(entry);
+        entry.location = folder;
+        result.entries.push_back(std::move(entry));
+    }
+    sortEntries(result.entries, sort);
+    result.ok = true;
+    return result;
+}
+
 ListResult listDirectory(const std::string& path, const SortSettings& sort,
                          const std::function<bool()>& cancelled)
 {
     if (path == PathBar::kTrashLocation) return listTrash(sort);
+    if (path == PathBar::kRecentLocation) return listRecent(sort);
 
     ListResult result;
     result.path = path;

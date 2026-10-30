@@ -64,6 +64,9 @@ QtObject {
     readonly property string pictures:      "\uf03e"   // image
     readonly property string videos:        "\uf03d"   // video
     readonly property string drive:         "\uf0a0"   // hard-drive
+    readonly property string recent:        "\uf017"   // clock
+    readonly property string bookmark:      "\uf02e"   // bookmark
+    readonly property string search:        "\uf002"   // magnifying-glass
     readonly property string root:          "\uf233"   // server
     readonly property string trash:         "\uf1f8"   // trash
 
@@ -117,6 +120,8 @@ QtObject {
         case "videos":    return videos
         case "root":      return root
         case "trash":     return trash
+        case "recent":    return recent
+        case "bookmark":  return bookmark
         default:          return drive
         }
     }

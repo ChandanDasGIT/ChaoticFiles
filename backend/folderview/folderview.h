@@ -20,6 +20,8 @@ public:
     const SortSettings& sort() const { return m_sort; }
     void setSort(const SortSettings& sort);
     void setShowHidden(bool show);
+    void setFilter(const std::string& text);             // only names containing this are shown
+    void addEntries(std::vector<Entry> entries);         // more results of a search; sorts everything again
 
     int count() const { return static_cast<int>(m_rows.size()); }
     const Entry& at(int row) const { return m_all[static_cast<std::size_t>(m_rows[static_cast<std::size_t>(row)])]; }
@@ -33,6 +35,7 @@ public:
     void click(int row, ClickMode mode);
     void moveCurrent(int row, bool extend);              // the keyboard: `row` is clamped to the list
     void selectAll();
+    void selectRows(const std::vector<int>& rows, bool add);     // rubber band: these rows, added or instead
     void clearSelection();
     bool selectName(const std::string& name);
     void setCutPaths(std::unordered_set<std::string> paths) { m_cut = std::move(paths); }   // shown faded
@@ -50,6 +53,7 @@ private:
     std::vector<int> m_rows;                             // indexes into m_all of the rows that are shown
     SortSettings m_sort;
     bool m_showHidden = false;
+    std::string m_filter;
 
     std::unordered_set<std::string> m_selected;
     std::unordered_set<std::string> m_cut;

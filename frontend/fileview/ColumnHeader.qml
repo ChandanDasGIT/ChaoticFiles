@@ -4,7 +4,7 @@ import QtQuick
 Rectangle {
     id: root
 
-    property bool inTrash: false
+    property int kind: 0                   // 0 normal, 1 the Trash, 2 each item's folder instead of its type
     property int sortKey: 0
     property bool sortAscending: true
     signal sortRequested(int key)
@@ -59,8 +59,8 @@ Rectangle {
             key: 0
             width: parent.width - Theme.columnModified - Theme.columnType - Theme.columnSize
         }
-        Column { title: root.inTrash ? "Date deleted" : "Date modified"; key: 1; width: Theme.columnModified }
-        Column { title: root.inTrash ? "Original location" : "Type"; key: 2; width: Theme.columnType }
+        Column { title: root.kind === 1 ? "Date deleted" : "Date modified"; key: 1; width: Theme.columnModified }
+        Column { title: root.kind === 1 ? "Original location" : root.kind === 2 ? "Folder" : "Type"; key: 2; width: Theme.columnType }
         Column { title: "Size"; key: 3; width: Theme.columnSize; alignRight: true }
     }
 

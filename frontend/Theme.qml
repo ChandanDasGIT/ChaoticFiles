@@ -131,6 +131,10 @@ QtObject {
     readonly property int menuRadius:       8
     readonly property int menuShortcutSpace: 70     // room for a shortcut or check mark on the right
 
+    // ---- search ----
+    readonly property int searchBarHeight:  44
+    readonly property int searchDelayMs:    300
+
     // ---- dialogs ----
     readonly property int dialogPadding:    18
     readonly property int dialogMargin:     24

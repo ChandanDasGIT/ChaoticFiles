@@ -62,7 +62,7 @@ std::vector<Place> userPlaces()
     const std::string home = PathBar::homeDirectory();
     const auto userDirs = readUserDirs(home);
 
-    std::vector<Place> places {{"Home", home, "home"}};
+    std::vector<Place> places {{"Home", home, "home"}, {"Recent", PathBar::kRecentLocation, "recent"}};
     const struct { const char* key; const char* name; const char* kind; } standard[] = {
         {"XDG_DESKTOP_DIR", "Desktop", "desktop"},
         {"XDG_DOCUMENTS_DIR", "Documents", "documents"},

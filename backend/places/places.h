@@ -5,7 +5,7 @@
 struct Place {
     std::string name;
     std::string path;
-    std::string kind;       // "home", "desktop", "documents", "downloads", "music", "pictures", "videos", "root", "trash", "drive"
+    std::string kind;       // "home", "recent", "desktop", "documents", "downloads", "music", "pictures", "videos", "root", "trash", "drive"
 };
 
 namespace Places {

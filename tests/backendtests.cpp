@@ -14,7 +14,9 @@
 #include "permissions/permissions.h"
 #include "places/places.h"
 #include "process/process.h"
+#include "search/filesearch.h"
 #include "properties/properties.h"
+#include "recent/recentfiles.h"
 #include "tabs/tabmanager.h"
 #include "transfer/transfer.h"
 #include "trash/trash.h"
@@ -858,6 +860,84 @@ static void testApps()
     CHECK(hidden.exec.empty());
 }
 
+static void testSearch(const fs::path& root)
+{
+    CHECK(FileSearch::nameMatches("Holiday Photo.PNG", "photo"));
+    CHECK(!FileSearch::nameMatches("notes.txt", "photo"));
+
+    const fs::path work = root / "search";
+    fs::create_directories(work / "a" / "b");
+    fs::create_directories(work / ".secret");
+    touch(work / "report.txt");
+    touch(work / "a" / "REPORT-2.pdf");
+    touch(work / "a" / "b" / "old report");
+    touch(work / ".secret" / "report-hidden");
+    touch(work / "a" / "other.txt");
+    fs::create_directory_symlink(work / "a", work / "loop");
+
+    std::vector<Entry> found;
+    const auto collect = [&found](std::vector<Entry> batch) {
+        found.insert(found.end(), batch.begin(), batch.end());
+    };
+    FileSearch::run(work.string(), "report", false, 100, collect, {});
+    CHECK(found.size() == 3);                       // no hidden, and the link is not walked
+    for (const Entry& entry : found) CHECK(entry.location == PathBar::parent(entry.path));
+
+    found.clear();
+    FileSearch::run(work.string(), "report", true, 100, collect, {});
+    CHECK(found.size() == 4);
+
+    found.clear();
+    FileSearch::run(work.string(), "report", false, 2, collect, {});
+    CHECK(found.size() == 2);
+
+    found.clear();
+    FileSearch::run(work.string(), "report", false, 100, collect, [] { return true; });
+    CHECK(found.empty());
+
+    FolderView view;
+    view.setEntries({fileEntry("apple"), fileEntry("banana"), fileEntry("cherry")}, view.sort());
+    view.setFilter("AN");
+    CHECK(view.count() == 1 && view.at(0).name == "banana");
+    view.setFilter("");
+    CHECK(view.count() == 3);
+    view.addEntries({fileEntry("avocado")});
+    CHECK(view.count() == 4 && view.at(1).name == "avocado");
+    view.selectRows({0, 2}, false);
+    CHECK(view.selectedCount() == 2);
+    view.selectRows({3}, true);
+    CHECK(view.selectedCount() == 3);
+    view.selectRows({99, -1}, false);
+    CHECK(view.selectedCount() == 0);
+}
+
+static void testRecent(const fs::path& root)
+{
+    setenv("XDG_DATA_HOME", (root / "recent-data").c_str(), 1);
+    fs::create_directories(root / "recent-data");
+    const fs::path a = root / "recent-a", b = root / "recent b";
+    touch(a);
+    touch(b);
+    RecentFiles::add(a.string());
+    RecentFiles::add(b.string());
+    RecentFiles::add(a.string());
+    auto items = RecentFiles::list();
+    CHECK(items.size() == 2 && items[0] == a.string());
+
+    fs::remove(a);
+    items = RecentFiles::list();
+    CHECK(items.size() == 1 && items[0] == b.string());
+
+    const auto parsed = RecentFiles::parseXbel("<bookmark href=\"file:///tmp/a%20b.txt\" added=\"x\"><bookmark href=\"https://x\"/>"
+                                               "<bookmark href=\"file:///tmp/c%26d\"/>");
+    CHECK(parsed.size() == 2 && parsed[0] == "/tmp/a b.txt" && parsed[1] == "/tmp/c&d");
+
+    const ListResult listed = listDirectory(PathBar::kRecentLocation, {});
+    CHECK(listed.ok && listed.entries.size() == 1 && listed.entries[0].location == root.string());
+    RecentFiles::clear();
+    CHECK(RecentFiles::list().empty());
+}
+
 int main()
 {
     char pattern[] = "/tmp/chaoticfiles-tests-XXXXXX";
@@ -888,6 +968,8 @@ int main()
     testUndo();
     testArchives(root);
     testApps();
+    testSearch(root);
+    testRecent(root);
 
     fs::remove_all(root);
     if (failures == 0) std::printf("All backend tests passed.\n");

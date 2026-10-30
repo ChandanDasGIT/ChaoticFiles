@@ -1,5 +1,6 @@
 #pragma once
 #include "directory/directorylister.h"
+#include "tasks/backgroundjob.h"
 #include "tabs/tabmanager.h"
 #include "watcher/folderwatcher.h"
 
@@ -24,6 +25,8 @@ class FolderSession : public QObject {
     Q_PROPERTY(bool canGoForward READ canGoForward NOTIFY locationChanged)
     Q_PROPERTY(bool canGoUp READ canGoUp NOTIFY locationChanged)
     Q_PROPERTY(bool isTrash READ isTrash NOTIFY locationChanged)
+    Q_PROPERTY(bool isSearching READ isSearching NOTIFY stateChanged)
+    Q_PROPERTY(int headerKind READ headerKind NOTIFY stateChanged)         // 0 normal, 1 the Trash, 2 shows each item's folder
     Q_PROPERTY(bool canWrite READ canWrite NOTIFY locationChanged)         // whether new items can be put here
     Q_PROPERTY(bool loading READ loading NOTIFY stateChanged)
     Q_PROPERTY(QString error READ error NOTIFY stateChanged)
@@ -48,6 +51,8 @@ public:
     bool canGoUp() const;
     bool isTrash() const;
     bool canWrite() const;
+    bool isSearching() const { return m_searching; }
+    int headerKind() const;
     bool loading() const { return m_loading; }
     QString error() const { return m_error; }
     int itemCount() const { return m_tab->view.count(); }
@@ -85,6 +90,10 @@ public:
     Q_INVOKABLE QStringList selectedPaths() const;           // the selection, or the folder itself if nothing is selected
     Q_INVOKABLE QStringList selectedItems() const;           // only what is selected: anything that changes files uses this
     Q_INVOKABLE QString selectedUrlText() const;             // for dragging: file URLs, one per line
+    Q_INVOKABLE void setFilter(const QString& text);         // narrows this folder as you type
+    Q_INVOKABLE void search(const QString& text);            // everything below this folder
+    Q_INVOKABLE void endSearch();
+    Q_INVOKABLE void selectRows(const QVariantList& rows, bool add);
     Q_INVOKABLE void copyPaths();                            // the selection's full paths, one per line
 
 signals:
@@ -107,6 +116,7 @@ private:
     FolderModel m_model;
     DirectoryLister m_lister;
     FolderWatcher m_watcher;
+    BackgroundJob m_searchJob;
     std::string m_watchedPath;
     std::string m_shownPath;               // the folder whose rows are on screen
 
@@ -115,6 +125,7 @@ private:
     bool m_loaded = false;
     bool m_active = false;
     bool m_stale = false;                  // the folder changed while this tab was in the background
+    bool m_searching = false;              // the rows are search results
     QString m_error;
     QString m_diskText;
 
