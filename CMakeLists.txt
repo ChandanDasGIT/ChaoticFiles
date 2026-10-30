@@ -48,7 +48,7 @@ qt_add_qml_module(appChaoticFiles
     SOURCES
         ${WRAPPER_SOURCES}
     RESOURCES
-        frontend/fonts/fa-solid-900.ttf
+        resources/fonts/fa-solid-900.ttf
 )
 
 target_include_directories(appChaoticFiles PRIVATE "${CMAKE_CURRENT_LIST_DIR}")

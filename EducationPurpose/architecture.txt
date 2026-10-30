@@ -31,13 +31,16 @@ ChaoticFiles/
 │   │   └── pathbar.cpp                 // handles ~, relative paths and file:// addresses
 │   ├── places/                         // the sidebar's logic
 │   │   ├── places.h                    // namespace Places: user folders and mounted drives
-│   │   └── places.cpp                  // reads user-dirs.dirs and /proc/self/mountinfo
+│   │   └── places.cpp                  // reads user-dirs.dirs and /proc/self/mountinfo, adds the Trash
 │   ├── sorting/                        // ordering
 │   │   ├── sorting.h                   // SortKey, SortSettings, naturalCompare, sortEntries
 │   │   └── sorting.cpp                 // natural order, folders first
 │   ├── tabs/                           // the open tabs
 │   │   ├── tabmanager.h                // Tab (history and FolderView) and TabManager
 │   │   └── tabmanager.cpp              // open, close, move, reopen
+│   ├── trash/                          // the shared Trash
+│   │   ├── trash.h                     // namespace Trash: where it is, and creating it
+│   │   └── trash.cpp                   // follows the freedesktop.org Trash specification
 │   └── watcher/                        // noticing changes
 │       ├── folderwatcher.h             // calls back when a folder changes
 │       └── folderwatcher.cpp           // inotify on its own thread, groups bursts of changes
@@ -53,8 +56,6 @@ ChaoticFiles/
 │   │   ├── ColumnHeader.qml            // the column titles; click to sort
 │   │   ├── FileRow.qml                 // one row; draws and reports clicks
 │   │   └── FileView.qml                // the list of one tab, its keyboard and its empty or error message
-│   ├── fonts/                          // font built into the app
-│   │   └── fa-solid-900.ttf            // Font Awesome 6 Free Solid, the icon font
 │   ├── popupmenu/                      // things that pop up
 │   │   ├── FolderPopup.qml             // the list of folders under the address bar
 │   │   ├── PopupMenu.qml               // a menu built from a list of entries
@@ -75,6 +76,9 @@ ChaoticFiles/
 │   │   └── WindowButtons.qml           // minimise, maximise, close
 │   ├── Icons.qml                       // singleton: every icon as a  style code
 │   └── Theme.qml                       // singleton: every colour and size; dark, light or system
+├── resources/                          // files built into the app
+│   └── fonts/                          // fonts
+│       └── fa-solid-900.ttf            // Font Awesome 6 Free Solid, the icon font
 ├── tests/                              // tests, no Qt
 │   └── backendtests.cpp                // the engine's tests, run by ctest
 ├── wrapper/                            // Qt C++ between QML and the engine: controllers and list models
@@ -88,15 +92,15 @@ ChaoticFiles/
 │   │   └── pathbarcontroller.cpp       // its implementation
 │   ├── placesWrap/                     // the sidebar for QML
 │   │   ├── placescontroller.h          // places and drives as lists (PlacesController)
-│   │   └── placescontroller.cpp        // checks for drive changes every 3 seconds
+│   │   └── placescontroller.cpp        // creates the Trash if needed, checks for drive changes every 3 seconds
 │   ├── settingsWrap/                   // settings for QML
-│   │   ├── settingscontroller.h        // theme, hidden files, window buttons, saved tabs (SettingsController)
+│   │   ├── settingscontroller.h        // theme, hidden files, window buttons (SettingsController)
 │   │   ├── settingscontroller.cpp      // reads and writes QSettings
 │   │   ├── systemtheme.h               // whether the desktop prefers dark (SystemTheme)
 │   │   └── systemtheme.cpp             // asks the freedesktop settings portal, falls back to Qt
 │   └── tabsWrap/                       // the tabs for QML
 │       ├── tabscontroller.h            // list model of tabs, and every tab action (TabsController)
-│       └── tabscontroller.cpp          // keeps one FolderSession per tab, saves tabs at exit
+│       └── tabscontroller.cpp          // keeps one FolderSession per tab
 ├── .gitignore                          // what git leaves out
 ├── CLAUDE.md                           // the rules and layout, for AI assistants
 ├── CMakeLists.txt                      // the build: fileengine library, app and QML module, tests

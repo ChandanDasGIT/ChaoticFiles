@@ -25,7 +25,7 @@ public:
     static TabsController* instance();
     static TabsController* create(QQmlEngine*, QJSEngine*);
 
-    // the first tabs: the folders given, or else the ones open at the last exit, or else Home
+    // the first tabs: the folders given, or else Home
     void start(const QStringList& folders);
 
     int rowCount(const QModelIndex& parent = {}) const override;
@@ -56,7 +56,6 @@ private:
 
     FolderSession* insertTab(const std::shared_ptr<Tab>& tab, int index);
     void updateCurrent(FolderSession* previous);
-    void saveTabs() const;
 
     TabManager m_tabs;
     QList<FolderSession*> m_sessions;

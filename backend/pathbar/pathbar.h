@@ -14,7 +14,7 @@ std::string homeDirectory();
 std::string normalize(const std::string& path);    // removes "." and ".." and repeated or trailing "/"
 std::string parent(const std::string& path);       // the parent folder; "/" stays "/"
 std::string baseName(const std::string& path);
-std::string tabTitle(const std::string& path);     // "Home" for the home folder, "/" for the root
+std::string tabTitle(const std::string& path);     // "Home", "Trash" and "/" for those folders
 
 bool isDirectory(const std::string& path);
 

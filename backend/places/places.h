@@ -5,12 +5,12 @@
 struct Place {
     std::string name;
     std::string path;
-    std::string kind;       // "home", "desktop", "documents", "downloads", "music", "pictures", "videos", "root", "drive"
+    std::string kind;       // "home", "desktop", "documents", "downloads", "music", "pictures", "videos", "root", "trash", "drive"
 };
 
 namespace Places {
 
-// Home, the standard user folders that exist, and the root of the file system.
+// Home, the standard user folders that exist, the root of the file system, and the Trash.
 std::vector<Place> userPlaces();
 
 // Mounted drives that are worth showing: real devices, without the system's own mounts.

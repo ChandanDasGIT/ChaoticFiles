@@ -27,27 +27,17 @@ TabsController::TabsController(QObject* parent)
     connect(settings, &SettingsController::showHiddenChanged, this, [this, settings] {
         for (FolderSession* session : m_sessions) session->setShowHidden(settings->showHidden());
     });
-    connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this, &TabsController::saveTabs);
 }
 
 void TabsController::start(const QStringList& folders)
 {
-    SettingsController* settings = SettingsController::instance();
-    QStringList paths = folders;
-    int current = 0;
-    if (paths.isEmpty()) {
-        paths = settings->savedTabs();
-        current = settings->savedCurrentTab();
-    }
-
-    for (const QString& path : paths) {
+    for (const QString& path : folders) {
         const std::string folder = PathBar::normalize(path.toStdString());
         const int place = m_tabs.count();
         insertTab(m_tabs.open(PathBar::isDirectory(folder) ? folder : PathBar::homeDirectory(), place), place);
     }
     if (m_tabs.count() == 0) insertTab(m_tabs.open(PathBar::homeDirectory(), 0), 0);
 
-    m_tabs.setCurrent(current);
     updateCurrent(nullptr);
 }
 
@@ -176,11 +166,4 @@ void TabsController::reopenTab()
     m_tabs.setCurrent(place);
     updateCurrent(previous);
     emit reopenChanged();
-}
-
-void TabsController::saveTabs() const
-{
-    QStringList paths;
-    for (const FolderSession* session : m_sessions) paths << session->path();
-    SettingsController::instance()->saveTabs(paths, m_tabs.current());
 }

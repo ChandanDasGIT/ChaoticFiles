@@ -7,10 +7,10 @@ import QtQuick
 //     Text { text: Icons.folder; font.family: Icons.fontFamily }
 // To add an icon: look up its code on fontawesome.com and add a line below, for example
 //     readonly property string cloud: "\uf0c2"   // cloud
-// Only SOLID icons of the free set exist in frontend/fonts/fa-solid-900.ttf.
+// Only SOLID icons of the free set exist in resources/fonts/fa-solid-900.ttf.
 QtObject {
     // The font file is a resource of the app (see RESOURCES in CMakeLists.txt).
-    readonly property FontLoader loader: FontLoader { source: "fonts/fa-solid-900.ttf" }
+    readonly property FontLoader loader: FontLoader { source: "../resources/fonts/fa-solid-900.ttf" }
     readonly property string fontFamily: loader.name
 
     // ---- navigation ----
@@ -52,6 +52,7 @@ QtObject {
     readonly property string videos:        "\uf03d"   // video
     readonly property string drive:         "\uf0a0"   // hard-drive
     readonly property string root:          "\uf233"   // server
+    readonly property string trash:         "\uf1f8"   // trash
 
     // ---- kinds of file ----
     readonly property string folder:        "\uf07b"   // folder
@@ -102,6 +103,7 @@ QtObject {
         case "pictures":  return pictures
         case "videos":    return videos
         case "root":      return root
+        case "trash":     return trash
         default:          return drive
         }
     }

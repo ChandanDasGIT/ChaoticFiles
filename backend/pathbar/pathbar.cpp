@@ -1,6 +1,7 @@
 #include "pathbar/pathbar.h"
 
 #include "sorting/sorting.h"
+#include "trash/trash.h"
 
 #include <algorithm>
 #include <cctype>
@@ -85,6 +86,7 @@ std::string tabTitle(const std::string& path)
 {
     if (path == "/") return "/";
     if (path == homeDirectory()) return "Home";
+    if (path == Trash::filesDirectory()) return "Trash";
     return baseName(path);
 }
 

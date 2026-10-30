@@ -16,7 +16,6 @@ Tabs
 - New tab Ctrl+T, close Ctrl+W or middle click, switch with Ctrl+Tab, reopen with Ctrl+Shift+T.
 - Drag a tab to reorder. Tabs shrink as more open, then the strip scrolls with the wheel.
 - Each tab has its own folder, history, sorting, selection and scroll position.
-- Tabs come back at the next start.
 - Middle click a folder, or right click it, to open it in a new tab.
 
 Address bar
@@ -26,7 +25,8 @@ Address bar
 - Long paths collapse into a "…" button.
 
 Sidebar and status bar
-- Home, the standard user folders, the file system, and mounted drives, which update by themselves.
+- Home, the standard user folders, the file system, the Trash, and mounted drives, which update by themselves.
+- The Trash is the one Linux desktops share, so files trashed by other apps appear in it. Moving files to it comes later.
 - Item count, selection count and size, free disk space.
 
 Interface

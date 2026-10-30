@@ -8,6 +8,7 @@
 #include "pathbar/pathbar.h"
 #include "places/places.h"
 #include "tabs/tabmanager.h"
+#include "trash/trash.h"
 #include "watcher/folderwatcher.h"
 
 #include <atomic>
@@ -349,6 +350,25 @@ static void testWatcher(const fs::path& root)
     watcher.stop();
 }
 
+static void testTrash(const fs::path& root)
+{
+    setenv("XDG_DATA_HOME", (root / "data").c_str(), 1);     // never the real Trash
+
+    const std::string files = Trash::filesDirectory();
+    CHECK(files == (root / "data" / "Trash" / "files").string());
+    CHECK(!PathBar::isDirectory(files));
+    CHECK(Trash::ensureExists());
+    CHECK(PathBar::isDirectory(files) && PathBar::isDirectory((root / "data" / "Trash" / "info").string()));
+    CHECK(Trash::ensureExists());                            // a second time changes nothing
+
+    struct stat info {};
+    CHECK(stat((root / "data" / "Trash").c_str(), &info) == 0 && (info.st_mode & 0777) == 0700);
+
+    CHECK(PathBar::tabTitle(files) == "Trash");
+    const auto places = Places::userPlaces();
+    CHECK(places.back().kind == "trash" && places.back().path == files);
+}
+
 int main()
 {
     char pattern[] = "/tmp/chaoticfiles-tests-XXXXXX";
@@ -368,6 +388,7 @@ int main()
     testDirectory(root);
     testLister(root);
     testWatcher(root);
+    testTrash(root);
 
     fs::remove_all(root);
     if (failures == 0) std::printf("All backend tests passed.\n");

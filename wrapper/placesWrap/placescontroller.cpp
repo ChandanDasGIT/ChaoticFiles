@@ -1,6 +1,7 @@
 #include "placescontroller.h"
 
 #include "places/places.h"
+#include "trash/trash.h"
 
 namespace {
 
@@ -25,6 +26,7 @@ QVariantList toList(const std::vector<Place>& places)
 PlacesController::PlacesController(QObject* parent)
     : QObject(parent), m_places(toList(Places::userPlaces())), m_drives(toList(Places::drives()))
 {
+    Trash::ensureExists();
     connect(&m_timer, &QTimer::timeout, this, &PlacesController::updateDrives);
     m_timer.start(kDriveCheckMs);
 }

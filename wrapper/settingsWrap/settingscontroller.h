@@ -33,10 +33,6 @@ public:
     void setWindowButtons(int mode);
     bool windowButtonsVisible() const;
 
-    QStringList savedTabs() const;
-    int savedCurrentTab() const;
-    void saveTabs(const QStringList& paths, int current);
-
 signals:
     void themeModeChanged();
     void systemDarkChanged();

@@ -69,19 +69,3 @@ bool SettingsController::windowButtonsVisible() const
     if (m_windowButtons == 2) return false;
     return !isTilingDesktop();
 }
-
-QStringList SettingsController::savedTabs() const
-{
-    return m_settings.value("session/tabs").toStringList();
-}
-
-int SettingsController::savedCurrentTab() const
-{
-    return m_settings.value("session/current", 0).toInt();
-}
-
-void SettingsController::saveTabs(const QStringList& paths, int current)
-{
-    m_settings.setValue("session/tabs", paths);
-    m_settings.setValue("session/current", current);
-}
