@@ -1,0 +1,115 @@
+import QtQuick
+
+// One file or folder in the list. It only draws; every click goes to the session.
+Rectangle {
+    id: root
+
+    required property int index
+    required property string name
+    required property string typeText
+    required property string sizeText
+    required property string modifiedText
+    required property string category
+    required property string path
+    required property bool isDirectory
+    required property bool isLink
+    required property bool isHidden
+    required property bool isBroken
+    required property bool isSelected
+    required property bool isCurrent
+
+    signal pressedWith(int button, int modifiers, real sceneX, real sceneY)
+    signal doubleClicked()
+
+    x: Theme.rowMargin
+    width: ListView.view.width - 2 * Theme.rowMargin
+    height: Theme.rowHeight
+    radius: Theme.rowRadius
+    color: isSelected ? (area.containsMouse ? Theme.selectionHoverBg : Theme.selectionBg)
+                      : area.containsMouse ? Theme.hoverBg : "transparent"
+
+    // ---- name ----
+    Text {
+        id: icon
+        anchors.left: parent.left
+        anchors.leftMargin: Theme.rowPadding
+        anchors.verticalCenter: parent.verticalCenter
+        width: Theme.rowIconWidth
+        text: root.isBroken ? Icons.warning : Icons.forCategory(root.category)
+        font.family: Icons.fontFamily
+        font.pixelSize: Theme.iconSize + 1
+        color: root.isBroken ? Theme.danger : Theme.categoryColor(root.category)
+        opacity: root.isHidden ? Theme.hiddenOpacity : 1
+    }
+    Text {
+        id: linkBadge
+        visible: root.isLink
+        x: icon.x + 9
+        y: icon.y + icon.height - 7
+        text: Icons.link
+        font.family: Icons.fontFamily
+        font.pixelSize: Theme.smallFontSize - 3
+        color: Theme.text
+    }
+    Text {
+        anchors.left: icon.right
+        anchors.right: modified.left
+        anchors.rightMargin: Theme.rowPadding
+        anchors.verticalCenter: parent.verticalCenter
+        text: root.name
+        textFormat: Text.PlainText
+        elide: Text.ElideMiddle
+        font.pixelSize: Theme.fontSize
+        color: root.isBroken ? Theme.danger : Theme.text
+        opacity: root.isHidden ? Theme.hiddenOpacity : 1
+    }
+
+    // ---- other columns ----
+    Text {
+        id: modified
+        anchors.right: type.left
+        anchors.verticalCenter: parent.verticalCenter
+        width: Theme.columnModified
+        leftPadding: Theme.rowPadding
+        text: root.modifiedText
+        font.pixelSize: Theme.smallFontSize
+        color: Theme.textMuted
+    }
+    Text {
+        id: type
+        anchors.right: size.left
+        anchors.verticalCenter: parent.verticalCenter
+        width: Theme.columnType
+        leftPadding: Theme.rowPadding
+        text: root.typeText
+        textFormat: Text.PlainText
+        elide: Text.ElideRight
+        font.pixelSize: Theme.smallFontSize
+        color: Theme.textMuted
+    }
+    Text {
+        id: size
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        width: Theme.columnSize
+        rightPadding: Theme.rowPadding
+        horizontalAlignment: Text.AlignRight
+        text: root.sizeText
+        font.pixelSize: Theme.smallFontSize
+        color: Theme.textMuted
+    }
+
+    MouseArea {
+        id: area
+        anchors.fill: parent
+        hoverEnabled: true
+        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+        onPressed: (mouse) => {
+            const scene = mapToItem(null, mouse.x, mouse.y)
+            root.pressedWith(mouse.button, mouse.modifiers, scene.x, scene.y)
+        }
+        onDoubleClicked: (mouse) => {
+            if (mouse.button === Qt.LeftButton) root.doubleClicked()
+        }
+    }
+}

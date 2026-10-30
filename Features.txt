@@ -1,0 +1,35 @@
+ChaoticFiles 0.1 is a Qt 6 / QML file manager for Linux. The engine is plain C++20 and does not depend on Qt.
+
+Browsing
+- Folder list with name, date modified, type and size.
+- Open folders with a double click or Enter. Open files in their default app.
+- Back, forward, up and refresh, with buttons, Alt+Left/Right/Up, F5 and the side buttons of a mouse.
+- Sort by any column; folders stay first. Natural order: file2 comes before file10.
+- Hidden files on or off with Ctrl+H.
+- Select with click, Ctrl+click, Shift+click, the arrow keys, Ctrl+A, and by typing a name.
+- A folder refreshes by itself when something in it changes.
+- Clear messages for folders you can't open, missing folders and broken links.
+- Folders are read on a background thread, so a huge or slow folder does not freeze the window.
+
+Tabs
+- Windows 11 style tabs in the title bar.
+- New tab Ctrl+T, close Ctrl+W or middle click, switch with Ctrl+Tab, reopen with Ctrl+Shift+T.
+- Drag a tab to reorder. Tabs shrink as more open, then the strip scrolls with the wheel.
+- Each tab has its own folder, history, sorting, selection and scroll position.
+- Tabs come back at the next start.
+- Middle click a folder, or right click it, to open it in a new tab.
+
+Address bar
+- Every folder in the path can be clicked.
+- The arrow after a folder lists its subfolders.
+- Click the empty part or press Ctrl+L to type a path. ~ works, and folders are suggested as you type.
+- Long paths collapse into a "…" button.
+
+Sidebar and status bar
+- Home, the standard user folders, the file system, and mounted drives, which update by themselves.
+- Item count, selection count and size, free disk space.
+
+Interface
+- Dark, light and system themes. System follows the desktop's dark or light preference.
+- Draws its own title bar. Window buttons are off by default on tiling desktops, and can be switched on.
+- Right click menus on files and on empty space. Copy Path.

@@ -1,0 +1,76 @@
+import QtQuick
+
+// The bottom line: how many items, what is selected, a passing message, and free disk space.
+Rectangle {
+    id: root
+
+    property var session
+    property string message: ""
+
+    function showMessage(text) {
+        message = text
+        messageTimer.restart()
+    }
+
+    implicitHeight: Theme.statusBarHeight
+    color: Theme.statusBarBg
+
+    Timer {
+        id: messageTimer
+        interval: Theme.messageMs
+        onTriggered: root.message = ""
+    }
+
+    // "Loading" appears only when a folder takes long enough to notice
+    Timer {
+        id: loadingTimer
+        interval: Theme.loadingDelayMs
+        running: root.session?.loading ?? false
+        onTriggered: loadingText.visible = true
+        onRunningChanged: if (!running) loadingText.visible = false
+    }
+
+    Row {
+        anchors.left: parent.left
+        anchors.leftMargin: Theme.statusPadding
+        anchors.right: disk.left
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: Theme.statusGap
+        clip: true
+
+        Text {
+            text: root.session?.itemsText ?? ""
+            font.pixelSize: Theme.smallFontSize
+            color: Theme.textMuted
+        }
+        Text {
+            visible: text !== ""
+            text: root.session?.selectionText ?? ""
+            font.pixelSize: Theme.smallFontSize
+            color: Theme.text
+        }
+        Text {
+            id: loadingText
+            visible: false
+            text: "Loading…"
+            font.pixelSize: Theme.smallFontSize
+            color: Theme.textMuted
+        }
+        Text {
+            visible: text !== ""
+            text: root.message
+            font.pixelSize: Theme.smallFontSize
+            color: Theme.accent
+        }
+    }
+
+    Text {
+        id: disk
+        anchors.right: parent.right
+        anchors.rightMargin: Theme.statusPadding
+        anchors.verticalCenter: parent.verticalCenter
+        text: root.session?.diskText ?? ""
+        font.pixelSize: Theme.smallFontSize
+        color: Theme.textMuted
+    }
+}

@@ -1,0 +1,108 @@
+This is the architecture of ChaoticFiles
+
+The three layers: frontend/ (QML) talks to wrapper/ (Qt C++), and wrapper/ talks to backend/ (plain C++).
+Left out: build/ (generated, not part of the code).
+
+ChaoticFiles/
+├── backend/                            // pure C++20 engine, no Qt: built as its own static library, fileengine
+│   ├── directory/                      // reading a folder
+│   │   ├── directorylister.h           // listDirectory, and DirectoryLister, which runs it on a thread and can be cancelled
+│   │   └── directorylister.cpp         // reads names, details and types, sorts, turns errors into sentences
+│   ├── diskspace/                      // free space
+│   │   ├── diskspace.h                 // DiskSpace and readDiskSpace
+│   │   └── diskspace.cpp               // asks statvfs
+│   ├── entry/                          // one file or folder
+│   │   ├── entry.h                     // Entry, EntryKind, FileCategory, readEntry
+│   │   └── entry.cpp                   // asks statx; a link takes its kind and size from its target
+│   ├── filetype/                       // what kind of file
+│   │   ├── filetype.h                  // detectFileType and categoryName
+│   │   └── filetype.cpp                // table of extensions; does not read the file
+│   ├── folderview/                     // what one tab shows
+│   │   ├── folderview.h                // sorted, filtered rows and the selection, kept by name
+│   │   └── folderview.cpp              // hiding, click modes, keyboard movement, type-to-select
+│   ├── format/                         // text for the screen
+│   │   ├── format.h                    // namespace Format: size, date, item count
+│   │   └── format.cpp                  // its implementation
+│   ├── navigation/                     // back and forward
+│   │   ├── navigationhistory.h         // the folders one tab has visited
+│   │   └── navigationhistory.cpp       // visit, goBack, goForward
+│   ├── pathbar/                        // the address bar's logic
+│   │   ├── pathbar.h                   // namespace PathBar: split, parent, subfolders, resolve, suggestions
+│   │   └── pathbar.cpp                 // handles ~, relative paths and file:// addresses
+│   ├── places/                         // the sidebar's logic
+│   │   ├── places.h                    // namespace Places: user folders and mounted drives
+│   │   └── places.cpp                  // reads user-dirs.dirs and /proc/self/mountinfo
+│   ├── sorting/                        // ordering
+│   │   ├── sorting.h                   // SortKey, SortSettings, naturalCompare, sortEntries
+│   │   └── sorting.cpp                 // natural order, folders first
+│   ├── tabs/                           // the open tabs
+│   │   ├── tabmanager.h                // Tab (history and FolderView) and TabManager
+│   │   └── tabmanager.cpp              // open, close, move, reopen
+│   └── watcher/                        // noticing changes
+│       ├── folderwatcher.h             // calls back when a folder changes
+│       └── folderwatcher.cpp           // inotify on its own thread, groups bursts of changes
+├── dependencies/                       // third-party code; nothing yet
+│   └── README.md                       // says so
+├── EducationPurpose/                   // this explanation of the project
+│   └── architecture.txt                // this file
+├── frontend/                           // everything you see
+│   ├── addressbar/                     // the address bar
+│   │   ├── AddressBar.qml              // folders as buttons, or a text field with suggestions
+│   │   └── PathSegment.qml             // one folder and its arrow
+│   ├── fileview/                       // the file list
+│   │   ├── ColumnHeader.qml            // the column titles; click to sort
+│   │   ├── FileRow.qml                 // one row; draws and reports clicks
+│   │   └── FileView.qml                // the list of one tab, its keyboard and its empty or error message
+│   ├── fonts/                          // font built into the app
+│   │   └── fa-solid-900.ttf            // Font Awesome 6 Free Solid, the icon font
+│   ├── popupmenu/                      // things that pop up
+│   │   ├── FolderPopup.qml             // the list of folders under the address bar
+│   │   ├── PopupMenu.qml               // a menu built from a list of entries
+│   │   └── PopupMenuItem.qml           // one row of a menu
+│   ├── sidebar/                        // the left side
+│   │   ├── Sidebar.qml                 // places and drives
+│   │   └── SidebarItem.qml             // one place
+│   ├── statusbar/                      // the bottom line
+│   │   └── StatusBar.qml               // counts, messages, free space
+│   ├── tabbar/                         // the title bar
+│   │   ├── BrowserTab.qml              // one tab in the Windows 11 shape
+│   │   └── BrowserTabBar.qml           // the tabs, "+", dragging tabs, free space that moves the window
+│   ├── toolbar/                        // the row under the tabs
+│   │   ├── NavigationBar.qml           // back, forward, up, refresh, address bar, settings
+│   │   └── ToolbarButton.qml           // one icon button
+│   ├── window/                         // parts of the window itself
+│   │   ├── ResizeHandles.qml           // invisible strips along the edges that resize the window
+│   │   └── WindowButtons.qml           // minimise, maximise, close
+│   ├── Icons.qml                       // singleton: every icon as a  style code
+│   └── Theme.qml                       // singleton: every colour and size; dark, light or system
+├── tests/                              // tests, no Qt
+│   └── backendtests.cpp                // the engine's tests, run by ctest
+├── wrapper/                            // Qt C++ between QML and the engine: controllers and list models
+│   ├── folderWrap/                     // one tab's folder for QML
+│   │   ├── foldermodel.h               // list model of the rows; owns nothing, asks FolderView (FolderModel)
+│   │   ├── foldermodel.cpp             // its implementation
+│   │   ├── foldersession.h             // a tab's folder, navigation and selection (FolderSession)
+│   │   └── foldersession.cpp           // starts listings, takes results on the UI thread, opens files, copies paths
+│   ├── pathbarWrap/                    // the address bar for QML
+│   │   ├── pathbarcontroller.h         // passes questions to the engine's PathBar (PathBarController)
+│   │   └── pathbarcontroller.cpp       // its implementation
+│   ├── placesWrap/                     // the sidebar for QML
+│   │   ├── placescontroller.h          // places and drives as lists (PlacesController)
+│   │   └── placescontroller.cpp        // checks for drive changes every 3 seconds
+│   ├── settingsWrap/                   // settings for QML
+│   │   ├── settingscontroller.h        // theme, hidden files, window buttons, saved tabs (SettingsController)
+│   │   ├── settingscontroller.cpp      // reads and writes QSettings
+│   │   ├── systemtheme.h               // whether the desktop prefers dark (SystemTheme)
+│   │   └── systemtheme.cpp             // asks the freedesktop settings portal, falls back to Qt
+│   └── tabsWrap/                       // the tabs for QML
+│       ├── tabscontroller.h            // list model of tabs, and every tab action (TabsController)
+│       └── tabscontroller.cpp          // keeps one FolderSession per tab, saves tabs at exit
+├── .gitignore                          // what git leaves out
+├── CLAUDE.md                           // the rules and layout, for AI assistants
+├── CMakeLists.txt                      // the build: fileengine library, app and QML module, tests
+├── Features.txt                        // feature list
+├── LICENSE                             // the GNU GPL v3 license
+├── main.cpp                            // start of the program: opens tabs, loads Main.qml
+├── Main.qml                            // the window: layout, shortcuts, menus
+├── README.md                           // what it is and how to build it
+└── ROADMAP.md                          // the plan
