@@ -1,5 +1,6 @@
 #include "contentinfo/contentinfo.h"
 
+#include "apps/desktopapps.h"
 #include "magic/magicfile.h"
 
 #include <algorithm>
@@ -44,6 +45,8 @@ std::vector<PropertyRow> collect(const std::string& path, const Cancelled& cance
     rows.push_back({"MIME type", mime});
     rows.push_back({"Detailed type", MagicFile::describe(path)});
     rows.push_back({"Encoding", MagicFile::encoding(path)});
+    const std::string app = DesktopApps::defaultNameFor(mime);
+    rows.push_back({"Opens with", app.empty() ? "No default app" : app});
 
     if (startsWith(mime, "text/") || mime == "application/json" || mime == "application/xml") append(rows, text(path));
     else if (startsWith(mime, "image/")) append(rows, image(path));

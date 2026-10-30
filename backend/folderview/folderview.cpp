@@ -14,8 +14,8 @@ void FolderView::clear()
 {
     m_all.clear();
     m_selected.clear();
-    m_currentName.clear();
-    m_anchorName.clear();
+    m_currentPath.clear();
+    m_anchorPath.clear();
     rebuildRows();
 }
 
@@ -49,30 +49,30 @@ void FolderView::rebuildRows()
     std::unordered_set<std::string> kept;
     m_currentRow = -1;
     for (int row = 0; row < count(); ++row) {
-        const std::string& name = at(row).name;
-        if (m_selected.count(name)) kept.insert(name);
-        if (name == m_currentName) m_currentRow = row;
+        const std::string& path = at(row).path;
+        if (m_selected.count(path)) kept.insert(path);
+        if (path == m_currentPath) m_currentRow = row;
     }
     m_selected = std::move(kept);
-    if (m_currentRow < 0) m_currentName.clear();
+    if (m_currentRow < 0) m_currentPath.clear();
 }
 
-int FolderView::rowOfName(const std::string& name) const
+int FolderView::rowOfPath(const std::string& path) const
 {
     for (int row = 0; row < count(); ++row)
-        if (at(row).name == name) return row;
+        if (at(row).path == path) return row;
     return -1;
 }
 
 void FolderView::setCurrent(int row)
 {
     m_currentRow = row;
-    m_currentName = row >= 0 ? at(row).name : std::string();
+    m_currentPath = row >= 0 ? at(row).path : std::string();
 }
 
 bool FolderView::isSelected(int row) const
 {
-    return !m_selected.empty() && m_selected.count(at(row).name) > 0;
+    return !m_selected.empty() && m_selected.count(at(row).path) > 0;
 }
 
 std::uint64_t FolderView::selectedSize() const
@@ -95,25 +95,25 @@ std::vector<std::string> FolderView::selectedPaths() const
 void FolderView::click(int row, ClickMode mode)
 {
     if (row < 0 || row >= count()) return;
-    const std::string& name = at(row).name;
+    const std::string& path = at(row).path;
 
     switch (mode) {
     case ClickMode::Replace:
         m_selected.clear();
-        m_selected.insert(name);
-        m_anchorName = name;
+        m_selected.insert(path);
+        m_anchorPath = path;
         break;
     case ClickMode::Toggle:
-        if (!m_selected.erase(name)) m_selected.insert(name);
-        m_anchorName = name;
+        if (!m_selected.erase(path)) m_selected.insert(path);
+        m_anchorPath = path;
         break;
     case ClickMode::Extend: {
-        int anchor = rowOfName(m_anchorName);
+        int anchor = rowOfPath(m_anchorPath);
         if (anchor < 0) anchor = m_currentRow >= 0 ? m_currentRow : row;
-        m_anchorName = at(anchor).name;
+        m_anchorPath = at(anchor).path;
         m_selected.clear();
         for (int r = std::min(anchor, row); r <= std::max(anchor, row); ++r)
-            m_selected.insert(at(r).name);
+            m_selected.insert(at(r).path);
         break;
     }
     }
@@ -128,21 +128,24 @@ void FolderView::moveCurrent(int row, bool extend)
 
 void FolderView::selectAll()
 {
-    for (int row = 0; row < count(); ++row) m_selected.insert(at(row).name);
+    for (int row = 0; row < count(); ++row) m_selected.insert(at(row).path);
 }
 
 void FolderView::clearSelection()
 {
     m_selected.clear();
-    m_anchorName.clear();
+    m_anchorPath.clear();
 }
 
 bool FolderView::selectName(const std::string& name)
 {
-    const int row = rowOfName(name);
-    if (row < 0) return false;
-    click(row, ClickMode::Replace);
-    return true;
+    for (int row = 0; row < count(); ++row) {
+        if (at(row).name == name) {
+            click(row, ClickMode::Replace);
+            return true;
+        }
+    }
+    return false;
 }
 
 int FolderView::findPrefix(const std::string& prefix, int from) const

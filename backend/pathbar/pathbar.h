@@ -7,8 +7,13 @@ struct PathPart {
     std::string path;
 };
 
-// Everything the address bar needs that is not drawing. Paths here are absolute and have no trailing "/".
+// Everything the address bar needs that is not drawing. Paths here are absolute and have no trailing "/",
+// or they are a location that is not one folder on disk: the Trash, or Recent.
 namespace PathBar {
+
+inline constexpr const char* kTrashLocation = "trash:///";
+inline constexpr const char* kRecentLocation = "recent:///";
+bool isVirtual(const std::string& path);
 
 std::string homeDirectory();
 std::string normalize(const std::string& path);    // removes "." and ".." and repeated or trailing "/"

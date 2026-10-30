@@ -10,7 +10,7 @@
 enum class ClickMode { Replace, Toggle, Extend };     // plain click, Ctrl+click, Shift+click
 
 // What one tab shows: the entries of its folder after sorting and hiding, and the selection.
-// The selection is kept by name, so it survives a refresh or a new sort order.
+// The selection is kept by path, so it survives a refresh or a new sort order.
 class FolderView {
 public:
     void setEntries(std::vector<Entry> entries, const SortSettings& sortedBy);
@@ -35,13 +35,15 @@ public:
     void selectAll();
     void clearSelection();
     bool selectName(const std::string& name);
+    void setCutPaths(std::unordered_set<std::string> paths) { m_cut = std::move(paths); }   // shown faded
+    bool isCut(int row) const { return !m_cut.empty() && m_cut.count(at(row).path) > 0; }
 
     // the first row at or after `from` whose name starts with `prefix`, wrapping around; -1 if none
     int findPrefix(const std::string& prefix, int from) const;
 
 private:
     void rebuildRows();
-    int rowOfName(const std::string& name) const;
+    int rowOfPath(const std::string& path) const;
     void setCurrent(int row);
 
     std::vector<Entry> m_all;
@@ -50,7 +52,8 @@ private:
     bool m_showHidden = false;
 
     std::unordered_set<std::string> m_selected;
-    std::string m_currentName;
-    std::string m_anchorName;                            // where a Shift range starts
+    std::unordered_set<std::string> m_cut;
+    std::string m_currentPath;
+    std::string m_anchorPath;                            // where a Shift range starts
     int m_currentRow = -1;
 };

@@ -33,7 +33,11 @@ int compareEntries(const Entry& a, const Entry& b, SortKey key)
         if (a.modifiedNanos != b.modifiedNanos) return a.modifiedNanos < b.modifiedNanos ? -1 : 1;
         break;
     case SortKey::Type:
-        if (const int c = naturalCompare(a.typeName, b.typeName)) return c;
+        if (!a.location.empty() || !b.location.empty()) {
+            if (const int c = naturalCompare(a.location, b.location)) return c;
+        } else if (const int c = naturalCompare(a.typeName, b.typeName)) {
+            return c;
+        }
         break;
     case SortKey::Name:
         break;

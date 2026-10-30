@@ -1,7 +1,10 @@
 // Tests for the engine. No Qt and no test library: a failed CHECK prints its line and the program
 // ends with a non-zero code. Files are created under a temporary folder that is removed afterwards.
+#include "apps/desktopapps.h"
+#include "archive/archiver.h"
 #include "contentinfo/contentinfo.h"
 #include "directory/directorylister.h"
+#include "fileops/fileops.h"
 #include "filetype/filetype.h"
 #include "folderview/folderview.h"
 #include "format/format.h"
@@ -13,7 +16,9 @@
 #include "process/process.h"
 #include "properties/properties.h"
 #include "tabs/tabmanager.h"
+#include "transfer/transfer.h"
 #include "trash/trash.h"
+#include "undo/undostack.h"
 #include "watcher/folderwatcher.h"
 
 #include <atomic>
@@ -369,9 +374,61 @@ static void testTrash(const fs::path& root)
     struct stat info {};
     CHECK(stat((root / "data" / "Trash").c_str(), &info) == 0 && (info.st_mode & 0777) == 0700);
 
-    CHECK(PathBar::tabTitle(files) == "Trash");
+    CHECK(PathBar::tabTitle(PathBar::kTrashLocation) == "Trash");
+    CHECK(PathBar::split(PathBar::kTrashLocation).size() == 1);
+    CHECK(PathBar::parent(PathBar::kTrashLocation) == PathBar::kTrashLocation);
     const auto places = Places::userPlaces();
-    CHECK(places.back().kind == "trash" && places.back().path == files);
+    CHECK(places.back().kind == "trash" && places.back().path == PathBar::kTrashLocation);
+
+    // into the Trash and back, with a name that needs encoding
+    const fs::path work = root / "trash-work";
+    fs::create_directories(work);
+    const std::string file = (work / "my report 100%.txt").string();
+    touch(file, "precious");
+    std::string trashed;
+    CHECK(Trash::moveToTrash(file, &trashed).ok);
+    CHECK(!fs::exists(file) && fs::exists(trashed));
+
+    const auto items = Trash::list();
+    CHECK(items.size() == 1 && items[0].name == "my report 100%.txt" && items[0].originalPath == file);
+    CHECK(items[0].deletedAt > 1000000000);
+    CHECK(Trash::contains(trashed) && !Trash::contains(file));
+
+    const ListResult listed = listDirectory(PathBar::kTrashLocation, {});
+    CHECK(listed.ok && listed.entries.size() == 1);
+    CHECK(listed.entries[0].name == "my report 100%.txt" && listed.entries[0].location == work.string());
+    CHECK(listed.entries[0].path == trashed);
+
+    CHECK(!Trash::moveToTrash(trashed).ok);                  // already there
+    std::string back;
+    CHECK(Trash::restore(trashed, &back).ok && back == file && fs::exists(file) && !fs::exists(trashed));
+    CHECK(Trash::list().empty());
+
+    // restoring never overwrites; and the same name twice gets two places
+    CHECK(Trash::moveToTrash(file, &trashed).ok);
+    touch(file, "newer");
+    CHECK(!Trash::restore(trashed).ok && fs::exists(trashed));
+    std::string second;
+    CHECK(Trash::moveToTrash(file, &second).ok && second != trashed);
+    CHECK(Trash::list().size() == 2);
+
+    // a whole folder, restored after its parent was removed
+    fs::create_directories(work / "gone" / "sub");
+    touch(work / "gone" / "sub" / "x", "x");
+    CHECK(Trash::moveToTrash((work / "gone" / "sub").string(), &trashed).ok);
+    fs::remove_all(work / "gone");
+    CHECK(Trash::restore(trashed).ok && fs::exists(work / "gone" / "sub" / "x"));
+
+    CHECK(Trash::remove(second).ok && !fs::exists(second));
+    touch(file, "still here");
+    CHECK(!Trash::remove(file).ok && fs::exists(file));      // not in the Trash: refused
+    CHECK(Trash::empty().ok && Trash::list().empty());
+    CHECK(fs::exists(file));
+
+    // protected folders
+    CHECK(!Trash::moveToTrash("/").ok);
+    CHECK(!Trash::moveToTrash("/usr").ok);
+    CHECK(!Trash::moveToTrash(PathBar::homeDirectory()).ok);
 }
 
 static std::string rowValue(const std::vector<PropertySection>& sections, const std::string& title, const std::string& label)
@@ -505,6 +562,302 @@ static void testProcess()
     CHECK(Process::startDetached({"true"}));
 }
 
+static std::string contentOf(const fs::path& path)
+{
+    std::ifstream file(path);
+    return std::string(std::istreambuf_iterator<char>(file), {});
+}
+
+static Transfer::Events answering(ConflictChoice choice, int* asked = nullptr)
+{
+    Transfer::Events events;
+    events.conflict = [choice, asked](const std::string&, const std::string&) {
+        if (asked) ++*asked;
+        return ConflictAnswer {choice, false};
+    };
+    return events;
+}
+
+static void testFileOps(const fs::path& root)
+{
+    const fs::path work = root / "ops";
+    fs::create_directories(work);
+    const std::string base = work.string();
+
+    CHECK(FileOps::createFolder(base + "/new").ok);
+    CHECK(!FileOps::createFolder(base + "/new").ok);
+    CHECK(FileOps::createFile(base + "/a.txt").ok);
+    touch(work / "a.txt", "keep me");
+    CHECK(!FileOps::createFile(base + "/a.txt").ok);
+    CHECK(contentOf(work / "a.txt") == "keep me");
+
+    touch(work / "b.txt", "other");
+    CHECK(!FileOps::rename(base + "/a.txt", base + "/b.txt").ok);      // never overwrites
+    CHECK(contentOf(work / "b.txt") == "other" && contentOf(work / "a.txt") == "keep me");
+    CHECK(FileOps::rename(base + "/a.txt", base + "/c.txt").ok && fs::exists(work / "c.txt"));
+
+    CHECK(FileOps::uniquePath(base + "/free.txt") == base + "/free.txt");
+    CHECK(FileOps::uniquePath(base + "/c.txt") == base + "/c (2).txt");
+    touch(work / "d.tar.gz");
+    CHECK(FileOps::uniquePath(base + "/d.tar.gz") == base + "/d (2).tar.gz");
+    touch(work / ".hidden");
+    CHECK(FileOps::uniquePath(base + "/.hidden") == base + "/.hidden (2)");
+
+    CHECK(!FileOps::nameProblem("").empty() && !FileOps::nameProblem("a/b").empty() && !FileOps::nameProblem("..").empty());
+    CHECK(FileOps::nameProblem("fine name.txt").empty());
+
+    CHECK(FileOps::isProtected("/") && FileOps::isProtected("/usr") && FileOps::isProtected("/usr/") && FileOps::isProtected("/home"));
+    CHECK(FileOps::isProtected(PathBar::homeDirectory()));
+    CHECK(!FileOps::isProtected(PathBar::homeDirectory() + "/Music"));
+    CHECK(!FileOps::removeTree("/", {}).ok);
+
+    // removeTree deletes a link, never what it points to
+    const fs::path outside = root / "outside";
+    fs::create_directories(outside);
+    touch(outside / "safe", "safe");
+    fs::create_directories(work / "tree" / "deep");
+    touch(work / "tree" / "deep" / "f", "x");
+    fs::create_directory_symlink(outside, work / "tree" / "link");
+    CHECK(FileOps::removeTree((work / "tree").string(), {}).ok);
+    CHECK(!fs::exists(work / "tree") && contentOf(outside / "safe") == "safe");
+
+    fs::create_directories(work / "stop");
+    touch(work / "stop" / "f");
+    CHECK(!FileOps::removeTree((work / "stop").string(), [] { return true; }).ok);
+    CHECK(fs::exists(work / "stop" / "f"));
+
+    fs::create_directory_symlink(outside, work / "dirlink");
+    CHECK(FileOps::removeTree((work / "dirlink").string(), {}).ok);
+    CHECK(contentOf(outside / "safe") == "safe" && !fs::is_symlink(work / "dirlink"));
+}
+
+static void noPartFiles(const fs::path& folder)
+{
+    for (const auto& item : fs::recursive_directory_iterator(folder))
+        CHECK(item.path().filename().string().rfind(".chaoticfiles-part", 0) != 0);
+}
+
+static void testTransfer(const fs::path& root)
+{
+    const fs::path from = root / "from", to = root / "to";
+    const auto reset = [&] {
+        fs::remove_all(from);
+        fs::remove_all(to);
+        fs::create_directories(from / "folder" / "inner");
+        fs::create_directories(to);
+        touch(from / "file.txt", "hello");
+        touch(from / "folder" / "inner" / "deep.txt", "deep");
+        fs::create_symlink("file.txt", from / "link");
+        chmod((from / "file.txt").c_str(), 0640);
+    };
+    const auto item = [&](const char* name) { return (from / name).string(); };
+    const std::string dest = to.string();
+
+    // copy keeps content, mode, time, links as links
+    reset();
+    Transfer copy(TransferKind::Copy, {item("file.txt"), item("folder"), item("link")}, dest, {});
+    TransferResult result = copy.run();
+    CHECK(result.errors.empty() && result.done.size() == 3);
+    CHECK(contentOf(to / "file.txt") == "hello" && contentOf(to / "folder" / "inner" / "deep.txt") == "deep");
+    CHECK((fs::status(to / "file.txt").permissions() & fs::perms::others_read) == fs::perms::none);
+    CHECK(fs::last_write_time(to / "file.txt") == fs::last_write_time(from / "file.txt"));
+    CHECK(fs::is_symlink(to / "link") && fs::read_symlink(to / "link") == "file.txt");
+    CHECK(fs::exists(from / "file.txt"));
+    noPartFiles(to);
+
+    // the same, with progress reported to the end
+    reset();
+    std::uint64_t lastDone = 0, total = 0;
+    Transfer::Events counting;
+    counting.progress = [&](const TransferProgress& p) { lastDone = p.bytesDone; total = p.bytesTotal; };
+    Transfer counted(TransferKind::Copy, {item("folder")}, dest, counting);
+    counted.run();
+    CHECK(total == 4 && lastDone == 4);
+
+    // conflicts: skip leaves the old file, overwrite replaces it, keep both makes a second
+    reset();
+    touch(to / "file.txt", "old");
+    int asked = 0;
+    Transfer skip(TransferKind::Copy, {item("file.txt")}, dest, answering(ConflictChoice::Skip, &asked));
+    result = skip.run();
+    CHECK(asked == 1 && result.skipped == 1 && contentOf(to / "file.txt") == "old");
+
+    Transfer keep(TransferKind::Copy, {item("file.txt")}, dest, answering(ConflictChoice::KeepBoth));
+    keep.run();
+    CHECK(contentOf(to / "file.txt") == "old" && contentOf(to / "file (2).txt") == "hello");
+
+    Transfer over(TransferKind::Copy, {item("file.txt")}, dest, answering(ConflictChoice::Overwrite));
+    over.run();
+    CHECK(contentOf(to / "file.txt") == "hello");
+
+    touch(to / "file.txt", "old");
+    Transfer stop(TransferKind::Copy, {item("file.txt")}, dest, answering(ConflictChoice::Cancel));
+    result = stop.run();
+    CHECK(result.cancelled && contentOf(to / "file.txt") == "old");
+
+    // no way to answer counts as cancel, never as overwrite
+    Transfer silent(TransferKind::Copy, {item("file.txt")}, dest, {});
+    silent.run();
+    CHECK(contentOf(to / "file.txt") == "old");
+
+    // a file can't replace a folder or the other way round
+    reset();
+    fs::create_directories(to / "file.txt");
+    touch(to / "file.txt" / "inside", "safe");
+    Transfer clash(TransferKind::Copy, {item("file.txt")}, dest, answering(ConflictChoice::Overwrite));
+    result = clash.run();
+    CHECK(!result.errors.empty() && contentOf(to / "file.txt" / "inside") == "safe");
+
+    // folders merge
+    reset();
+    fs::create_directories(to / "folder" / "inner");
+    touch(to / "folder" / "mine.txt", "mine");
+    touch(to / "folder" / "inner" / "deep.txt", "old deep");
+    Transfer merge(TransferKind::Copy, {item("folder")}, dest, answering(ConflictChoice::Skip));
+    merge.run();
+    CHECK(contentOf(to / "folder" / "mine.txt") == "mine" && contentOf(to / "folder" / "inner" / "deep.txt") == "old deep");
+
+    // a move: instant on one disk, and the source goes
+    reset();
+    Transfer move(TransferKind::Move, {item("file.txt"), item("folder")}, dest, {});
+    result = move.run();
+    CHECK(result.errors.empty() && result.done.size() == 2);
+    CHECK(!fs::exists(from / "file.txt") && !fs::exists(from / "folder"));
+    CHECK(contentOf(to / "folder" / "inner" / "deep.txt") == "deep");
+
+    // a move that skips a conflicting file keeps that file and its folder
+    reset();
+    fs::create_directories(to / "folder" / "inner");
+    touch(to / "folder" / "inner" / "deep.txt", "old");
+    Transfer partial(TransferKind::Move, {item("folder")}, dest, answering(ConflictChoice::Skip));
+    partial.run();
+    CHECK(contentOf(from / "folder" / "inner" / "deep.txt") == "deep" && contentOf(to / "folder" / "inner" / "deep.txt") == "old");
+
+    // a folder into itself is refused, and nothing changes
+    reset();
+    Transfer self(TransferKind::Copy, {item("folder")}, (from / "folder" / "inner").string(), {});
+    result = self.run();
+    CHECK(result.errors.size() == 1 && !fs::exists(from / "folder" / "inner" / "folder"));
+    Transfer selfMove(TransferKind::Move, {item("folder")}, item("folder"), {});
+    CHECK(selfMove.run().errors.size() == 1 && fs::exists(from / "folder" / "inner"));
+
+    // pasting into the same folder: a copy gets a new name, a move does nothing
+    reset();
+    Transfer twin(TransferKind::Copy, {item("file.txt")}, from.string(), {});
+    twin.run();
+    CHECK(contentOf(from / "file (2).txt") == "hello");
+    Transfer still(TransferKind::Move, {item("file.txt")}, from.string(), {});
+    still.run();
+    CHECK(contentOf(from / "file.txt") == "hello");
+
+    // a missing destination
+    Transfer lost(TransferKind::Copy, {item("file.txt")}, (root / "nowhere").string(), {});
+    CHECK(!lost.run().errors.empty());
+
+    // cancelling leaves no half file; a big enough file to be stopped part way
+    reset();
+    touch(from / "big", std::string(8 * 1024 * 1024, 'x'));
+    Transfer::Events cancelling;
+    Transfer* running = nullptr;
+    cancelling.progress = [&running](const TransferProgress&) { if (running) running->cancel(); };
+    Transfer stopped(TransferKind::Copy, {item("big"), item("file.txt")}, dest, cancelling);
+    running = &stopped;
+    result = stopped.run();
+    CHECK(result.cancelled);
+    noPartFiles(to);
+    CHECK(fs::exists(from / "big"));
+
+    // pause holds the work back until resumed
+    reset();
+    Transfer paused(TransferKind::Copy, {item("file.txt")}, dest, {});
+    paused.setPaused(true);
+    std::atomic<bool> finished {false};
+    std::thread worker([&] { paused.run(); finished = true; });
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    CHECK(!finished);
+    paused.setPaused(false);
+    worker.join();
+    CHECK(contentOf(to / "file.txt") == "hello");
+
+    // across disks a move is copy then delete: /dev/shm and the test folder may differ
+    if (fs::exists("/dev/shm") && !FileOps::onSameDevice("/dev/shm", root.string())) {
+        char pattern[] = "/dev/shm/chaoticfiles-tests-XXXXXX";
+        if (const char* made = mkdtemp(pattern)) {
+            reset();
+            Transfer across(TransferKind::Move, {item("folder"), item("link")}, made, {});
+            result = across.run();
+            CHECK(result.errors.empty());
+            CHECK(!fs::exists(from / "folder") && contentOf(fs::path(made) / "folder" / "inner" / "deep.txt") == "deep");
+            CHECK(fs::is_symlink(fs::path(made) / "link"));
+            fs::remove_all(made);
+        }
+    }
+}
+
+static void testUndo()
+{
+    UndoStack stack;
+    CHECK(!stack.canUndo());
+    stack.push({UndoStep::Kind::Renamed, {{"/a", "/b"}}, "Rename"});
+    stack.push({UndoStep::Kind::Moved, {{"/c", "/d"}}, "Move"});
+    CHECK(stack.canUndo() && stack.nextDescription() == "Move");
+    CHECK(stack.take().kind == UndoStep::Kind::Moved);
+    CHECK(stack.take().pairs[0].second == "/b" && !stack.canUndo());
+}
+
+static void testArchives(const fs::path& root)
+{
+    CHECK(Archiver::isArchive("a.tar.gz") && Archiver::isArchive("A.ZIP") && !Archiver::isArchive("a.txt"));
+    CHECK(Archiver::withoutExtension("photos.tar.gz") == "photos" && Archiver::withoutExtension("a.zip") == "a");
+
+    const fs::path work = root / "archive";
+    fs::create_directories(work / "stuff");
+    touch(work / "stuff" / "a b.txt", "inside");
+    touch(work / "-dash.txt", "tricky name");
+    const std::vector<std::string> items = {(work / "stuff").string(), (work / "-dash.txt").string()};
+
+    for (const char* kind : {"out.tar.gz", "out.tar.xz", "out.zip", "out.7z"}) {
+        const fs::path archive = work / kind;
+        const Outcome made = Archiver::compress(items, archive.string(), {});
+        if (!made.ok) std::printf("  %s: %s\n", kind, made.error.c_str());
+        CHECK(made.ok && fs::exists(archive));
+        const fs::path out = work / (std::string("x-") + kind);
+        fs::create_directories(out);
+        const Outcome opened = Archiver::extract(archive.string(), out.string(), {});
+        if (!opened.ok) std::printf("  %s: %s\n", kind, opened.error.c_str());
+        CHECK(opened.ok && contentOf(out / "stuff" / "a b.txt") == "inside" && contentOf(out / "-dash.txt") == "tricky name");
+    }
+    CHECK(!Archiver::compress(items, (work / "out.rar").string(), {}).ok);
+
+    touch(work / "fake.zip", "not an archive");
+    fs::create_directories(work / "fake-out");
+    CHECK(!Archiver::extract((work / "fake.zip").string(), (work / "fake-out").string(), {}).ok);
+
+    const auto info = ContentInfo::archive((work / "out.zip").string(), "application/zip", {});
+    CHECK(rowValue(info, "Files inside") == "2" && rowValue(info, "Folders inside") == "1");
+    const auto tarInfo = ContentInfo::archive((work / "out.tar.gz").string(), "application/gzip", {});
+    CHECK(rowValue(tarInfo, "Files inside") == "2" && rowValue(tarInfo, "Folders inside") == "1");
+}
+
+static void testApps()
+{
+    const DesktopApp app = DesktopApps::parse("x.desktop",
+        "[Desktop Entry]\nName=Viewer\nType=Application\nExec=\"/opt/my app/view\" --new %U\nMimeType=image/png;text/plain;\n"
+        "[Desktop Action Other]\nName=Wrong\nExec=wrong\n");
+    CHECK(app.name == "Viewer" && app.exec == "\"/opt/my app/view\" --new %U" && app.mimeTypes.size() == 2);
+
+    const auto command = DesktopApps::commandFor(app.exec, {"/tmp/a b.png", "/tmp/c.png"});
+    CHECK(command.size() == 4 && command[0] == "/opt/my app/view" && command[1] == "--new");
+    CHECK(command[2] == "file:///tmp/a%20b.png");
+
+    const auto single = DesktopApps::commandFor("mpv %f --title=%c", {"/tmp/x; rm -rf y", "/tmp/z"});
+    CHECK(single.size() == 3 && single[1] == "/tmp/x; rm -rf y");
+    CHECK(DesktopApps::commandFor("edit", {"/f"}).back() == "/f");
+
+    const DesktopApp hidden = DesktopApps::parse("h.desktop", "[Desktop Entry]\nName=H\nType=Application\nExec=h\nNoDisplay=true\n");
+    CHECK(hidden.exec.empty());
+}
+
 int main()
 {
     char pattern[] = "/tmp/chaoticfiles-tests-XXXXXX";
@@ -530,6 +883,11 @@ int main()
     testProperties(root);
     testContent(root);
     testProcess();
+    testFileOps(root);
+    testTransfer(root);
+    testUndo();
+    testArchives(root);
+    testApps();
 
     fs::remove_all(root);
     if (failures == 0) std::printf("All backend tests passed.\n");

@@ -1,7 +1,6 @@
 #include "pathbar/pathbar.h"
 
 #include "sorting/sorting.h"
-#include "trash/trash.h"
 
 #include <algorithm>
 #include <cctype>
@@ -55,6 +54,11 @@ bool startsWithIgnoringCase(const std::string& text, const std::string& prefix)
 
 namespace PathBar {
 
+bool isVirtual(const std::string& path)
+{
+    return path == kTrashLocation || path == kRecentLocation;
+}
+
 std::string homeDirectory()
 {
     if (const char* home = std::getenv("HOME"); home && *home) return normalize(home);
@@ -64,6 +68,7 @@ std::string homeDirectory()
 
 std::string normalize(const std::string& path)
 {
+    if (isVirtual(path)) return path;
     std::string out = std::filesystem::path(path).lexically_normal().string();
     while (out.size() > 1 && out.back() == '/') out.pop_back();
     return out.empty() ? "/" : out;
@@ -71,6 +76,7 @@ std::string normalize(const std::string& path)
 
 std::string parent(const std::string& path)
 {
+    if (isVirtual(path)) return path;
     const auto slash = path.rfind('/');
     if (slash == std::string::npos || slash == 0) return "/";
     return path.substr(0, slash);
@@ -86,18 +92,21 @@ std::string tabTitle(const std::string& path)
 {
     if (path == "/") return "/";
     if (path == homeDirectory()) return "Home";
-    if (path == Trash::filesDirectory()) return "Trash";
+    if (path == kTrashLocation) return "Trash";
+    if (path == kRecentLocation) return "Recent";
     return baseName(path);
 }
 
 bool isDirectory(const std::string& path)
 {
+    if (isVirtual(path)) return true;
     struct stat info {};
     return stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
 }
 
 std::vector<PathPart> split(const std::string& path)
 {
+    if (isVirtual(path)) return {{tabTitle(path), path}};
     std::vector<PathPart> parts {{"/", "/"}};
     std::size_t start = 1;
     while (start < path.size()) {
@@ -112,6 +121,7 @@ std::vector<PathPart> split(const std::string& path)
 std::vector<PathPart> subfolders(const std::string& path, bool showHidden)
 {
     std::vector<PathPart> folders;
+    if (isVirtual(path)) return folders;
     DIR* dir = opendir(path.c_str());
     if (!dir) return folders;
 
@@ -138,6 +148,8 @@ std::string resolve(const std::string& typed, const std::string& currentFolder)
     if (text.rfind("file://", 0) == 0) text = percentDecode(text.substr(7));
 
     if (text.empty()) return currentFolder;
+    if (text == "trash:" || text == kTrashLocation) return kTrashLocation;
+    if (text == "recent:" || text == kRecentLocation) return kRecentLocation;
     if (text == "~") return homeDirectory();
     if (text.rfind("~/", 0) == 0) return normalize(homeDirectory() + text.substr(1));
     if (text[0] == '/') return normalize(text);
@@ -153,6 +165,7 @@ std::vector<PathPart> suggestions(const std::string& typed, const std::string& c
     const std::string resolved = resolve(typed, currentFolder);
     const std::string folder = wantsInside ? resolved : parent(resolved);
     const std::string prefix = wantsInside ? std::string() : baseName(resolved);
+    if (isVirtual(resolved)) return {};
 
     std::vector<PathPart> matches;
     for (PathPart& part : subfolders(folder, showHidden || (!prefix.empty() && prefix[0] == '.'))) {

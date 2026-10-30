@@ -1,7 +1,6 @@
 #include "places/places.h"
 
 #include "pathbar/pathbar.h"
-#include "trash/trash.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -78,7 +77,7 @@ std::vector<Place> userPlaces()
         if (path != home && PathBar::isDirectory(path)) places.push_back({dir.name, path, dir.kind});
     }
     places.push_back({"File System", "/", "root"});
-    places.push_back({"Trash", Trash::filesDirectory(), "trash"});
+    places.push_back({"Trash", PathBar::kTrashLocation, "trash"});
     return places;
 }
 

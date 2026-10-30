@@ -1,6 +1,8 @@
 #include "directory/directorylister.h"
 
 #include "filetype/filetype.h"
+#include "pathbar/pathbar.h"
+#include "trash/trash.h"
 
 #include <atomic>
 #include <cerrno>
@@ -39,9 +41,40 @@ EntryKind kindFromDirent(unsigned char type)
 
 } // namespace
 
+// The Trash, from every disk. What the list shows: name as it was, date deleted, and where it came from.
+static ListResult listTrash(const SortSettings& sort)
+{
+    ListResult result;
+    result.path = PathBar::kTrashLocation;
+    result.sort = sort;
+    for (const TrashItem& item : Trash::list()) {
+        const std::string folder = PathBar::parent(item.path);
+        const int fd = open(folder.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        if (fd < 0) continue;
+        Entry entry;
+        const bool found = readEntry(fd, folder, PathBar::baseName(item.path), entry);
+        close(fd);
+        if (!found) continue;
+
+        entry.name = item.name;
+        entry.hidden = false;                       // a trashed dotfile must not vanish from the Trash
+        detectFileType(entry);
+        entry.location = item.originalPath.empty() ? "Unknown" : PathBar::parent(item.originalPath);
+        entry.modified = item.deletedAt;
+        entry.modifiedNanos = 0;
+        result.entries.push_back(std::move(entry));
+    }
+    sortEntries(result.entries, sort);
+    result.disk = readDiskSpace(Trash::filesDirectory());
+    result.ok = true;
+    return result;
+}
+
 ListResult listDirectory(const std::string& path, const SortSettings& sort,
                          const std::function<bool()>& cancelled)
 {
+    if (path == PathBar::kTrashLocation) return listTrash(sort);
+
     ListResult result;
     result.path = path;
     result.sort = sort;

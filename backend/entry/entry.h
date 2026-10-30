@@ -14,6 +14,7 @@ struct Entry {
     std::string name;
     std::string path;
     std::string typeName;                        // "PNG Image"; filled in by detectFileType
+    std::string location;                        // in the Trash or a search: the folder it belongs to
     EntryKind kind = EntryKind::Unknown;
     FileCategory category = FileCategory::Unknown;
     std::uint64_t size = 0;
