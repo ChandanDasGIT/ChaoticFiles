@@ -7,6 +7,8 @@ Rectangle {
 
     signal urlsDropped(var urls)
 
+    readonly property bool asking: DragState.active && DragState.hasFolders
+
     implicitHeight: Theme.sidebarHeaderHeight
     radius: Theme.controlRadius
     color: dropArea.containsDrag ? Theme.selectionBg : "transparent"
@@ -16,9 +18,9 @@ Rectangle {
         leftPadding: Theme.sidebarPadding
         verticalAlignment: Text.AlignBottom
         bottomPadding: 6
-        text: DragState.active && DragState.hasFolders ? "Drop here to pin" : "Pinned Folders"
+        text: root.asking ? "Drop here to pin" : "Pinned Folders"
         font.pixelSize: Theme.smallFontSize
-        color: Theme.textDim
+        color: root.asking ? Theme.accent : Theme.textDim
     }
     DropArea {
         id: dropArea
