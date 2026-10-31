@@ -339,10 +339,7 @@ void FolderSession::typeAhead(const QString& text)
     if (m_typedTimer.restart() > kTypeAheadPauseMs) m_typed.clear();
     m_typed += text;
 
-    // a first letter moves on to the next match; more letters refine from where the list is now
-    const int current = currentRow();
-    const int from = m_typed.size() == 1 ? current + 1 : qMax(current, 0);
-    const int row = m_tab->view.findPrefix(m_typed.toStdString(), from >= itemCount() ? 0 : from);
+    const int row = m_tab->view.findTyped(m_typed.toStdString(), currentRow());
     if (row >= 0) moveCurrentTo(row, false);
 }
 

@@ -32,6 +32,7 @@ Views and search
 - Dragging shows what is being dragged, as a stack with a count when it is several items.
 - Folders can have their own icon and colour: Change Icon in the right click menu. It follows the folder when it is renamed or moved.
 - Preview panel (F3): a picture or the start of the text of the current file.
+- Typing in the list jumps to a name. Pressing the same letter again goes to the next name starting with it.
 - Ctrl+F filters the folder as you type. All Subfolders searches everything below it, showing each result's folder.
 
 Sidebar and status bar

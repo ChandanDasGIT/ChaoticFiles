@@ -1254,6 +1254,45 @@ static void testMimeTypes(const fs::path& root)
     CHECK(entry.typeName == "UNHEARD File");
 }
 
+static void testTyping()
+{
+    FolderView view;
+    std::vector<Entry> entries;
+    for (const char* name : {"apple", "fennel", "ffmpeg", "fig", "fruit", "grape", "\xC3\xA9t\xC3\xA9", "\xC3\xA9" "clair"}) entries.push_back(fileEntry(name));
+    view.setEntries(std::move(entries), {});
+
+    const auto named = [&view](int row) { return row >= 0 ? view.at(row).name : std::string(); };
+    const int fennel = view.findPrefix("fe", 0);
+
+    // the same letter again goes on to the next name, however often, and comes round again
+    CHECK(named(view.findTyped("f", -1)) == "fennel");
+    CHECK(named(view.findTyped("ff", fennel)) == "ffmpeg");
+    CHECK(named(view.findTyped("fff", fennel + 1)) == "fig");
+    CHECK(named(view.findTyped("ffff", fennel + 2)) == "fruit");
+    CHECK(named(view.findTyped("fffff", fennel + 3)) == "fennel");
+    CHECK(named(view.findTyped("FF", fennel)) == "ffmpeg");              // Shift does not change the letter
+    CHECK(named(view.findTyped("Ff", fennel)) == "ffmpeg");
+
+    // other letters spell a name, and stay on it if it still fits
+    CHECK(named(view.findTyped("fi", fennel)) == "fig");
+    CHECK(named(view.findTyped("ffm", fennel + 1)) == "ffmpeg");
+    CHECK(view.findTyped("fz", fennel) == -1);
+    CHECK(view.findTyped("z", 0) == -1);
+
+    // a letter of more than one byte is still one letter
+    const int first = view.findPrefix("\xC3\xA9", 0);
+    CHECK(first >= 0);
+    const std::string other = named(view.findTyped("\xC3\xA9\xC3\xA9", first));
+    CHECK(other != named(first) && other.rfind("\xC3\xA9", 0) == 0);
+
+    // the last row goes round to the first
+    CHECK(named(view.findTyped("a", view.count() - 1)) == "apple");
+    CHECK(view.findTyped("", 0) == -1);
+
+    FolderView empty;
+    CHECK(empty.findTyped("a", -1) == -1);
+}
+
 static void testUpdate(const fs::path& root)
 {
     CHECK(Update::isVersion("1.1") && Update::isVersion("2.0.3") && Update::isVersion("10"));
@@ -1345,6 +1384,7 @@ int main()
     testSorting();
     testFileTypes();
     testMimeTypes(root);
+    testTyping();
     testUpdate(root);
     testFormat();
     testHistory();

@@ -43,6 +43,9 @@ public:
 
     // the first row at or after `from` whose name starts with `prefix`, wrapping around; -1 if none
     int findPrefix(const std::string& prefix, int from) const;
+    // What typing in the list lands on: -1 if nothing. One letter, even pressed again and again, goes to the next
+    // name starting with it. Different letters spell a name, from where the list is now.
+    int findTyped(const std::string& typed, int current) const;
 
 private:
     void rebuildRows();

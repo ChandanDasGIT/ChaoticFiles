@@ -173,6 +173,22 @@ bool FolderView::selectName(const std::string& name)
     return false;
 }
 
+int FolderView::findTyped(const std::string& typed, int current) const
+{
+    if (typed.empty() || count() == 0) return -1;
+
+    // the first letter, which can be several bytes in UTF-8
+    std::size_t letter = 1;
+    while (letter < typed.size() && (static_cast<unsigned char>(typed[letter]) & 0xC0) == 0x80) ++letter;
+
+    bool oneLetter = true;
+    for (std::size_t at = 0; at < typed.size() && oneLetter; ++at)
+        oneLetter = std::tolower(static_cast<unsigned char>(typed[at])) == std::tolower(static_cast<unsigned char>(typed[at % letter]));
+
+    if (oneLetter) return findPrefix(typed.substr(0, letter), current + 1 >= count() ? 0 : current + 1);
+    return findPrefix(typed, std::max(current, 0));
+}
+
 int FolderView::findPrefix(const std::string& prefix, int from) const
 {
     if (prefix.empty() || count() == 0) return -1;

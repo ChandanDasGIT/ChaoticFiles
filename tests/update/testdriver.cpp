@@ -2,6 +2,7 @@
 
 #include "wrapper/operationsWrap/operationscontroller.h"
 #include "wrapper/settingsWrap/settingscontroller.h"
+#include "wrapper/folderWrap/foldersession.h"
 #include "wrapper/tabsWrap/tabscontroller.h"
 #include "wrapper/updateWrap/updatecontroller.h"
 
@@ -101,9 +102,17 @@ void TestDriver::run(const QByteArray& line)
         OperationsController* operations = OperationsController::instance();
         ok = operations->rowCount() > 0;
         if (ok) operations->pause(operations->data(operations->index(0), OperationsController::IdRole).toInt());
+    } else if (command == "key" && window) {                 // a real key press
+        QTest::keyClick(window, argument.at(0).toLatin1());
+    } else if (command == "clickrow" && window) {            // the mouse on a file: click <x>,<y> in the window
+        const QStringList at = argument.split(QLatin1Char(','));
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, QPoint(at[0].toInt(), at[1].toInt()));
     } else if (command == "openwith" && window) {
         QObject* dialog = m_engine->rootObjects().first()->findChild<QObject*>(QStringLiteral("openWithDialog"));
         ok = dialog && QMetaObject::invokeMethod(dialog, "ask", Q_ARG(QVariant, QVariant(QStringList {argument})));
+    } else if (command == "scrolltop" && window) {           // the settings, back at their first line
+        QObject* settings = m_engine->rootObjects().first()->findChild<QObject*>(QStringLiteral("settingsDialog"));
+        ok = settings && QMetaObject::invokeMethod(settings, "scrollToTop");
     } else if (command == "grid") {
         SettingsController::instance()->setViewMode(1);
     } else if (command == "about" && window) {
@@ -130,6 +139,8 @@ void TestDriver::run(const QByteArray& line)
         {"autoCheck", update->autoCheck()},
         {"operations", OperationsController::instance()->rowCount()},
         {"tabs", QJsonArray::fromStringList(folders)},
+        {"selected", QJsonArray::fromStringList(TabsController::instance()->currentSession()->selectedPaths())},
+        {"focus", window && window->activeFocusItem() ? QString::fromLatin1(window->activeFocusItem()->metaObject()->className()) : QString()},
         {"currentTab", TabsController::instance()->currentIndex()},
     };
     QFile answers(qEnvironmentVariable("CF_TEST_ANSWERS"));

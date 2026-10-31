@@ -532,7 +532,7 @@ def file_types():
     (files / "data.json").write_text("{}\n")
     (files / "script.ts").write_text("function f(): void {}\n")
     (files / "Dockerfile").write_text("FROM x\n")
-    user.start(WORK / "build-old-plain/appChaoticFiles", files)
+    user.start(test_copy(), files)
     user.ready(OLD); time.sleep(1.5)
     user.shot("types-details", "1000x640")
     assert user.send(f"openwith {files / 'Main.qml'}")["ok"]; time.sleep(0.5)
@@ -542,6 +542,84 @@ def file_types():
     user.shot("types-openwith-cpp")
     user.send("click Cancel"); user.send("grid"); time.sleep(1.5)
     user.shot("types-grid")
+    user.send("quit"); user.finish()
+
+def test_copy(): return WORK / "build-old-plain/appChaoticFiles"
+
+def settings_file(user):
+    path = user.home / ".config/ChaoticFiles/ChaoticFiles.conf"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+def opens_to():
+    user = User("opens-to")
+    a = user.home / "first one"; b = user.home / "second"; c = user.home / "chosen folder"
+    for folder in (a, b, c): folder.mkdir()
+    settings = settings_file(user)
+    def run(*args):
+        user.start(test_copy(), *args); started = user.ready(OLD); return started
+    def stop(pid):
+        user.send("quit")
+        end = time.time() + 8
+        while user.alive(pid) and time.time() < end: time.sleep(0.05)
+
+    first = run()                                # the default stays Home
+    assert first["tabs"] == [str(user.home)], first; stop(first["pid"])
+
+    settings.write_text(f'[start]\nmode=2\nfolder={c}\n')
+    started = run()
+    assert started["tabs"] == [str(c)], started
+    user.send("about"); time.sleep(0.4)
+    user.send("scrolltop"); time.sleep(0.2); user.shot("opens-to-folder-normal", "1100x720")
+    user.send("resize 640x460"); time.sleep(0.3); user.shot("opens-to-folder-small"); user.send("resize 1100x720")
+    stop(started["pid"])
+    started = run(a)                             # a folder named on the command line wins
+    assert started["tabs"] == [str(a)], started; stop(started["pid"])
+
+    shutil.rmtree(c)                             # the chosen folder is gone
+    started = run()
+    assert started["tabs"] == [str(user.home)], started; stop(started["pid"])
+
+    settings.write_text('[start]\nmode=1\n')     # Last Tabs: nothing yet means Home
+    started = run()
+    assert started["tabs"] == [str(user.home)], started; stop(started["pid"])
+    started = run(a, b, "--tab=1")
+    stop(started["pid"])
+    started = run()
+    assert started["tabs"] == [str(a), str(b)] and started["currentTab"] == 1, started
+    stop(started["pid"]); user.finish()
+
+def type_ahead():
+    user = User("type-ahead")
+    files = user.home / "files"; files.mkdir()
+    names = ["apple.txt", "banana.txt", "fig.txt", "folder", "fruit.txt", "grape.txt", "ffmpeg.txt"]
+    for name in names:
+        if name == "folder": (files / name).mkdir()
+        else: (files / name).write_text("x")
+    (files / "Fennel.txt").write_text("x")
+    user.start(test_copy(), files)
+    user.ready(OLD); time.sleep(1.2)
+    def press(key):
+        name = lambda answer: Path(answer["selected"][0]).name
+        time.sleep(0.2)
+        return name(user.send("key " + key))
+    # folders first, then natural order: folder, apple, banana, Fennel, ffmpeg, fig, fruit, grape
+    got = [press("f") for _ in range(7)]
+    print("  pressing f:", got, "focus:", user.state()["focus"], flush=True)
+    assert got == ["folder", "Fennel.txt", "ffmpeg.txt", "fig.txt", "fruit.txt", "folder", "Fennel.txt"], got
+    time.sleep(1.2)
+    # different letters still spell a name
+    assert [press("g"), press("r")] == ["grape.txt", "grape.txt"]
+    time.sleep(1.2)
+    assert [press("b")] == ["banana.txt"]
+    time.sleep(1.2)
+    assert press("f") in ("Fennel.txt", "folder") and [press("i")] == ["fig.txt"], "spelling after a cycle"
+    time.sleep(1.2)
+    # after the mouse clicks a file, typing still works
+    user.send("clickrow 400,134"); time.sleep(0.2)
+    got = [press("f") for _ in range(3)]
+    print("  after a click:", got, flush=True)
+    assert len(set(got)) == 3, got
     user.send("quit"); user.finish()
 
 def script_is_portable():
@@ -581,6 +659,8 @@ TESTS = {
     "script-is-portable": script_is_portable,
     "small-window": small_window,
     "file-types": file_types,
+    "opens-to": opens_to,
+    "type-ahead": type_ahead,
 }
 
 def main():
