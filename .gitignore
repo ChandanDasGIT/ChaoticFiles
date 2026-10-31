@@ -29,3 +29,6 @@ compile_commands.json
 *.swp
 *~
 *.log
+
+# Private notes
+.claude/
