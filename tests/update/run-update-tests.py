@@ -161,6 +161,12 @@ class User:
                     os.kill(pid, signal.SIGKILL)
             except OSError: pass
 
+def press_update(user):
+    assert user.send("click updateDot")["ok"], "the dot could not be clicked"
+    time.sleep(0.4)                              # the settings open and scroll down, as a person would see them do
+    assert user.send("click updateNowButton")["ok"], "Update now could not be clicked"
+    user.until(lambda s: s["busy"] or s["ready"] or s["status"] != f"Version {NEW} is available.", 5, "Update now to start")
+
 def sha(path): return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 def install_tarball(user, version):
@@ -234,7 +240,7 @@ def refused(name, prepare, expected):
     user.start(installed / "AppRun")
     user.ready(OLD)
     user.until(lambda s: s["available"])
-    user.send("click updateDot"); user.send("click updateNowButton")
+    press_update(user)
     state = user.until(lambda s: not s["busy"] and s["status"] not in ("", f"Version {NEW} is available.", "Checking the update…") and not s["status"].startswith("Downloading") and not s["status"].startswith("Checking the download"), what="the refusal")
     assert expected in state["status"], state["status"]
     assert not state["ready"], "it became ready"
@@ -256,7 +262,7 @@ def rollback(kind, variant):
     stage = Path(str(installed) + ".update")
     user.start(program, a)
     first = user.ready(OLD)
-    user.until(lambda s: s["available"]); user.send("click updateDot"); user.send("click updateNowButton")
+    user.until(lambda s: s["available"]); press_update(user)
     user.until(lambda s: s["ready"], what="download")
     with open(user.commands, "a") as file: file.write("click Restart now\n")
     back = user.ready(OLD, 80)                   # the old version, really running again
@@ -276,7 +282,7 @@ def cancel_prompt():
     stage = Path(str(installed) + ".update")
     user.start(installed / "AppRun")
     first = user.ready(OLD)
-    user.until(lambda s: s["available"]); user.send("click updateDot"); user.send("click updateNowButton")
+    user.until(lambda s: s["available"]); press_update(user)
     user.until(lambda s: s["ready"], what="download")
     assert user.send("click Cancel")["ok"]
     state = user.state()
@@ -329,7 +335,7 @@ def other_window():
     installed = install_tarball(user, OLD)
     user.start(installed / "AppRun")
     user.ready(OLD)
-    user.until(lambda s: s["available"]); user.send("click updateDot"); user.send("click updateNowButton")
+    user.until(lambda s: s["available"]); press_update(user)
     user.until(lambda s: s["ready"], what="download"); user.send("click Cancel")
     process = subprocess.Popen([str(installed / "AppRun")], env=dict(user.env(), CF_TEST_COMMANDS=str(user.home / "c2"), CF_TEST_ANSWERS=str(user.home / "a2")), cwd=user.home)
     end = time.time() + 15
@@ -468,7 +474,7 @@ def foreign_appimage_variables():
     subprocess.Popen([str(installed / "AppRun")], env=env, cwd=user.home)
     first = user.ready(OLD)
     assert first["canInstall"], first
-    user.until(lambda s: s["available"]); user.send("click updateDot"); user.send("click updateNowButton")
+    user.until(lambda s: s["available"]); press_update(user)
     user.until(lambda s: s["ready"], what="download")
     assert not Path(str(fake) + ".update").exists(), "it took another app's AppImage for its own"
     assert Path(str(installed) + ".update").exists()
