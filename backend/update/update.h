@@ -26,10 +26,14 @@ std::optional<Manifest> parseManifest(const std::string& text);     // nothing u
 // The public key is 64 hex digits and the signature is the raw 64 bytes, of Ed25519.
 bool signatureIsValid(const std::string& message, const std::string& signature, const std::string& publicKeyHex);
 
-// A sh script. Its arguments: the update's folder, the new copy, the installed copy, what to start, then the
-// program's own arguments. It takes over once the running program has quit: it swaps the copies and starts the
-// new one, and if that does not start, the old one comes back.
+// A sh script. Its arguments: the update's folder, the new copy, the installed copy, where the new copy goes, what
+// starts the new version, what starts the old one, then the program's own arguments. It takes over once the running
+// program has quit: it swaps the copies and starts the new one, and if that does not start, the old one comes back.
 const char* installScript();
+
+// Where the new AppImage goes: its own name beside the old one, so it never needs renaming. A name the user chose
+// is not a release's name, and it stays, so that their shortcuts keep working.
+std::string appImageTarget(const std::string& installedPath, const std::string& oldVersion, const std::string& newName);
 
 // Files the script and the program use to tell each other what happened, in the update's folder.
 inline constexpr char kOldExitedFile[] = "old-exited";              // the old program is gone

@@ -11,6 +11,7 @@ Rectangle {
     required property string modifiedText
     required property string category
     required property string mimeIcon
+    property bool showingMatches: false    // the type column shows the line found in the file, and fills the row
     required property string path
     required property bool isDirectory
     required property bool isLink
@@ -74,7 +75,7 @@ Rectangle {
     }
     Text {
         anchors.left: icon.right
-        anchors.right: modified.left
+        anchors.right: root.showingMatches ? type.left : modified.left
         anchors.rightMargin: Theme.rowPadding
         anchors.verticalCenter: parent.verticalCenter
         text: root.name
@@ -88,6 +89,7 @@ Rectangle {
     // ---- other columns ----
     Text {
         id: modified
+        visible: !root.showingMatches
         anchors.right: type.left
         anchors.verticalCenter: parent.verticalCenter
         width: Theme.columnModified
@@ -98,18 +100,19 @@ Rectangle {
     }
     Text {
         id: type
-        anchors.right: size.left
+        anchors.right: root.showingMatches ? parent.right : size.left
         anchors.verticalCenter: parent.verticalCenter
-        width: Theme.columnType
+        width: root.showingMatches ? Theme.foundWidth(root.width) : Theme.columnType
         leftPadding: Theme.rowPadding
         text: root.typeText
         textFormat: Text.PlainText
-        elide: Text.ElideMiddle
+        elide: root.showingMatches ? Text.ElideRight : Text.ElideMiddle
         font.pixelSize: Theme.smallFontSize
         color: Theme.textMuted
     }
     Text {
         id: size
+        visible: !root.showingMatches
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         width: Theme.columnSize

@@ -125,6 +125,8 @@ QtObject {
     // ---- file list ----
     readonly property int headerHeight:     30
     readonly property int rowHeight:        30
+    readonly property int columnFound:      460   // the matching line, when searching inside files
+    function foundWidth(rowWidth) { return Math.min(columnFound, Math.round(rowWidth * 0.55)) }
     readonly property int rowPadding:       12
     readonly property int rowIconWidth:     26
     readonly property int rowRadius:        4
@@ -194,6 +196,11 @@ QtObject {
     readonly property int folderIconCell:   40
     readonly property int folderColorSize:  26
     readonly property int folderPreviewSize: 44
+    readonly property int usageWidth:       640
+    readonly property int usageHeight:      560
+    readonly property int usageRowHeight:   34
+    readonly property int usageBarHeight:   4
+    readonly property int usageSizeWidth:   90
     readonly property int settingsWidth:    560
     readonly property int settingsHeight:   620
     readonly property int settingsRowHeight: 42

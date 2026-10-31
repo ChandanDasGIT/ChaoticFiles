@@ -37,6 +37,9 @@ ChaoticFiles/
 │   ├── diskspace/                          // free space
 │   │   ├── diskspace.cpp                   // asks statvfs
 │   │   └── diskspace.h                     // DiskSpace and readDiskSpace
+│   ├── diskusage/                          // what takes up the space in a folder
+│   │   ├── diskusage.cpp                   // adds up each item, on one disk, biggest first
+│   │   └── diskusage.h                     // scanUsage, and UsageReport
 │   ├── drives/                             // disks
 │   │   ├── drives.cpp                      // lsblk and udisksctl
 │   │   └── drives.h                        // what is plugged in; mount and unmount
@@ -103,7 +106,7 @@ ChaoticFiles/
 │   │   └── recentfiles.h                   // this app's list, and other apps' recently-used.xbel, read only
 │   ├── search/                             // searching
 │   │   ├── filesearch.cpp                  // sends matches in batches; no links, one disk
-│   │   └── filesearch.h                    // FileSearch::run walks a folder tree
+│   │   └── filesearch.h                    // namespace FileSearch: by name, or inside the text of files
 │   ├── shortcuts/                          // keyboard shortcuts
 │   │   ├── shortcutmap.cpp                 // the default keys; a key belongs to one action only
 │   │   └── shortcutmap.h                   // which keys do what
@@ -167,6 +170,8 @@ ChaoticFiles/
 │   │   ├── CheckRow.qml                    // a check box with its text
 │   │   ├── DragState.qml                   // singleton: what is being dragged right now
 │   │   └── ThinScrollBar.qml               // the scrollbar used everywhere
+│   ├── diskusage/                          // the Disk Usage window
+│   │   └── DiskUsageDialog.qml             // biggest first, with bars; click a folder to look inside
 │   ├── dialogs/                            // dialogs
 │   │   ├── ConfirmDialog.qml               // a question or a notice
 │   │   ├── AppList.qml                     // a list of apps with their icons
@@ -258,6 +263,9 @@ ChaoticFiles/
 │   ├── clipboardWrap/                      // cut, copy, paste
 │   │   ├── clipboardcontroller.cpp         // its implementation
 │   │   └── clipboardcontroller.h           // in the format other file managers use (ClipboardController)
+│   ├── diskUsageWrap/                      // the Disk Usage window for QML
+│   │   ├── diskusagecontroller.cpp         // scans off the UI thread and fills the list
+│   │   └── diskusagecontroller.h           // the folder, its items and the summary (DiskUsageController)
 │   ├── folderWrap/                         // one tab's folder for QML
 │   │   ├── foldermodel.cpp                 // its implementation
 │   │   ├── foldermodel.h                   // list model of the rows; owns nothing, asks FolderView (FolderModel)

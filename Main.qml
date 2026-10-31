@@ -49,6 +49,8 @@ Window {
             entries.push({text: "Delete Permanently…", icon: Icons.warning, shortcut: key("deleteForever"), action: a.deletePermanently})
             entries.push({separator: true})
             entries.push({text: "Copy Path", icon: Icons.copy, action: () => window.session.copyPaths()})
+            if (isDirectory && count <= 1)
+                entries.push({text: "Disk Usage", icon: Icons.diskUsage, action: () => DiskUsageController.show(path)})
             entries.push({text: "Properties", icon: Icons.info, shortcut: key("properties"), action: a.properties})
         }
         rowMenu.entries = entries
@@ -76,6 +78,7 @@ Window {
                 {text: "Open Terminal Here", icon: Icons.terminal, enabled: window.session.canWrite, action: a.openTerminal},
                 {separator: true},
                 {text: "Copy Path", icon: Icons.copy, action: () => window.session.copyPaths()},
+                {text: "Disk Usage", icon: Icons.diskUsage, enabled: window.session.canWrite, action: () => DiskUsageController.show(window.session.path)},
                 {text: "Properties", icon: Icons.info, shortcut: key("properties"), action: a.properties},
             ]
         }
@@ -311,6 +314,11 @@ Window {
 
     UpdatePrompts {
         onClosed: window.focusFiles()
+    }
+
+    DiskUsageDialog {
+        onClosed: window.focusFiles()
+        onGoToFolder: (folder) => window.session.navigate(folder)
     }
 
     PopupMenu {

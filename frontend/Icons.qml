@@ -93,6 +93,7 @@ QtObject {
     readonly property string fileDisk:      "\uf51f"   // compact-disc
     readonly property string fileFont:      "\uf031"   // font
     readonly property string fileSystem:    "\uf085"   // gears
+    readonly property string diskUsage:     "\uf200"   // chart-pie
 
     // ---- icons a folder can be given; the key is what is saved on the folder ----
     readonly property var folderChoices: [

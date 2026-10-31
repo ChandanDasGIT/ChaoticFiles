@@ -128,6 +128,7 @@ FocusScope {
         delegate: FileRow {
             id: row
             property bool wasSelected: false
+            showingMatches: root.session.headerKind === 3
             onPressedWith: (button, modifiers, sceneX, sceneY) => root.pressed(row, button, modifiers, sceneX, sceneY)
             onReleasedWithoutDrag: (modifiers) => { if (wasSelected) root.session.click(index, modifiers) }
             onDoubleClicked: root.session.openRow(index)

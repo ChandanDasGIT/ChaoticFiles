@@ -2,6 +2,8 @@
 
 #include "wrapper/operationsWrap/operationscontroller.h"
 #include "wrapper/settingsWrap/settingscontroller.h"
+#include "wrapper/diskUsageWrap/diskusagecontroller.h"
+#include "wrapper/folderWrap/foldermodel.h"
 #include "wrapper/folderWrap/foldersession.h"
 #include "wrapper/tabsWrap/tabscontroller.h"
 #include "wrapper/updateWrap/updatecontroller.h"
@@ -46,6 +48,21 @@ QQuickItem* find(QQuickWindow* window, const QString& wanted)
         if (item->property("text").toString() == wanted && item->property("primary").isValid()) byText = item;
     }
     return byText;
+}
+
+QStringList rowNames()
+{
+    QStringList names;
+    QAbstractItemModel* model = TabsController::instance()->currentSession()->model();
+    for (int row = 0; row < model->rowCount(); ++row) names << model->index(row, 0).data(FolderModel::NameRole).toString();
+    return names;
+}
+
+QStringList usageNames()
+{
+    QStringList names;
+    for (const QVariant& item : DiskUsageController::instance()->items()) names << item.toMap().value("name").toString();
+    return names;
 }
 
 } // namespace
@@ -107,6 +124,10 @@ void TestDriver::run(const QByteArray& line)
     } else if (command == "clickrow" && window) {            // the mouse on a file: click <x>,<y> in the window
         const QStringList at = argument.split(QLatin1Char(','));
         QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, QPoint(at[0].toInt(), at[1].toInt()));
+    } else if (command == "searchinside") {
+        TabsController::instance()->currentSession()->search(argument, true);
+    } else if (command == "diskusage") {
+        DiskUsageController::instance()->show(argument);
     } else if (command == "openwith" && window) {
         QObject* dialog = m_engine->rootObjects().first()->findChild<QObject*>(QStringLiteral("openWithDialog"));
         ok = dialog && QMetaObject::invokeMethod(dialog, "ask", Q_ARG(QVariant, QVariant(QStringList {argument})));
@@ -139,6 +160,10 @@ void TestDriver::run(const QByteArray& line)
         {"autoCheck", update->autoCheck()},
         {"operations", OperationsController::instance()->rowCount()},
         {"tabs", QJsonArray::fromStringList(folders)},
+        {"rows", QJsonArray::fromStringList(rowNames())},
+        {"loading", TabsController::instance()->currentSession()->loading()},
+        {"usage", QJsonArray::fromStringList(usageNames())},
+        {"usageScanning", DiskUsageController::instance()->scanning()},
         {"selected", QJsonArray::fromStringList(TabsController::instance()->currentSession()->selectedPaths())},
         {"focus", window && window->activeFocusItem() ? QString::fromLatin1(window->activeFocusItem()->metaObject()->className()) : QString()},
         {"currentTab", TabsController::instance()->currentIndex()},

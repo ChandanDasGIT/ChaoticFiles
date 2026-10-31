@@ -208,7 +208,9 @@ def normal_update(kind):
     user.shot(f"{kind}-2-about-normal")
     user.send("resize 640x460"); user.shot(f"{kind}-2-about-small"); user.send("resize 1100x720")
     assert not any("download" in path for path in Release.log), "something downloaded before Update now"
-    user.send("click updateNowButton")
+    time.sleep(0.5)                              # the window has just been resized: let the buttons settle
+    assert user.send("click updateNowButton")["ok"], "Update now could not be clicked"
+    user.until(lambda s: s["busy"] or s["ready"], 5, "Update now to start")
     user.until(lambda s: s["ready"], what="download and checks")
     assert not list(stage.glob("*.tar.xz")), "the tarball stayed after unpacking"
     user.send("visible Restart now")
@@ -222,9 +224,14 @@ def normal_update(kind):
     while user.alive(old_pid) and time.time() < end: time.sleep(0.05)
     assert not user.alive(old_pid), "the old version is still running"
     user.until(lambda s: not stage.exists(), 10, "the update folder to go")
-    after = sha(installed) if kind == "appimage" else sha(installed / "usr/bin/appChaoticFiles")
+    if kind == "appimage":                       # the new file under its own name, and no old one beside it
+        renamed = installed.parent / f"ChaoticFiles-{NEW}-x86_64.AppImage"
+        assert sorted(p.name for p in installed.parent.iterdir()) == [renamed.name], list(installed.parent.iterdir())
+        after = sha(renamed)
+        assert after == sha(BASE / NEW / renamed.name)
+    else:
+        after = sha(installed / "usr/bin/appChaoticFiles")
     assert after != before, "the program did not change"
-    if kind == "appimage": assert after == sha(BASE / NEW / f"ChaoticFiles-{NEW}-x86_64.AppImage")
     assert not user.state()["available"], "the dot is still there"
     left = [p.name for p in installed.parent.iterdir() if "update" in p.name or p.name.endswith(".tar.xz")]
     assert not left, left
@@ -273,7 +280,32 @@ def rollback(kind, variant):
     user.shot(f"rollback-{kind}-{variant}-notice", "1100x720")
     now = sha(installed) if kind == "appimage" else sha(installed / "usr/bin/appChaoticFiles")
     assert now == before, "the old program is not the one in place"
+    if kind == "appimage":
+        assert [p.name for p in installed.parent.iterdir()] == [installed.name], "the failed version's file stayed"
     assert not stage.exists() and not Path(str(stage) + ".failed").exists(), "leftovers"
+    if variant == "hangs":                       # the stopped version left nothing running
+        left = []
+        for pid in filter(str.isdigit, os.listdir("/proc")):
+            try:
+                if int(pid) != back["pid"] and f"CF_TEST_COMMANDS={user.commands}".encode() in Path(f"/proc/{pid}/environ").read_bytes():
+                    state = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
+                    if state != "Z": left.append((pid, Path(f"/proc/{pid}/comm").read_text().strip()))
+            except OSError: pass
+        assert not [item for item in left if item[1] in ("sleep", "AppRun")] , f"the hung version is still running: {left}"
+    user.send("quit"); user.finish()
+
+def appimage_own_name():
+    user = User("appimage-own-name"); use(NEW)
+    image = place_appimage(user, OLD)
+    mine = image.parent / "ChaoticFiles.AppImage"; image.rename(mine)
+    user.start(mine); first = user.ready(OLD)
+    user.until(lambda s: s["available"]); press_update(user)
+    user.until(lambda s: s["ready"], what="download")
+    with open(user.commands, "a") as file: file.write("click Restart now\n")
+    user.ready(NEW, 40)
+    user.until(lambda s: not Path(str(mine) + ".update").exists(), 10, "the update folder to go")
+    assert [p.name for p in mine.parent.iterdir()] == [mine.name], list(mine.parent.iterdir())
+    assert sha(mine) == sha(BASE / NEW / f"ChaoticFiles-{NEW}-x86_64.AppImage")
     user.send("quit"); user.finish()
 
 def cancel_prompt():
@@ -628,9 +660,40 @@ def type_ahead():
     assert len(set(got)) == 3, got
     user.send("quit"); user.finish()
 
+def search_inside():
+    user = User("search-inside")
+    files = user.home / "project"; (files / "src").mkdir(parents=True)
+    (files / "notes.txt").write_text("nothing here\nthe release plan is ready\n")
+    (files / "src/main.cpp").write_text("int main()\n{\n    // release the file\n}\n")
+    (files / "src/release.txt").write_text("only the name matches\n")
+    user.start(test_copy(), files); user.ready(OLD); time.sleep(1)
+    user.send("searchinside release")
+    found = user.until(lambda s: len(s["rows"]) >= 2 and not s["loading"], what="the results")
+    assert sorted(found["rows"]) == sorted(["notes.txt", "main.cpp"]), found["rows"]
+    time.sleep(0.4); user.shot("search-inside-normal", "1000x640"); user.send("resize 640x460"); user.shot("search-inside-small")
+    user.send("quit"); user.finish()
+
+def disk_usage():
+    user = User("disk-usage")
+    files = user.home / "project"; (files / "videos/deep").mkdir(parents=True); (files / "music").mkdir()
+    (files / "videos/deep/a.bin").write_bytes(b"x" * (6 * 1024 * 1024)); (files / "music/b.bin").write_bytes(b"x" * (2 * 1024 * 1024))
+    (files / "note.txt").write_bytes(b"x" * 500000)
+    user.start(test_copy(), files); user.ready(OLD); time.sleep(1)
+    user.send(f"diskusage {files}")
+    state = user.until(lambda s: not s["usageScanning"] and len(s["usage"]) == 3, what="the report")
+    assert state["usage"] == ["videos", "music", "note.txt"], state["usage"]
+    time.sleep(0.4); user.shot("disk-usage-normal", "1000x640"); user.send("resize 640x460"); user.shot("disk-usage-small"); user.send("resize 1000x640")
+    time.sleep(0.3); assert user.send("click usageRow0")["ok"], "the biggest folder could not be clicked"
+    state = user.until(lambda s: not s["usageScanning"] and s["usage"] == ["deep"], what="the subfolder")
+    assert user.send("click usageUp")["ok"]
+    user.until(lambda s: not s["usageScanning"] and len(s["usage"]) == 3, what="going back up")
+    assert user.send("click Go to This Folder")["ok"]
+    state = user.until(lambda s: s["tabs"] == [str(files)], what="the folder")
+    user.send("quit"); user.finish()
+
 def script_is_portable():
     source = (ROOT / "backend/update/update.cpp").read_text()
-    script = source.split('R"(', 1)[1].split(')";', 1)[0]
+    script = source.split('R"SCRIPT(', 1)[1].split(')SCRIPT";', 1)[0]
     path = WORK / "install-script.sh"; path.write_text(script)
     done = subprocess.run(["bash", "--posix", "-n", str(path)], capture_output=True, text=True)
     assert done.returncode == 0, done.stderr
@@ -651,6 +714,8 @@ TESTS = {
     "rollback-tarball-dies-early": lambda: rollback("tarball", "dies-early"),
     "rollback-tarball-hangs": lambda: rollback("tarball", "hangs"),
     "rollback-appimage-crashes": lambda: rollback("appimage", "crashes"),
+    "rollback-appimage-hangs": lambda: rollback("appimage", "hangs"),
+    "appimage-own-name": appimage_own_name,
     "cancel-prompt": cancel_prompt,
     "wait-for-operations": wait_for_operations,
     "other-window": other_window,
@@ -667,6 +732,8 @@ TESTS = {
     "file-types": file_types,
     "opens-to": opens_to,
     "type-ahead": type_ahead,
+    "search-inside": search_inside,
+    "disk-usage": disk_usage,
 }
 
 def main():

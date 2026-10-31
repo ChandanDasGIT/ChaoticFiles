@@ -70,6 +70,7 @@ bool FolderSession::isTrash() const
 int FolderSession::headerKind() const
 {
     if (isTrash()) return 1;
+    if (m_searching && m_searchingInside) return 3;
     return m_searching || m_tab->history.current() == PathBar::kRecentLocation ? 2 : 0;
 }
 
@@ -395,7 +396,7 @@ void FolderSession::setFilter(const QString& text)
     emit selectionChanged();
 }
 
-void FolderSession::search(const QString& text)
+void FolderSession::search(const QString& text, bool insideFiles)
 {
     const std::string root = m_tab->history.current();
     if (PathBar::isVirtual(root)) return;
@@ -403,6 +404,7 @@ void FolderSession::search(const QString& text)
     const quint64 generation = ++m_generation;
     m_lister.cancel();
     m_searching = true;
+    m_searchingInside = insideFiles;
     m_loading = true;
     m_model.beginChange();
     m_tab->view.setFilter({});
@@ -413,7 +415,7 @@ void FolderSession::search(const QString& text)
 
     const std::string query = text.toStdString();
     const bool showHidden = SettingsController::instance()->showHidden();
-    m_searchJob.start([this, root, query, showHidden, generation](const BackgroundJob::Handle& handle) {
+    m_searchJob.start([this, root, query, showHidden, generation, insideFiles](const BackgroundJob::Handle& handle) {
         const auto toUi = [this, &handle, generation](std::function<void()> work) {
             handle.post([this, generation, work = std::move(work)] {
                 QMetaObject::invokeMethod(this, [this, generation, work] {
@@ -421,7 +423,8 @@ void FolderSession::search(const QString& text)
                 }, Qt::QueuedConnection);
             });
         };
-        FileSearch::run(root, query, showHidden, kMaxSearchResults, [&](std::vector<Entry> batch) {
+        const auto walk = insideFiles ? FileSearch::runInside : FileSearch::run;
+        walk(root, query, showHidden, kMaxSearchResults, [&](std::vector<Entry> batch) {
             auto shared = std::make_shared<std::vector<Entry>>(std::move(batch));
             toUi([this, shared] {
                 emit aboutToRefresh();

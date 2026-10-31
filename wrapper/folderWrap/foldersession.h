@@ -96,7 +96,7 @@ public:
     Q_INVOKABLE QStringList selectedItems() const;           // only what is selected: anything that changes files uses this
     Q_INVOKABLE QString selectedUrlText() const;             // for dragging: file URLs, one per line
     Q_INVOKABLE void setFilter(const QString& text);         // narrows this folder as you type
-    Q_INVOKABLE void search(const QString& text);            // everything below this folder
+    Q_INVOKABLE void search(const QString& text, bool insideFiles = false);   // everything below this folder
     Q_INVOKABLE void endSearch();
     Q_INVOKABLE void selectRows(const QVariantList& rows, bool add);
     Q_INVOKABLE void copyPaths();                            // the selection's full paths, one per line
@@ -131,6 +131,7 @@ private:
     bool m_active = false;
     bool m_stale = false;                  // the folder changed while this tab was in the background
     bool m_searching = false;              // the rows are search results
+    bool m_searchingInside = false;        // and they show the matching line
     QString m_error;
     QString m_diskText;
 

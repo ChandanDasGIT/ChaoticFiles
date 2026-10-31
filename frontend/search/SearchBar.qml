@@ -1,12 +1,15 @@
 import QtQuick
 
-// Ctrl+F. Typing narrows the current folder at once; "All Subfolders" looks through everything below it.
+// Ctrl+F. Typing narrows the current folder at once; "All Subfolders" looks through everything below it,
+// and "Inside Files" reads the text of the files below it.
 Rectangle {
     id: root
 
     property var session
     property bool open: false
     property bool recursive: false
+    property bool insideFiles: false
+    readonly property bool walking: recursive || insideFiles        // slow, so it waits for a pause in typing
     signal finished()
 
     function start() {
@@ -26,15 +29,17 @@ Rectangle {
 
     function apply() {
         if (input.text === "") session.endSearch()
-        else if (recursive) session.search(input.text)
+        else if (walking) session.search(input.text, insideFiles)
         else session.setFilter(input.text)
     }
 
-    onRecursiveChanged: {
+    function changeMode() {
         if (!open) return
         session.endSearch()
         apply()
     }
+    onRecursiveChanged: changeMode()
+    onInsideFilesChanged: changeMode()
     onSessionChanged: { open = false; input.text = "" }
 
     Connections {
@@ -86,7 +91,7 @@ Rectangle {
             color: Theme.text
             selectionColor: Theme.selectionBg
             selectedTextColor: Theme.text
-            onTextEdited: root.recursive ? delay.restart() : root.apply()
+            onTextEdited: root.walking ? delay.restart() : root.apply()
             Keys.onEscapePressed: root.stop()
             Keys.onDownPressed: root.finished()
             Keys.onReturnPressed: root.finished()
@@ -96,12 +101,27 @@ Rectangle {
 
     DialogButton {
         id: subfolders
-        anchors.right: closeButton.left
+        anchors.right: inside.left
         anchors.rightMargin: 4
         anchors.verticalCenter: parent.verticalCenter
         text: "All Subfolders"
         primary: root.recursive
-        onClicked: root.recursive = !root.recursive
+        onClicked: {
+            root.insideFiles = false
+            root.recursive = !root.recursive
+        }
+    }
+    DialogButton {
+        id: inside
+        anchors.right: closeButton.left
+        anchors.rightMargin: 4
+        anchors.verticalCenter: parent.verticalCenter
+        text: "Inside Files"
+        primary: root.insideFiles
+        onClicked: {
+            root.recursive = false
+            root.insideFiles = !root.insideFiles
+        }
     }
     ToolbarButton {
         id: closeButton

@@ -410,8 +410,11 @@ void UpdateController::beginInstall()
     script.close();
     leaveMark(m_stage + QLatin1Char('/') + QLatin1String(Update::kInstallingFile));
 
+    const std::string installed = m_installed.toStdString();
+    const std::string target = m_kind == Kind::AppImage ? Update::appImageTarget(installed, version().toStdString(), m_fileName.toStdString()) : installed;
+    const std::string program = m_kind == Kind::AppImage ? target : m_program.toStdString();
     std::vector<std::string> command = {"/bin/sh", scriptPath.toStdString(), m_stage.toStdString(), m_newCopy.toStdString(),
-                                        m_installed.toStdString(), m_program.toStdString()};
+                                        installed, target, program, m_program.toStdString()};
     for (const QString& folder : TabsController::instance()->folders()) command.push_back(folder.toStdString());
     command.push_back("--tab=" + std::to_string(TabsController::instance()->currentIndex()));
     if (!Process::startDetached(command, QDir::homePath().toStdString())) m_installing = false;

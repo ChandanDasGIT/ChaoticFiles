@@ -17,6 +17,8 @@ struct Walker {
     FolderScan& scan;
     const std::function<void(const FolderScan&)>& progress;
     const std::function<bool()>& cancelled;
+    bool oneDisk;
+    dev_t device;
     std::unordered_set<std::string> seenHardLinks;
     std::chrono::steady_clock::time_point lastReport = std::chrono::steady_clock::now();
 
@@ -49,6 +51,7 @@ struct Walker {
 
             struct stat info {};
             if (fstatat(dirfd(dir), name.c_str(), &info, AT_SYMLINK_NOFOLLOW) != 0) continue;
+            if (oneDisk && info.st_dev != device) continue;
             const std::string full = path == "/" ? "/" + name : path + "/" + name;
             if (name[0] == '.') ++scan.hidden;
 
@@ -88,7 +91,7 @@ struct Walker {
 } // namespace
 
 FolderScan scanFolder(const std::string& path, const std::function<void(const FolderScan&)>& progress,
-                      const std::function<bool()>& cancelled)
+                      const std::function<bool()>& cancelled, bool oneDisk)
 {
     FolderScan scan;
     const int fd = open(path.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
@@ -97,7 +100,9 @@ FolderScan scanFolder(const std::string& path, const std::function<void(const Fo
         scan.finished = true;
         return scan;
     }
-    Walker walker {scan, progress, cancelled, {}};
+    struct stat info {};
+    fstat(fd, &info);
+    Walker walker {scan, progress, cancelled, oneDisk, info.st_dev, {}};
     scan.finished = walker.walk(fd, path);
     return scan;
 }

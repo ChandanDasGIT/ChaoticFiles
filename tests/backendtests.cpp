@@ -12,6 +12,8 @@
 #include "filetype/filetype.h"
 #include "mimetypes/mimetypes.h"
 #include "update/update.h"
+#include "diskusage/diskusage.h"
+#include "folderscan/folderscan.h"
 #include "folderview/folderview.h"
 #include "format/format.h"
 #include "hashing/hashing.h"
@@ -1077,6 +1079,102 @@ static void testSearch(const fs::path& root)
     CHECK(view.selectedCount() == 0);
 }
 
+static void testSearchInside(const fs::path& root)
+{
+    CHECK(FileSearch::findInside("one\n  Two Words  \nthree\n", "two") == "line 2: Two Words");
+    CHECK(FileSearch::findInside("first\r\nthe word\r\n", "WORD") == "line 2: the word");
+    CHECK(FileSearch::findInside("word", "word") == "line 1: word");
+    CHECK(FileSearch::findInside("no match", "word").empty());
+    CHECK(FileSearch::findInside("word", "").empty());
+    CHECK(FileSearch::findInside(std::string("bin\0word", 8), "word").empty());     // binary
+
+    const std::string far(5000, 'x');
+    const std::string shown = FileSearch::findInside(far + "needle" + far, "needle");   // a long line shows the match
+    CHECK(shown.find("needle") != std::string::npos && shown.size() < 200);
+    std::string wide;
+    for (int i = 0; i < 300; ++i) wide += "\xC3\xA9";
+    const std::string cut = FileSearch::findInside(wide + "needle" + wide, "needle");   // never inside a letter
+    const std::string body = cut.substr(cut.find(": ") + 2);
+    CHECK((static_cast<unsigned char>(body.front()) & 0xC0) != 0x80);
+    CHECK((static_cast<unsigned char>(body.back()) & 0xC0) == 0x80 || body.back() == 'e');
+
+    const fs::path work = root / "inside";
+    fs::create_directories(work / "src" / "deep");
+    fs::create_directories(work / ".hidden");
+    touch(work / "top.txt", "a needle here\n");
+    touch(work / "src" / "deep" / "code.cpp", "int x;\n\nint needle;\nneedle again\n");
+    touch(work / "src" / "needle.txt", "nothing inside\n");                            // only its name matches
+    touch(work / ".hidden" / "secret.txt", "needle\n");
+    std::ofstream(work / "binary.bin", std::ios::binary) << std::string("x\0needle", 8);
+    std::ofstream(work / "big.txt").seekp(33 * 1024 * 1024) << "needle";
+    fs::create_directory_symlink(work / "src", work / "loop");
+    fs::create_symlink(work / "top.txt", work / "link.txt");
+    mkfifo((work / "pipe").c_str(), 0600);                                              // must not hang on this
+
+    const auto search = [&work](bool hidden) {
+        std::vector<Entry> found;
+        FileSearch::runInside(work.string(), "needle", hidden, 100, [&found](std::vector<Entry> batch) {
+            found.insert(found.end(), batch.begin(), batch.end());
+        }, {});
+        return found;
+    };
+    const auto found = search(false);
+    CHECK(found.size() == 2);
+    for (const Entry& entry : found) {
+        if (entry.name == "top.txt") CHECK(entry.location == "line 1: a needle here");
+        else CHECK(entry.name == "code.cpp" && entry.location == "src/deep, line 3: int needle;");
+    }
+    CHECK(search(true).size() == 3);
+
+    std::vector<Entry> none;
+    FileSearch::runInside(work.string(), "needle", false, 100, [&none](std::vector<Entry> batch) { none.insert(none.end(), batch.begin(), batch.end()); },
+                          [] { return true; });
+    CHECK(none.empty());                                                                // cancelled
+}
+
+static void testDiskUsage(const fs::path& root)
+{
+    const fs::path work = root / "usage";
+    fs::create_directories(work / "big" / "inside");
+    fs::create_directories(work / "small");
+    fs::create_directories(work / "empty");
+    const auto write = [](const fs::path& path, std::size_t size) { std::ofstream(path, std::ios::binary) << std::string(size, 'x'); };
+    write(work / "big" / "inside" / "a.bin", 3 * 1024 * 1024);
+    write(work / "big" / "b.bin", 1024 * 1024);
+    write(work / "small" / "c.bin", 64 * 1024);
+    write(work / "file.bin", 256 * 1024);
+    fs::create_directory_symlink(work / "big", work / "loop");
+    sync();
+
+    int reports = 0;
+    const UsageReport report = scanUsage(work.string(), [&reports](const UsageReport&) { ++reports; }, {});
+    CHECK(report.finished && report.done == report.count && report.count == 5);
+    CHECK(reports > 0);
+    CHECK(report.items.size() == 5 && report.items[0].name == "big" && report.items[0].folder);
+    CHECK(report.items[0].files == 2 && report.items[0].bytes >= 4 * 1024 * 1024);
+    CHECK(report.items[1].name == "file.bin" && !report.items[1].folder);
+    CHECK(report.items[2].name == "small");
+    for (std::size_t i = 1; i < report.items.size(); ++i) CHECK(report.items[i - 1].bytes >= report.items[i].bytes);
+    std::uint64_t sum = 0;
+    for (const UsageItem& item : report.items) sum += item.bytes;
+    CHECK(sum == report.total);
+    for (const UsageItem& item : report.items) CHECK(item.name != "loop" || item.bytes < 1024 * 1024);   // links are not followed
+
+    const UsageReport stopped = scanUsage(work.string(), {}, [] { return true; });
+    CHECK(!stopped.finished);
+    const UsageReport missing = scanUsage((work / "nothing").string(), {}, {});
+    CHECK(missing.finished && missing.unreadable == 1 && missing.items.empty());
+
+    const fs::path many = root / "usage-many";
+    fs::create_directories(many);
+    for (std::size_t i = 0; i < kMaxUsageItems + 5; ++i) touch(many / ("f" + std::to_string(i)));
+    const UsageReport crowded = scanUsage(many.string(), {}, {});
+    CHECK(crowded.items.size() == kMaxUsageItems && crowded.hiddenItems == 5);
+
+    const FolderScan proc = scanFolder("/proc/self/fd", {}, {}, true);                  // the disk rule itself
+    CHECK(proc.finished);
+}
+
 static void testRecent(const fs::path& root)
 {
     setenv("XDG_DATA_HOME", (root / "recent-data").c_str(), 1);
@@ -1349,6 +1447,11 @@ static void testUpdate(const fs::path& root)
     CHECK(!Update::signatureIsValid(message, "", key));
     CHECK(!Update::signatureIsValid(message, signature, "not hex"));
 
+    const std::string next = "ChaoticFiles-1.1-x86_64.AppImage";
+    CHECK(Update::appImageTarget("/apps/ChaoticFiles-1.0-x86_64.AppImage", "1.0", next) == "/apps/" + next);
+    CHECK(Update::appImageTarget("/apps/ChaoticFiles.AppImage", "1.0", next) == "/apps/ChaoticFiles.AppImage");   // the user's own name stays
+    CHECK(Update::appImageTarget("/apps/ChaoticFiles-0.9-x86_64.AppImage", "1.0", next) == "/apps/ChaoticFiles-0.9-x86_64.AppImage");
+
     const std::string script = Update::installScript();
     CHECK(script.rfind("#!/bin/sh", 0) == 0);
     CHECK(script.find("kill -0") == std::string::npos);                  // a zombie still counts as alive
@@ -1410,6 +1513,8 @@ int main()
     testDropTargets();
     testFolderIcons(root);
     testSearch(root);
+    testSearchInside(root);
+    testDiskUsage(root);
     testRecent(root);
     testShortcuts();
     testDrives();

@@ -34,6 +34,8 @@ Views and search
 - Preview panel (F3): a picture or the start of the text of the current file.
 - Typing in the list jumps to a name. Pressing the same letter again goes to the next name starting with it.
 - Ctrl+F filters the folder as you type. All Subfolders searches everything below it, showing each result's folder.
+- Inside Files searches the text of the files below the folder, and shows the first matching line. It skips binary files and files over 32 MB, and stays on one disk.
+- Disk Usage, in the right click menu, lists what takes up the space in a folder, biggest first. Click a folder to look inside it.
 
 Sidebar and status bar
 - Home, Recent, the standard user folders, the file system, the Trash.
@@ -95,3 +97,4 @@ Updates
 - Checks once a day if the switch is on. Failed checks stay silent, and Check now reports the result.
 - Update now downloads, checks the signature, waits for running operations, restarts and reopens your tabs.
 - If the new version does not start, the old one comes back and the app says so.
+- An AppImage is replaced by the new file under its own name, so nothing needs renaming. A name you chose yourself stays.

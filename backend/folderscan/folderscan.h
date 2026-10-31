@@ -20,5 +20,6 @@ struct FolderScan {
 };
 
 // Walks the folder without following links. `progress` is called every so often with the totals so far.
+// With `oneDisk`, a folder on another disk is left out.
 FolderScan scanFolder(const std::string& path, const std::function<void(const FolderScan&)>& progress,
-                      const std::function<bool()>& cancelled);
+                      const std::function<bool()>& cancelled, bool oneDisk = false);

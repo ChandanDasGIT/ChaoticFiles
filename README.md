@@ -28,6 +28,7 @@ Once a day the app asks GitHub for the latest version. Nothing else is sent. Whe
 Nothing updates until you choose to:
 
 - **Tarball and AppImage:** **Update now** downloads the new version and checks its signature. It waits for running copies and moves if you want it to, restarts the app and opens your tabs again. If the new version does not start, the old one comes back and the app says so. Close any other ChaoticFiles windows first.
+  An AppImage is replaced by the new file under its own name, such as `ChaoticFiles-1.1-x86_64.AppImage`, so there is nothing to rename. If you renamed yours, it keeps your name.
 - **Installed with `sudo ./install.sh`, or anywhere you can't write:** this needs root, so the app offers the release page instead.
 
 ### How updates are signed

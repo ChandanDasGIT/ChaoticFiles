@@ -104,9 +104,9 @@ bool signatureIsValid(const std::string& message, const std::string& signature, 
 
 const char* installScript()
 {
-    return R"(#!/bin/sh
-stage=$1; new=$2; installed=$3; program=$4
-shift 4
+    return R"SCRIPT(#!/bin/sh
+stage=$1; new=$2; installed=$3; target=$4; program=$5; oldprogram=$6
+shift 6
 
 # the old program leaves this file as the last thing it does
 i=0
@@ -116,44 +116,56 @@ backup="$stage/previous"
 if ! mv "$installed" "$backup"; then
     : > "$stage.failed"
     rm -rf "$stage"
-    exec "$program" "$@"
+    exec "$oldprogram" "$@"
 fi
-if ! mv "$new" "$installed"; then
+if ! mv "$new" "$target"; then
     mv "$backup" "$installed"
     : > "$stage.failed"
     rm -rf "$stage"
-    exec "$program" "$@"
+    exec "$oldprogram" "$@"
 fi
 
 started="$stage/started"
 exited="$stage/exited"
+# its own process group where setsid exists, because an AppImage is a runtime with the app inside it
 (
-    CHAOTICFILES_UPDATE_STARTED="$started" "$program" "$@" &
-    echo $! > "$stage/pid"
-    wait $!
+    export CHAOTICFILES_UPDATE_STARTED="$started"
+    if command -v setsid > /dev/null 2>&1; then
+        setsid --wait sh -c 'echo $$ > "$0"; exec "$@"' "$stage/pid" "$program" "$@"
+    else
+        sh -c 'echo $$ > "$0"; exec "$@"' "$stage/pid" "$program" "$@"
+    fi
     { : > "$exited"; } 2>/dev/null
 ) &
 
 # one minute, for a slow disk: after that it counts as stuck
-i=0
-while [ ! -e "$started" ] && [ ! -e "$exited" ] && [ $i -lt 600 ]; do sleep 0.1; i=$((i + 1)); done
+deadline=$(($(date +%s) + 60))
+while [ ! -e "$started" ] && [ ! -e "$exited" ] && [ "$(date +%s)" -lt "$deadline" ]; do sleep 0.1; done
 
 if [ ! -e "$started" ]; then                                    # it did not start: the old version comes back
     if [ ! -e "$exited" ] && [ -s "$stage/pid" ]; then
         pid=$(cat "$stage/pid")
-        kill "$pid" 2>/dev/null
+        kill -s TERM -- "-$pid" 2>/dev/null || kill -s TERM "$pid" 2>/dev/null
         sleep 2
-        kill -9 "$pid" 2>/dev/null
+        kill -s KILL -- "-$pid" 2>/dev/null || kill -s KILL "$pid" 2>/dev/null
     fi
-    rm -rf "$installed"
+    rm -rf "$target"
     mv "$backup" "$installed"
     : > "$stage.failed"
     rm -rf "$stage"
-    "$program" "$@" &
+    "$oldprogram" "$@" &
     exit 0
 fi
 rm -rf "$stage"
-)";
+)SCRIPT";
+}
+
+std::string appImageTarget(const std::string& installedPath, const std::string& oldVersion, const std::string& newName)
+{
+    const std::size_t slash = installedPath.rfind('/');
+    const std::string folder = slash == std::string::npos ? std::string() : installedPath.substr(0, slash + 1);
+    const std::string name = slash == std::string::npos ? installedPath : installedPath.substr(slash + 1);
+    return name == "ChaoticFiles-" + oldVersion + "-x86_64.AppImage" ? folder + newName : installedPath;
 }
 
 bool holdInstanceLock(const std::string& path)
