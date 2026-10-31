@@ -357,6 +357,13 @@ void OperationsController::restore(const QStringList& paths)
     });
 }
 
+void OperationsController::restoreAll()
+{
+    QStringList paths;
+    for (const TrashItem& item : Trash::list()) paths << qs(item.path);
+    restore(paths);
+}
+
 void OperationsController::emptyTrash()
 {
     const int id = addOperation(QStringLiteral("Emptying the Trash"));

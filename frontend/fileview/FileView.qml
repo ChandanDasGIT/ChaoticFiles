@@ -8,6 +8,8 @@ FocusScope {
     required property var session
     signal rowMenuRequested(int row, bool isDirectory, string path, string name, real sceneX, real sceneY)
     signal backgroundMenuRequested(real sceneX, real sceneY)
+    signal restoreAllRequested()
+    signal deleteAllRequested()
 
     readonly property bool gridMode: SettingsController.viewMode === 1
     readonly property var view: gridMode ? grid : list
@@ -102,7 +104,7 @@ FocusScope {
         anchors.top: header.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.bottom: parent.bottom
+        anchors.bottom: trashBar.top
         anchors.topMargin: 2
         clip: true
         interactive: false                 // the mouse selects here; the wheel and the scrollbar scroll
@@ -146,7 +148,7 @@ FocusScope {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.bottom: parent.bottom
+        anchors.bottom: trashBar.top
         anchors.margins: Theme.rowMargin
         clip: true
         interactive: false
@@ -205,6 +207,35 @@ FocusScope {
             color: Theme.textDim
         }
         Text {
+    // ---- the buttons at the bottom of the Trash ----
+    Item {
+        id: trashBar
+        visible: root.session.isTrash
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: visible ? Theme.dialogButtonHeight + 2 * Theme.toolbarMargin : 0
+
+        Row {
+            anchors.right: parent.right
+            anchors.rightMargin: Theme.toolbarMargin
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 8
+
+            DialogButton {
+                text: "Restore All"
+                active: root.session.itemCount > 0
+                onClicked: root.restoreAllRequested()
+            }
+            DialogButton {
+                text: "Delete All"
+                danger: true
+                active: root.session.itemCount > 0
+                onClicked: root.deleteAllRequested()
+            }
+        }
+    }
+
             width: Math.min(implicitWidth, root.width - 40)
             anchors.horizontalCenter: parent.horizontalCenter
             horizontalAlignment: Text.AlignHCenter

@@ -53,6 +53,7 @@ public:
     Q_INVOKABLE void trash(const QStringList& paths);
     Q_INVOKABLE void deleteForever(const QStringList& paths);
     Q_INVOKABLE void restore(const QStringList& paths);
+    Q_INVOKABLE void restoreAll();
     Q_INVOKABLE void emptyTrash();
     Q_INVOKABLE void compress(const QStringList& paths, const QString& archivePath);
     Q_INVOKABLE void extract(const QStringList& archives);

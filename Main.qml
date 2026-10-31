@@ -249,6 +249,8 @@ Window {
                         }
                         onBackgroundMenuRequested: (sceneX, sceneY) => window.showBackgroundMenu(sceneX, sceneY)
                     }
+                        onRestoreAllRequested: actions.restoreAll()
+                        onDeleteAllRequested: actions.emptyTrash()
                 }
             }
 

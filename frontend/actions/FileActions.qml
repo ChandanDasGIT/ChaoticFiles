@@ -91,6 +91,13 @@ Item {
         OperationsController.restore(session.selectedItems())
     }
 
+    function restoreAll() {
+        confirm.ask({
+            title: "Restore everything in the Trash?", text: "Each item goes back to the folder it came from.",
+            confirmText: "Restore All", onConfirm: () => OperationsController.restoreAll()
+        })
+    }
+
     function emptyTrash() {
         confirm.ask({
             title: "Empty the Trash?", text: "Everything in the Trash will be deleted permanently. This can't be undone.",
