@@ -40,7 +40,8 @@ DialogFrame {
         anchors.bottom: always.top
         anchors.bottomMargin: 10
         width: parent.width
-        model: root.apps
+        apps: root.apps
+        searchable: root.showingAll
         defaultApp: root.type.defaultApp ?? ""
         onChosen: (appId) => {
             if (always.checked) AppsController.setDefault(appId, [root.type.mimeType], false)

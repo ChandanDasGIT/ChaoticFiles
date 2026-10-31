@@ -24,6 +24,7 @@ public:
     Q_INVOKABLE QVariantList appsFor(const QString& path) const;     // [{id, name, icon}], the default app first
     Q_INVOKABLE QVariantList appsForTypes(const QStringList& mimeTypes) const;
     Q_INVOKABLE QVariantList allApps() const;
+    Q_INVOKABLE QVariantList filterApps(const QVariantList& apps, const QString& text) const;   // by name, any case
     Q_INVOKABLE QVariantMap typeOf(const QString& path) const;       // {label, mimeType, defaultApp}, as opening the file sees it
     Q_INVOKABLE QString defaultApp(const QString& mimeType) const;
     Q_INVOKABLE bool open(const QString& appId, const QStringList& paths) const;

@@ -174,6 +174,7 @@ QtObject {
     readonly property int conflictWidth:    500
     readonly property int openWithHeight:   460
     readonly property int appIconSize:      20
+    readonly property int appSearchHeight:  32
     readonly property int defaultAppBoxWidth: 250
     readonly property int checkBoxSize:     16
     readonly property int operationsWidth:  340

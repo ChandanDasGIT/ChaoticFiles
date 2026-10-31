@@ -9,14 +9,21 @@ DialogFrame {
     property bool wholeCategory: false
     property string currentApp: ""
     property var apps: []
+    property bool showingAll: false
+
+    function showAll() {
+        showingAll = true
+        apps = AppsController.allApps()
+    }
 
     function ask(title, mimeTypes, wholeCategory, currentApp) {
         root.title = title
         root.mimeTypes = mimeTypes
         root.wholeCategory = wholeCategory
         root.currentApp = currentApp
+        showingAll = false
         apps = AppsController.appsForTypes(mimeTypes)
-        if (apps.length === 0) apps = AppsController.allApps()
+        if (apps.length === 0) showAll()
         open()
     }
 
@@ -38,7 +45,8 @@ DialogFrame {
         anchors.bottom: footer.top
         anchors.bottomMargin: 10
         width: parent.width
-        model: root.apps
+        apps: root.apps
+        searchable: root.showingAll
         defaultApp: root.currentApp
         onChosen: (appId) => {
             AppsController.setDefault(appId, root.mimeTypes, root.wholeCategory)
@@ -52,8 +60,8 @@ DialogFrame {
         spacing: 8
         DialogButton {
             text: "Show All Apps"
-            visible: !root.wholeCategory
-            onClicked: root.apps = AppsController.allApps()
+            visible: !root.wholeCategory && !root.showingAll
+            onClicked: root.showAll()
         }
         DialogButton { text: "Cancel"; onClicked: root.close() }
     }

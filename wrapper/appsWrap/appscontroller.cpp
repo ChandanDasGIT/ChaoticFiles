@@ -3,6 +3,7 @@
 #include "apps/desktopapps.h"
 #include "apps/filetypegroups.h"
 #include "magic/magicfile.h"
+#include "search/filesearch.h"
 
 #include <QMetaObject>
 #include <algorithm>
@@ -94,6 +95,15 @@ QVariantList AppsController::appsFor(const QString& path) const
 QVariantList AppsController::appsForTypes(const QStringList& mimeTypes) const
 {
     return toList(DesktopApps::forMimeTypes(toStd(mimeTypes)));
+}
+
+QVariantList AppsController::filterApps(const QVariantList& apps, const QString& text) const
+{
+    if (text.isEmpty()) return apps;
+    QVariantList found;
+    for (const QVariant& app : apps)
+        if (FileSearch::nameMatches(app.toMap().value("name").toString().toStdString(), text.toStdString())) found.append(app);
+    return found;
 }
 
 QVariantMap AppsController::typeOf(const QString& path) const
