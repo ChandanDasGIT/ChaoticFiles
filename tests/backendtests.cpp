@@ -882,6 +882,15 @@ static void testApps()
 
 // xdg-mime reads and writes under these folders, so the real settings of whoever runs the tests stay untouched
 static void testDefaultApps(const fs::path& root)
+static void testDropTargets()
+{
+    CHECK(FileOps::alreadyIn("/a/b", "/a"));
+    CHECK(FileOps::alreadyIn("/a/b", "/a/b"));
+    CHECK(!FileOps::alreadyIn("/a/b", "/a/c"));
+    CHECK(!FileOps::alreadyIn("/a/b/c", "/a"));
+    CHECK(FileOps::alreadyIn("/a", "/"));
+}
+
 {
     if (Process::findProgram("xdg-mime").empty()) return;
     const fs::path work = root / "defaults";
@@ -1166,3 +1175,4 @@ int main()
     if (failures == 0) std::printf("All backend tests passed.\n");
     return failures == 0 ? 0 : 1;
 }
+    testDropTargets();

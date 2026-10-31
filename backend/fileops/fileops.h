@@ -16,6 +16,9 @@ Outcome createFile(const std::string& path);
 Outcome createLink(const std::string& target, const std::string& linkPath);
 Outcome rename(const std::string& from, const std::string& to);       // both in the same folder or not
 
+// Whether dropping this item on this folder changes nothing: it is already there, or it is that folder.
+bool alreadyIn(const std::string& path, const std::string& folder);
+
 // A name that is free next to `path`: "report (2).txt" if "report.txt" is taken.
 std::string uniquePath(const std::string& path);
 

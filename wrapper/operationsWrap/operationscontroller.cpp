@@ -276,6 +276,12 @@ void OperationsController::dropUrls(const QList<QUrl>& urls, const QString& dest
     bool moving = FileOps::onSameDevice(paths.first().toStdString(), destination.toStdString());
     if (keys & Qt::ControlModifier) moving = false;
     if (keys & Qt::ShiftModifier) moving = true;
+
+    // only a move can have nothing to do: Ctrl on a drop in the same folder asks for a duplicate
+    if (moving) paths.removeIf([&destination](const QString& path) { return FileOps::alreadyIn(path.toStdString(), destination.toStdString()); });
+    else paths.removeIf([&destination](const QString& path) { return path == destination; });
+    if (paths.isEmpty()) return;
+
     if (moving) move(paths, destination);
     else copy(paths, destination);
 }

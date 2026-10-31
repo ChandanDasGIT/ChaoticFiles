@@ -118,6 +118,11 @@ Outcome rename(const std::string& from, const std::string& to)
     return {};
 }
 
+bool alreadyIn(const std::string& path, const std::string& folder)
+{
+    return path == folder || PathBar::parent(path) == folder;
+}
+
 std::string uniquePath(const std::string& path)
 {
     struct stat info {};
