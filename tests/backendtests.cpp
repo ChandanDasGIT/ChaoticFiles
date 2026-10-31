@@ -1,6 +1,7 @@
 // Tests for the engine. No Qt and no test library: a failed CHECK prints its line and the program
 // ends with a non-zero code. Files are created under a temporary folder that is removed afterwards.
 #include "apps/desktopapps.h"
+#include "apps/filetypegroups.h"
 #include "archive/archiver.h"
 #include "contentinfo/contentinfo.h"
 #include "directory/directorylister.h"
@@ -869,6 +870,57 @@ static void testApps()
 
     const DesktopApp hidden = DesktopApps::parse("h.desktop", "[Desktop Entry]\nName=H\nType=Application\nExec=h\nNoDisplay=true\n");
     CHECK(hidden.exec.empty());
+
+    CHECK(DesktopApps::parse("i.desktop", "[Desktop Entry]\nName=I\nType=Application\nExec=i\nIcon=org.app.Icon\n").icon == "org.app.Icon");
+
+    CHECK(fileTypeLabel("text/plain") == "Plain Text");
+    CHECK(fileTypeLabel("audio/x-flac") == "FLAC");
+    CHECK(fileTypeLabel("application/x-unknown") == "application/x-unknown");
+    for (const FileTypeGroup& group : fileTypeGroups())
+        for (const FileTypeChoice& type : group.types) CHECK(!type.label.empty() && !type.mimeTypes.empty());
+}
+
+// xdg-mime reads and writes under these folders, so the real settings of whoever runs the tests stay untouched
+static void testDefaultApps(const fs::path& root)
+{
+    if (Process::findProgram("xdg-mime").empty()) return;
+    const fs::path work = root / "defaults";
+    fs::create_directories(work / "config" / "gtk-3.0");
+    fs::create_directories(work / "data" / "applications");
+    touch(work / "data" / "applications" / "player.desktop",
+          "[Desktop Entry]\nName=Player\nType=Application\nExec=/bin/sh %f\nIcon=player\nMimeType=audio/mpeg;audio/flac;\n");
+    touch(work / "data" / "applications" / "other.desktop",
+          "[Desktop Entry]\nName=Other\nType=Application\nExec=/bin/sh %f\nMimeType=video/mp4;\n");
+
+    const std::string oldConfig = std::getenv("XDG_CONFIG_HOME") ? std::getenv("XDG_CONFIG_HOME") : "";
+    const std::string oldData = std::getenv("XDG_DATA_HOME") ? std::getenv("XDG_DATA_HOME") : "";
+    const bool hadConfig = std::getenv("XDG_CONFIG_HOME") != nullptr, hadData = std::getenv("XDG_DATA_HOME") != nullptr;
+    setenv("XDG_CONFIG_HOME", (work / "config").c_str(), 1);
+    setenv("XDG_DATA_HOME", (work / "data").c_str(), 1);
+
+    CHECK(DesktopApps::setDefault("player.desktop", {"audio/mpeg", "audio/flac"}));
+    CHECK(DesktopApps::setDefault("other.desktop", {"video/mp4"}));
+    CHECK(!DesktopApps::setDefault("player.desktop", {}));
+    CHECK(fs::exists(work / "config" / "mimeapps.list"));
+    CHECK(DesktopApps::defaultFor("audio/flac") == "player.desktop");
+
+    const auto many = DesktopApps::defaultsFor({"audio/mpeg", "video/mp4", "audio/flac"});
+    CHECK(many.size() == 3 && many[0] == "player.desktop" && many[1] == "other.desktop" && many[2] == "player.desktop");
+    CHECK(DesktopApps::defaultsFor({}).empty());
+
+    const auto apps = DesktopApps::forMimeTypes({"audio/mpeg", "video/mp4"});
+    CHECK(apps.size() >= 2 && apps[0].id == "player.desktop");       // the default of the first type leads
+
+    touch(work / "note.txt", "plain words\n");
+    CHECK(DesktopApps::openingType((work / "note.txt").string()) == "text/plain");
+
+    touch(work / "config" / "gtk-3.0" / "settings.ini", "[Settings]\ngtk-theme-name=X\ngtk-icon-theme-name = \"breeze\"\n");
+    CHECK(DesktopApps::iconThemeName() == "breeze");
+
+    if (hadConfig) setenv("XDG_CONFIG_HOME", oldConfig.c_str(), 1);
+    else unsetenv("XDG_CONFIG_HOME");
+    if (hadData) setenv("XDG_DATA_HOME", oldData.c_str(), 1);
+    else unsetenv("XDG_DATA_HOME");
 }
 
 static void testFolderIcons(const fs::path& root)
@@ -1101,6 +1153,7 @@ int main()
     testUndo();
     testArchives(root);
     testApps();
+    testDefaultApps(root);
     testFolderIcons(root);
     testSearch(root);
     testRecent(root);

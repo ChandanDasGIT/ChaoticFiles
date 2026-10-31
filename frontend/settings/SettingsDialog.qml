@@ -86,8 +86,14 @@ DialogFrame {
                 title: "Keyboard shortcuts"
                 onClicked: shortcutsDialog.open()
             }
+            SettingsLink {
+                width: parent.width
+                title: "Default apps"
+                onClicked: defaultAppsDialog.open()
+            }
         }
     }
 
     ShortcutsDialog { id: shortcutsDialog }
+    DefaultAppsDialog { id: defaultAppsDialog }
 }

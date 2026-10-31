@@ -144,6 +144,10 @@ Window {
         function onMessage(text) { statusBar.showMessage(text) }
     }
     Connections {
+        target: AppsController
+        function onMessage(text) { statusBar.showMessage(text) }
+    }
+    Connections {
         target: OperationsController
         function onMessage(text) { statusBar.showMessage(text) }
         function onOperationFinished() { window.session.refresh() }

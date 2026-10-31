@@ -3,6 +3,7 @@
 #include <QQmlApplicationEngine>
 #include <QStandardPaths>
 
+#include "wrapper/appsWrap/appiconprovider.h"
 #include "wrapper/tabsWrap/tabscontroller.h"
 #include "wrapper/thumbnailsWrap/thumbnailprovider.h"
 
@@ -32,6 +33,7 @@ int main(int argc, char *argv[])
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
     engine.addImageProvider("thumb", new ThumbnailProvider);
+    engine.addImageProvider("appicon", new AppIconProvider);
     engine.loadFromModule("ChaoticFiles", "Main");
 
     return QGuiApplication::exec();

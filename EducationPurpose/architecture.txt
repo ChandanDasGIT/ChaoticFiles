@@ -7,7 +7,9 @@ ChaoticFiles/
 ├── backend/                                // pure C++20 engine, no Qt: built as its own static library, fileengine
 │   ├── apps/                               // installed apps
 │   │   ├── desktopapps.cpp                 // parses Exec lines without a shell, starts apps
-│   │   └── desktopapps.h                   // reads .desktop files; apps for a file type, Open With, the terminal
+│   │   ├── desktopapps.h                   // reads .desktop files; apps for a file type, default apps, the terminal
+│   │   ├── filetypegroups.cpp              // the file types the Default Apps panel offers
+│   │   └── filetypegroups.h                // FileTypeGroup and FileTypeChoice, by category
 │   ├── archive/                            // archives
 │   │   ├── archiver.cpp                    // picks the program by extension; removes a failed archive
 │   │   └── archiver.h                      // compress and extract through tar, zip, unzip and 7z
@@ -44,6 +46,9 @@ ChaoticFiles/
 │   ├── filetype/                           // what kind of file
 │   │   ├── filetype.cpp                    // table of extensions; does not read the file
 │   │   └── filetype.h                      // detectFileType and categoryName
+│   ├── foldericons/                        // the icon someone chose for a folder
+│   │   ├── foldericons.cpp                 // kept in the user.chaoticfiles.icon attribute on the folder
+│   │   └── foldericons.h                   // read, write, and the icon and colour in the value
 │   ├── folderscan/                         // adding up a folder
 │   │   ├── folderscan.cpp                  // walks without following links
 │   │   └── folderscan.h                    // counts, sizes, largest files
@@ -139,22 +144,29 @@ ChaoticFiles/
 │   │   ├── AddressBar.qml                  // folders as buttons, or a text field with suggestions
 │   │   └── PathSegment.qml                 // one folder and its arrow
 │   ├── common/                             // small shared parts
+│   │   ├── AppIcon.qml                     // the icon of an installed app
+│   │   ├── CheckRow.qml                    // a check box with its text
+│   │   ├── DragState.qml                   // singleton: what is being dragged right now
 │   │   └── ThinScrollBar.qml               // the scrollbar used everywhere
 │   ├── dialogs/                            // dialogs
 │   │   ├── ConfirmDialog.qml               // a question or a notice
+│   │   ├── AppList.qml                     // a list of apps with their icons
 │   │   ├── ConflictDialog.qml              // "already exists": replace, skip, keep both
 │   │   ├── ConnectDialog.qml               // connect to a NAS or server
 │   │   ├── DialogButton.qml                // a button with a word on it
 │   │   ├── DialogFrame.qml                 // the look all dialogs share
 │   │   ├── NameDialog.qml                  // asks for a name
-│   │   └── OpenWithDialog.qml              // choose an app
+│   │   └── OpenWithDialog.qml              // choose an app, and make it the default
 │   ├── fileview/                           // the file list
 │   │   ├── ColumnHeader.qml                // the column titles; click to sort
+│   │   ├── DragPreview.qml                 // the picture that follows the mouse during a drag
 │   │   ├── FileCell.qml                    // one item in the grid
 │   │   ├── FileItemArea.qml                // mouse, drag and drop, shared by rows and cells
 │   │   ├── FileRow.qml                     // one row in the list
 │   │   ├── FileView.qml                    // the list and grid of one tab, and its keyboard
 │   │   └── ViewBackground.qml              // empty space: rubber band selection and drops
+│   ├── foldericon/                         // choosing a folder's icon
+│   │   └── FolderIconDialog.qml            // the icons, the colours, and Reset
 │   ├── operations/                         // running jobs
 │   │   └── OperationsPanel.qml             // progress, pause and cancel
 │   ├── popupmenu/                          // things that pop up
@@ -169,12 +181,18 @@ ChaoticFiles/
 │   ├── search/                             // searching
 │   │   └── SearchBar.qml                   // filter as you type, or all subfolders
 │   ├── settings/                           // the settings window
-│   │   ├── SettingsDialog.qml              // every setting and shortcut
+│   │   ├── DefaultAppPicker.qml            // choose the default app for one type or a whole category
+│   │   ├── DefaultAppRow.qml               // one file type and the app that opens it
+│   │   ├── DefaultAppsDialog.qml           // the Default Apps panel, by category
+│   │   ├── SettingsDialog.qml              // every setting, and buttons to the panels below
+│   │   ├── SettingsLink.qml                // a line that opens its own panel
 │   │   ├── SettingsSection.qml             // a title with a choice of buttons
-│   │   └── ShortcutRow.qml                 // one shortcut; click and press keys
+│   │   ├── ShortcutRow.qml                 // one shortcut; click and press keys
+│   │   └── ShortcutsDialog.qml             // the Keyboard Shortcuts panel
 │   ├── sidebar/                            // the left side
-│   │   ├── Sidebar.qml                     // places, bookmarks, drives, network
-│   │   └── SidebarItem.qml                 // one place
+│   │   ├── Sidebar.qml                     // places, pinned folders, drives, network
+│   │   ├── SidebarItem.qml                 // one place
+│   │   └── SidebarPinZone.qml              // the Pinned Folders heading, which takes dropped folders
 │   ├── statusbar/                          // the bottom line
 │   │   └── StatusBar.qml                   // counts, messages, free space
 │   ├── tabbar/                             // the title bar
@@ -194,9 +212,11 @@ ChaoticFiles/
 ├── tests/                                  // tests, no Qt
 │   └── backendtests.cpp                    // the engine's tests, run by ctest
 ├── wrapper/                                // Qt C++ between QML and the engine: controllers and list models
-│   ├── appsWrap/                           // Open With for QML
+│   ├── appsWrap/                           // Open With and default apps for QML
+│   │   ├── appiconprovider.cpp             // finds an icon in the system icon theme
+│   │   ├── appiconprovider.h               // app icons as image://appicon/ (AppIconProvider)
 │   │   ├── appscontroller.cpp              // its implementation
-│   │   └── appscontroller.h                // apps for a file, and the terminal (AppsController)
+│   │   └── appscontroller.h                // apps for a file, default apps, and the terminal (AppsController)
 │   ├── clipboardWrap/                      // cut, copy, paste
 │   │   ├── clipboardcontroller.cpp         // its implementation
 │   │   └── clipboardcontroller.h           // in the format other file managers use (ClipboardController)
@@ -213,7 +233,7 @@ ChaoticFiles/
 │   │   └── pathbarcontroller.h             // passes questions to the engine's PathBar (PathBarController)
 │   ├── placesWrap/                         // the sidebar for QML
 │   │   ├── placescontroller.cpp            // creates the Trash if needed; checks drives every 4 seconds off the UI thread
-│   │   └── placescontroller.h              // places, bookmarks, drives, network shares (PlacesController)
+│   │   └── placescontroller.h              // places, pinned folders, drives, network shares (PlacesController)
 │   ├── previewWrap/                        // the preview panel for QML
 │   │   ├── previewcontroller.cpp           // its implementation
 │   │   └── previewcontroller.h             // the start of a text file (PreviewController)

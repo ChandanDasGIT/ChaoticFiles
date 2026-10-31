@@ -30,31 +30,7 @@ DialogFrame {
             font.pixelSize: Theme.fontSize
             color: Theme.textMuted
         }
-        Row {
-            spacing: 8
-            Rectangle {
-                width: 16
-                height: 16
-                radius: 4
-                anchors.verticalCenter: parent.verticalCenter
-                color: applyAll.checked ? Theme.accentFill : "transparent"
-                border.color: Theme.menuBorder
-                Text {
-                    anchors.centerIn: parent
-                    visible: applyAll.checked
-                    text: Icons.check
-                    font.family: Icons.fontFamily
-                    font.pixelSize: 10
-                    color: Theme.textOnAccent
-                }
-            }
-            Text {
-                text: "Do this for all conflicts"
-                font.pixelSize: Theme.fontSize
-                color: Theme.text
-            }
-            TapHandler { id: applyAll; property bool checked: false; onTapped: checked = !checked }
-        }
+        CheckRow { id: applyAll; text: "Do this for all conflicts" }
         Row {
             anchors.right: parent.right
             spacing: 8

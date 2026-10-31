@@ -5,13 +5,17 @@
 #include "sorting/sorting.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cstdlib>
 #include <dirent.h>
 #include <fstream>
 #include <map>
 #include <sstream>
+#include <thread>
 
 namespace {
+
+constexpr int kQueryThreads = 8;       // asking for a default runs a script, about 60 ms each
 
 std::vector<std::string> applicationFolders()
 {
@@ -34,6 +38,14 @@ std::vector<std::string> split(const std::string& text, char separator)
     while (std::getline(stream, part, separator))
         if (!part.empty()) parts.push_back(part);
     return parts;
+}
+
+std::string firstLine(const std::string& text)
+{
+    std::string line = text.substr(0, text.find('\n'));
+    line = line.substr(0, line.find(';'));          // "text/plain; charset=utf-8"
+    while (!line.empty() && line.back() == ' ') line.pop_back();
+    return line;
 }
 
 // the words of an Exec= line, with quotes removed
@@ -93,6 +105,7 @@ DesktopApp parse(const std::string& id, const std::string& text)
         const std::string key = line.substr(0, equals), value = line.substr(equals + 1);
         if (key == "Name") app.name = value;
         else if (key == "Exec") app.exec = value;
+        else if (key == "Icon") app.icon = value;
         else if (key == "Type") isApplication = value == "Application";
         else if (key == "Terminal") app.terminal = value == "true";
         else if (key == "MimeType") app.mimeTypes = split(value, ';');
@@ -128,9 +141,52 @@ std::vector<DesktopApp> all()
 std::string defaultFor(const std::string& mime)
 {
     const auto result = Process::run({"xdg-mime", "query", "default", mime});
-    std::string id = result.output;
-    while (!id.empty() && (id.back() == '\n' || id.back() == ' ')) id.pop_back();
-    return id;
+    return firstLine(result.output);
+}
+
+std::vector<std::string> defaultsFor(const std::vector<std::string>& mimes)
+{
+    std::vector<std::string> ids(mimes.size());
+    std::atomic<std::size_t> next {0};
+    std::vector<std::thread> threads;
+    for (int i = 0; i < kQueryThreads; ++i) {
+        threads.emplace_back([&] {
+            for (std::size_t at = next++; at < mimes.size(); at = next++) ids[at] = defaultFor(mimes[at]);
+        });
+    }
+    for (std::thread& thread : threads) thread.join();
+    return ids;
+}
+
+bool setDefault(const std::string& appId, const std::vector<std::string>& mimes)
+{
+    if (mimes.empty()) return false;
+    std::vector<std::string> command {"xdg-mime", "default", appId};
+    command.insert(command.end(), mimes.begin(), mimes.end());
+    return Process::run(command).exitCode == 0;
+}
+
+std::string openingType(const std::string& path)
+{
+    return firstLine(Process::run({"xdg-mime", "query", "filetype", path}).output);
+}
+
+std::string iconThemeName()
+{
+    const char* config = std::getenv("XDG_CONFIG_HOME");
+    const std::string base = config && *config ? config : PathBar::homeDirectory() + "/.config";
+    for (const char* version : {"gtk-3.0", "gtk-4.0"}) {
+        std::ifstream file(base + "/" + version + "/settings.ini");
+        std::string line;
+        while (std::getline(file, line)) {
+            const auto equals = line.find('=');
+            if (equals == std::string::npos || line.rfind("gtk-icon-theme-name", 0) != 0) continue;
+            std::string name = line.substr(equals + 1);
+            std::erase_if(name, [](char c) { return c == ' ' || c == '"' || c == '\r'; });
+            if (!name.empty()) return name;
+        }
+    }
+    return {};
 }
 
 std::string defaultNameFor(const std::string& mime)
@@ -144,14 +200,21 @@ std::string defaultNameFor(const std::string& mime)
 
 std::vector<DesktopApp> forMimeType(const std::string& mime)
 {
-    const std::string chosen = defaultFor(mime);
-    const bool text = mime.rfind("text/", 0) == 0;
+    return forMimeTypes({mime});
+}
+
+std::vector<DesktopApp> forMimeTypes(const std::vector<std::string>& mimes)
+{
+    if (mimes.empty()) return {};
+    const std::string chosen = defaultFor(mimes.front());
     std::vector<DesktopApp> apps;
     for (DesktopApp& app : all()) {
         const auto& types = app.mimeTypes;
-        const bool opens = std::find(types.begin(), types.end(), mime) != types.end()
-                        || (text && std::find(types.begin(), types.end(), "text/plain") != types.end())
-                        || app.id == chosen;
+        const bool opens = app.id == chosen || std::any_of(mimes.begin(), mimes.end(), [&types](const std::string& mime) {
+            const bool text = mime.rfind("text/", 0) == 0;
+            return std::find(types.begin(), types.end(), mime) != types.end()
+                || (text && std::find(types.begin(), types.end(), "text/plain") != types.end());
+        });
         if (!opens) continue;
         if (app.id == chosen) apps.insert(apps.begin(), std::move(app));
         else apps.push_back(std::move(app));
