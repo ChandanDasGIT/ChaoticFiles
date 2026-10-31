@@ -15,5 +15,5 @@ struct FileTypeGroup {
 // The file types the Default Apps panel offers, by category.
 const std::vector<FileTypeGroup>& fileTypeGroups();
 
-// A readable name for a type: "Plain Text" for text/plain. Types not in the list keep their own name.
+// A readable name for a type: "Plain Text" for text/plain. Types not in the list use the system's description.
 std::string fileTypeLabel(const std::string& mimeType);

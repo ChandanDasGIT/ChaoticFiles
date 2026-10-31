@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick DBus)
+find_package(Qt6 REQUIRED COMPONENTS Quick DBus Network)
 find_package(Threads REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.10)
@@ -20,6 +20,12 @@ add_library(blake3 STATIC
 target_include_directories(blake3 PUBLIC dependencies/blake3)
 target_compile_definitions(blake3 PRIVATE BLAKE3_NO_SSE2 BLAKE3_NO_SSE41 BLAKE3_NO_AVX2 BLAKE3_NO_AVX512)
 
+# Monocypher checks the signature of an update.
+add_library(monocypher STATIC
+    dependencies/monocypher/monocypher.c
+    dependencies/monocypher/monocypher-ed25519.c)
+target_include_directories(monocypher PUBLIC dependencies/monocypher)
+
 # ---------------------------------------------------------------- the engine (no Qt)
 # Everything under backend/ is plain C++20. It is built as its own library and does not link to Qt,
 # so a Qt include in there fails to compile.
@@ -28,7 +34,7 @@ file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS
 
 add_library(fileengine STATIC ${ENGINE_SOURCES})
 target_include_directories(fileengine PUBLIC "${CMAKE_CURRENT_LIST_DIR}/backend")
-target_link_libraries(fileengine PUBLIC Threads::Threads ${CMAKE_DL_LIBS} blake3)
+target_link_libraries(fileengine PUBLIC Threads::Threads ${CMAKE_DL_LIBS} blake3 monocypher)
 target_compile_options(fileengine PRIVATE -Wall -Wextra)
 
 # ---------------------------------------------------------------- the app
@@ -73,7 +79,32 @@ endforeach()
 list(REMOVE_DUPLICATES WRAPPER_DIRS)
 target_include_directories(appChaoticFiles PRIVATE ${WRAPPER_DIRS})
 
-target_link_libraries(appChaoticFiles PRIVATE Qt6::Quick Qt6::DBus fileengine)
+target_link_libraries(appChaoticFiles PRIVATE Qt6::Quick Qt6::DBus Qt6::Network fileengine)
+
+# The version the About section shows. A release passes its tag (-DAPP_VERSION=1.1), other builds use the project version.
+if(NOT DEFINED APP_VERSION)
+    set(APP_VERSION "${PROJECT_VERSION}")
+endif()
+
+# The key that checks updates. The test build replaces it and the addresses, to use a local server.
+if(NOT DEFINED UPDATE_PUBLIC_KEY)
+    file(READ packaging/update-public-key.txt UPDATE_PUBLIC_KEY)
+    string(STRIP "${UPDATE_PUBLIC_KEY}" UPDATE_PUBLIC_KEY)
+endif()
+target_compile_definitions(appChaoticFiles PRIVATE
+    APP_VERSION="${APP_VERSION}"
+    UPDATE_PUBLIC_KEY="${UPDATE_PUBLIC_KEY}")
+if(DEFINED UPDATE_API_URL)
+    target_compile_definitions(appChaoticFiles PRIVATE UPDATE_API_URL="${UPDATE_API_URL}" UPDATE_SITE_URL="${UPDATE_SITE_URL}")
+endif()
+
+# Drives the real window from a command file, for tests/update. Never in a release.
+if(CHAOTICFILES_TEST_DRIVER)
+    find_package(Qt6 REQUIRED COMPONENTS Test)
+    target_sources(appChaoticFiles PRIVATE tests/update/testdriver.cpp tests/update/testdriver.h)
+    target_compile_definitions(appChaoticFiles PRIVATE CHAOTICFILES_TEST_DRIVER)
+    target_link_libraries(appChaoticFiles PRIVATE Qt6::Test)
+endif()
 
 # ---------------------------------------------------------------- installing (used by packaging/build-appimage.sh)
 include(GNUInstallDirs)

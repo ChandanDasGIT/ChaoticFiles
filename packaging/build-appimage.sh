@@ -60,7 +60,9 @@ mkdir -p "$DIST"
 cmake -S . -B "$BUILD" \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX=/usr \
-  -DCMAKE_PREFIX_PATH="$QT_PREFIX"
+  -DCMAKE_PREFIX_PATH="$QT_PREFIX" \
+  -DAPP_VERSION="$VERSION" \
+  ${PACKAGING_CMAKE_ARGS:-}   # only tests/update sets this: its own key and local server
 cmake --build "$BUILD" -j"$(nproc)"
 DESTDIR="$APPDIR" cmake --install "$BUILD"
 

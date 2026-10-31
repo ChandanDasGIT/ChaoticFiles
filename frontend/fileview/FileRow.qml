@@ -10,6 +10,7 @@ Rectangle {
     required property string sizeText
     required property string modifiedText
     required property string category
+    required property string mimeIcon
     required property string path
     required property bool isDirectory
     required property bool isLink
@@ -52,6 +53,13 @@ Rectangle {
         font.family: Icons.fontFamily
         font.pixelSize: Theme.iconSize + 1
         color: root.isBroken ? Theme.danger : Theme.itemColor(root.category, root.colorKey)
+        opacity: root.mimeIcon !== "" ? 0 : root.isHidden ? Theme.hiddenOpacity : 1
+    }
+    TypeIcon {
+        x: icon.x
+        anchors.verticalCenter: parent.verticalCenter
+        name: root.mimeIcon
+        size: Theme.iconSize + 3
         opacity: root.isHidden ? Theme.hiddenOpacity : 1
     }
     Text {

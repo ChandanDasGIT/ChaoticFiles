@@ -29,7 +29,7 @@ TabsController::TabsController(QObject* parent)
     });
 }
 
-void TabsController::start(const QStringList& folders)
+void TabsController::start(const QStringList& folders, int current)
 {
     for (const QString& path : folders) {
         const std::string folder = PathBar::normalize(path.toStdString());
@@ -38,7 +38,15 @@ void TabsController::start(const QStringList& folders)
     }
     if (m_tabs.count() == 0) insertTab(m_tabs.open(PathBar::homeDirectory(), 0), 0);
 
+    m_tabs.setCurrent(current >= 0 && current < m_tabs.count() ? current : 0);
     updateCurrent(nullptr);
+}
+
+QStringList TabsController::folders() const
+{
+    QStringList paths;
+    for (const FolderSession* session : m_sessions) paths << session->path();
+    return paths;
 }
 
 int TabsController::rowCount(const QModelIndex& parent) const

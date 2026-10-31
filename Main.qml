@@ -276,6 +276,7 @@ Window {
             id: statusBar
             Layout.fillWidth: true
             session: window.session
+            onUpdateClicked: settingsDialog.openAbout()
         }
     }
 
@@ -304,6 +305,11 @@ Window {
 
     SettingsDialog {
         id: settingsDialog
+        objectName: "settingsDialog"
+        onClosed: window.focusFiles()
+    }
+
+    UpdatePrompts {
         onClosed: window.focusFiles()
     }
 

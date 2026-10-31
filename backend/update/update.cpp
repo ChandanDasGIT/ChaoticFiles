@@ -1,0 +1,173 @@
+#include "update/update.h"
+
+extern "C" {
+#include "monocypher-ed25519.h"
+}
+
+#include <algorithm>
+#include <cctype>
+#include <fcntl.h>
+#include <sstream>
+#include <sys/file.h>
+#include <unistd.h>
+#include <vector>
+
+namespace {
+
+std::vector<unsigned long> numbers(const std::string& version)
+{
+    std::vector<unsigned long> parts;
+    std::size_t at = 0;
+    while (at < version.size() && std::isdigit(static_cast<unsigned char>(version[at]))) {
+        unsigned long part = 0;
+        for (; at < version.size() && std::isdigit(static_cast<unsigned char>(version[at])); ++at)
+            part = part * 10 + static_cast<unsigned long>(version[at] - '0');
+        parts.push_back(part);
+        if (at < version.size() && version[at] == '.') ++at;
+        else break;                                                 // 0.0-dev is 0.0
+    }
+    while (!parts.empty() && parts.back() == 0) parts.pop_back();   // 1.0 and 1 are the same version
+    return parts;
+}
+
+bool isHash(const std::string& text)
+{
+    return text.size() == 64 && std::all_of(text.begin(), text.end(), [](unsigned char c) {
+        return std::isdigit(c) || (c >= 'a' && c <= 'f');
+    });
+}
+
+std::string fromHex(const std::string& hex)
+{
+    std::string bytes;
+    if (hex.size() % 2 != 0) return {};
+    const auto digit = [](char c) {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        return -1;
+    };
+    for (std::size_t at = 0; at < hex.size(); at += 2) {
+        const int high = digit(hex[at]);
+        const int low = digit(hex[at + 1]);
+        if (high < 0 || low < 0) return {};
+        bytes.push_back(static_cast<char>(high * 16 + low));
+    }
+    return bytes;
+}
+
+int instanceLock = -1;
+
+} // namespace
+
+namespace Update {
+
+bool isVersion(const std::string& text)
+{
+    if (text.empty() || text.front() == '.' || text.back() == '.' || text.find("..") != std::string::npos) return false;
+    return std::all_of(text.begin(), text.end(), [](unsigned char c) { return std::isdigit(c) || c == '.'; });
+}
+
+bool isNewer(const std::string& version, const std::string& running)
+{
+    return isVersion(version) && numbers(version) > numbers(running);
+}
+
+std::optional<Manifest> parseManifest(const std::string& text)
+{
+    std::istringstream lines(text);
+    std::string header, versionWord, tarballWord, appImageWord, extra;
+    Manifest manifest;
+    if (!std::getline(lines, header) || header != "ChaoticFiles update manifest 1") return std::nullopt;
+    if (!(lines >> versionWord >> manifest.version)) return std::nullopt;
+    if (!(lines >> tarballWord >> manifest.tarball >> manifest.tarballHash)) return std::nullopt;
+    if (!(lines >> appImageWord >> manifest.appImage >> manifest.appImageHash)) return std::nullopt;
+    if (lines >> extra) return std::nullopt;
+
+    if (versionWord != "version" || tarballWord != "tarball" || appImageWord != "appimage") return std::nullopt;
+    if (!isVersion(manifest.version)) return std::nullopt;
+    // the names can only be these, so a manifest can never point outside the update's folder
+    if (manifest.tarball != "ChaoticFiles-" + manifest.version + "-linux-x86_64.tar.xz") return std::nullopt;
+    if (manifest.appImage != "ChaoticFiles-" + manifest.version + "-x86_64.AppImage") return std::nullopt;
+    if (!isHash(manifest.tarballHash) || !isHash(manifest.appImageHash)) return std::nullopt;
+    return manifest;
+}
+
+bool signatureIsValid(const std::string& message, const std::string& signature, const std::string& publicKeyHex)
+{
+    const std::string key = fromHex(publicKeyHex);
+    if (key.size() != 32 || signature.size() != 64) return false;
+    return crypto_ed25519_check(reinterpret_cast<const uint8_t*>(signature.data()),
+                                reinterpret_cast<const uint8_t*>(key.data()),
+                                reinterpret_cast<const uint8_t*>(message.data()), message.size()) == 0;
+}
+
+const char* installScript()
+{
+    return R"(#!/bin/sh
+stage=$1; new=$2; installed=$3; program=$4
+shift 4
+
+# the old program leaves this file as the last thing it does
+i=0
+while [ ! -e "$stage/old-exited" ] && [ $i -lt 100 ]; do sleep 0.1; i=$((i + 1)); done
+
+backup="$stage/previous"
+if ! mv "$installed" "$backup"; then
+    : > "$stage.failed"
+    rm -rf "$stage"
+    exec "$program" "$@"
+fi
+if ! mv "$new" "$installed"; then
+    mv "$backup" "$installed"
+    : > "$stage.failed"
+    rm -rf "$stage"
+    exec "$program" "$@"
+fi
+
+started="$stage/started"
+exited="$stage/exited"
+(
+    CHAOTICFILES_UPDATE_STARTED="$started" "$program" "$@" &
+    echo $! > "$stage/pid"
+    wait $!
+    { : > "$exited"; } 2>/dev/null
+) &
+
+# one minute, for a slow disk: after that it counts as stuck
+i=0
+while [ ! -e "$started" ] && [ ! -e "$exited" ] && [ $i -lt 600 ]; do sleep 0.1; i=$((i + 1)); done
+
+if [ ! -e "$started" ]; then                                    # it did not start: the old version comes back
+    if [ ! -e "$exited" ] && [ -s "$stage/pid" ]; then
+        pid=$(cat "$stage/pid")
+        kill "$pid" 2>/dev/null
+        sleep 2
+        kill -9 "$pid" 2>/dev/null
+    fi
+    rm -rf "$installed"
+    mv "$backup" "$installed"
+    : > "$stage.failed"
+    rm -rf "$stage"
+    "$program" "$@" &
+    exit 0
+fi
+rm -rf "$stage"
+)";
+}
+
+bool holdInstanceLock(const std::string& path)
+{
+    instanceLock = open(path.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
+    return instanceLock >= 0 && flock(instanceLock, LOCK_SH | LOCK_NB) == 0;
+}
+
+bool otherInstancesRunning()
+{
+    if (instanceLock < 0) return false;
+    if (flock(instanceLock, LOCK_EX | LOCK_NB) != 0) return true;   // someone else holds it too
+    flock(instanceLock, LOCK_SH | LOCK_NB);
+    return false;
+}
+
+} // namespace Update

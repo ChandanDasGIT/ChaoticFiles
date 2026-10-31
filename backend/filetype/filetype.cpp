@@ -1,4 +1,5 @@
 #include "filetype/filetype.h"
+#include "mimetypes/mimetypes.h"
 
 #include <algorithm>
 #include <cctype>
@@ -33,7 +34,17 @@ const std::unordered_map<std::string_view, KnownType>& knownTypes()
         {"css", {C::Code, "CSS Stylesheet"}}, {"json", {C::Code, "JSON File"}}, {"xml", {C::Code, "XML File"}},
         {"yaml", {C::Code, "YAML File"}}, {"yml", {C::Code, "YAML File"}}, {"toml", {C::Code, "TOML File"}},
         {"ini", {C::Code, "Configuration File"}}, {"conf", {C::Code, "Configuration File"}},
-        {"sql", {C::Code, "SQL Script"}},
+        {"sql", {C::Code, "SQL Script"}}, {"hh", {C::Code, "C++ Header"}}, {"hxx", {C::Code, "C++ Header"}},
+        {"vue", {C::Code, "Vue Component"}}, {"svelte", {C::Code, "Svelte Component"}}, {"scss", {C::Code, "Sass Stylesheet"}},
+        {"sass", {C::Code, "Sass Stylesheet"}}, {"less", {C::Code, "Less Stylesheet"}}, {"dart", {C::Code, "Dart Source"}},
+        {"zig", {C::Code, "Zig Source"}}, {"nim", {C::Code, "Nim Source"}}, {"pl", {C::Code, "Perl Script"}},
+        {"hs", {C::Code, "Haskell Source"}}, {"ex", {C::Code, "Elixir Source"}}, {"exs", {C::Code, "Elixir Script"}},
+        {"scala", {C::Code, "Scala Source"}}, {"r", {C::Code, "R Script"}}, {"jl", {C::Code, "Julia Source"}},
+        {"asm", {C::Code, "Assembly Source"}}, {"s", {C::Code, "Assembly Source"}}, {"vala", {C::Code, "Vala Source"}},
+        {"ps1", {C::Code, "PowerShell Script"}}, {"bat", {C::Code, "Batch File"}}, {"proto", {C::Code, "Protocol Buffers File"}},
+        {"tf", {C::Code, "Terraform File"}}, {"gradle", {C::Code, "Gradle Script"}}, {"qrc", {C::Code, "Qt Resource File"}},
+        {"ui", {C::Code, "Qt Designer File"}}, {"pro", {C::Code, "Qt Project File"}}, {"tex", {C::Text, "TeX Document"}},
+        {"jsonc", {C::Code, "JSON File"}}, {"ipynb", {C::Code, "Jupyter Notebook"}},
 
         {"png", {C::Image, "PNG Image"}}, {"jpg", {C::Image, "JPEG Image"}}, {"jpeg", {C::Image, "JPEG Image"}},
         {"gif", {C::Image, "GIF Image"}}, {"webp", {C::Image, "WebP Image"}}, {"svg", {C::Image, "SVG Image"}},
@@ -84,6 +95,28 @@ std::string extensionOf(const std::string& name)
     return ext;
 }
 
+// what the system's list says, for what the table above doesn't name
+FileCategory categoryOf(const std::string& mimeType)
+{
+    const auto startsWith = [&mimeType](const char* start) { return mimeType.rfind(start, 0) == 0; };
+    if (startsWith("image/")) return FileCategory::Image;
+    if (startsWith("audio/")) return FileCategory::Audio;
+    if (startsWith("video/")) return FileCategory::Video;
+    if (startsWith("font/")) return FileCategory::Font;
+    if (mimeType == "text/plain") return FileCategory::Text;
+    const std::vector<std::string> kinds = MimeTypes::chain(mimeType);
+    const bool text = std::find(kinds.begin(), kinds.end(), "text/plain") != kinds.end();
+    return text ? FileCategory::Code : FileCategory::Unknown;
+}
+
+void useMimeType(Entry& entry, const std::string& mimeType)
+{
+    entry.category = categoryOf(mimeType);
+    std::string name = MimeTypes::description(mimeType);
+    if (!name.empty()) name[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(name[0])));
+    entry.typeName = name.empty() ? "File" : name;
+}
+
 const char* specialKindName(EntryKind kind)
 {
     switch (kind) {
@@ -116,12 +149,20 @@ void detectFileType(Entry& entry)
     }
 
     const std::string ext = extensionOf(entry.name);
-    if (const auto it = knownTypes().find(ext); it != knownTypes().end()) {
+    const std::string mimeType = MimeTypes::fromName(entry.name);
+    if (entry.name == "Dockerfile" || entry.name == "Containerfile") {       // the system's list has neither
+        entry.category = FileCategory::Code;
+        entry.typeName = "Dockerfile";
+    } else if (!mimeType.empty() && MimeTypes::isExactName(entry.name)) {    // Makefile, or CMakeLists.txt before its .txt
+        useMimeType(entry, mimeType);
+    } else if (const auto it = knownTypes().find(ext); it != knownTypes().end()) {
         entry.category = it->second.category;
         entry.typeName = it->second.name;
     } else if (entry.mode & 0111) {
         entry.category = FileCategory::Program;
         entry.typeName = "Program";
+    } else if (!mimeType.empty()) {
+        useMimeType(entry, mimeType);
     } else if (ext.empty()) {
         entry.category = FileCategory::Unknown;
         entry.typeName = "File";

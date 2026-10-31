@@ -8,6 +8,13 @@ DialogFrame {
     width: Math.min(Theme.settingsWidth, parent.width - 2 * Theme.dialogMargin)
     height: Math.min(Theme.settingsHeight, parent.height - 2 * Theme.dialogMargin)
 
+    function openAbout() {
+        open()
+        Qt.callLater(() => {
+            flick.contentY = Math.max(0, flick.contentHeight - flick.height)
+        })
+    }
+
     Text {
         id: title
         text: "Settings"
@@ -24,6 +31,7 @@ DialogFrame {
     }
 
     Flickable {
+        id: flick
         anchors.top: closeButton.bottom
         anchors.topMargin: 8
         anchors.bottom: parent.bottom
@@ -97,6 +105,9 @@ DialogFrame {
                 width: parent.width
                 title: "Default apps"
                 onClicked: defaultAppsDialog.open()
+            }
+            AboutSection {
+                width: parent.width
             }
         }
     }

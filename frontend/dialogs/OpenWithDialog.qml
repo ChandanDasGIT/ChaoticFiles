@@ -3,6 +3,7 @@ import QtQuick
 // Choose an app for a file. Starts with the apps that say they can open it.
 DialogFrame {
     id: root
+    objectName: "openWithDialog"
 
     property var paths: []
     property var apps: []

@@ -31,6 +31,7 @@ QtObject {
     readonly property color selectionBg:  isDark ? "#3a4a57" : "#cfe4f7"
     readonly property color selectionHoverBg: isDark ? "#445665" : "#bfdaf3"
     readonly property color danger:       isDark ? "#ff6b6b" : "#c42b1c"
+    readonly property color updateDot:    isDark ? "#7fd18b" : "#23893a"   // a new version is out
     readonly property color accentFill:   isDark ? "#0067c0" : "#005fb8"   // a main button
     readonly property color dangerFill:   "#c42b1c"
     readonly property color textOnAccent:     "#ffffff"                         // text on those buttons
@@ -145,6 +146,8 @@ QtObject {
     readonly property int statusBarHeight:  26
     readonly property int statusPadding:    12
     readonly property int statusGap:        16
+    readonly property int updateDotSize:    10
+    readonly property int updateDotArea:    26
     readonly property int messageMs:        4000
     readonly property int loadingDelayMs:   250
 

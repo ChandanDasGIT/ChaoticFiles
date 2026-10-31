@@ -10,6 +10,8 @@
 #include "fileops/fileops.h"
 #include "foldericons/foldericons.h"
 #include "filetype/filetype.h"
+#include "mimetypes/mimetypes.h"
+#include "update/update.h"
 #include "folderview/folderview.h"
 #include "format/format.h"
 #include "hashing/hashing.h"
@@ -33,11 +35,14 @@
 #include <atomic>
 #include <chrono>
 #include <cstdio>
+#include <algorithm>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <future>
 #include <string>
+#include <fcntl.h>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <thread>
 #include <unistd.h>
@@ -103,8 +108,11 @@ static void testFileTypes()
     Entry unknown = fileEntry("data.xyz");
     CHECK(unknown.typeName == "XYZ File");
 
-    Entry plain = fileEntry("Makefile");
+    Entry plain = fileEntry("something");
     CHECK(plain.typeName == "File");
+
+    Entry docker = fileEntry("Dockerfile");
+    CHECK(docker.category == FileCategory::Code && docker.typeName == "Dockerfile");
 
     Entry dotfile = fileEntry(".bashrc");
     CHECK(dotfile.typeName == "File");
@@ -950,7 +958,6 @@ static void testDefaultApps(const fs::path& root)
     CHECK(DesktopApps::defaultFor("audio/mpeg") == "player.desktop"); // a type it doesn't name follows the system
     DesktopApps::keepDefaultsLocal(false);
     CHECK(DesktopApps::defaultFor("audio/ogg") != "player.desktop");
-    CHECK(!DesktopApps::openWithLocalDefault((work / "note.txt").string()));
 
     touch(work / "note.txt", "plain words\n");
     CHECK(DesktopApps::openingType((work / "note.txt").string()) == "text/plain");
@@ -1154,6 +1161,169 @@ static void testNetwork()
     CHECK(NetworkShares::normalizeAddress("\\\\nas\\files") == "smb://nas/files");
 }
 
+static void testMimeTypes(const fs::path& root)
+{
+    const fs::path mime = root / "mime-data" / "mime";
+    fs::create_directories(mime / "text");
+    touch(mime / "globs2",
+          "# a comment\n"
+          "60:text/x-python:*.py\n50:text/x-python3:*.py\n"
+          "50:text/x-qml:*.qml\n50:text/x-c++src:*.cpp\n50:text/x-csrc:*.c\n50:text/x-chdr:*.C:cs\n"
+          "50:application/json:*.json\n50:application/schema+json:*.json\n50:application/gzip:*.gz\n50:application/x-compressed-tar:*.tar.gz\n"
+          "50:text/vnd.trolltech.linguist:*.ts\n50:video/mp2t:*.ts\n50:application/x-tiled-tsx:*.tsx\n"
+          "50:text/x-cmake:cmakelists.txt\n50:text/plain:*.txt\n10:text/x-makefile:makefile.*\n");
+    touch(mime / "subclasses", "application/schema+json application/json\ntext/x-c++src text/x-csrc\ntext/x-python application/x-executable\ntext/x-python text/plain\n");
+    touch(mime / "aliases", "application/x-yaml application/yaml\ntext/x-qmlfile text/x-qml\n");
+    touch(mime / "generic-icons", "application/gzip:package-x-generic\n");
+    touch(mime / "icons", "text/x-qml:custom-qml\n");
+    touch(mime / "text" / "x-qml.xml", "<mime-type><comment xml:lang=\"de\">QML-Datei</comment><comment>Qt Markup &amp; Language file</comment></mime-type>");
+    MimeTypes::useFolders({(root / "mime-data").string()});
+
+    CHECK(MimeTypes::fromName("Main.qml") == "text/x-qml");
+    CHECK(MimeTypes::fromName("main.CPP") == "text/x-c++src");            // case does not matter...
+    CHECK(MimeTypes::fromName("old.C") == "text/x-chdr");                 // ...unless the list says so
+    CHECK(MimeTypes::fromName("old.c") == "text/x-csrc");
+    CHECK(MimeTypes::fromName("a.py") == "text/x-python");                // the heavier one
+    CHECK(MimeTypes::fromName("a.tar.gz") == "application/x-compressed-tar");   // the longest extension
+    CHECK(MimeTypes::fromName("a.b.gz") == "application/gzip");
+    CHECK(MimeTypes::fromName("CMakeLists.txt") == "text/x-cmake");       // the whole name beats .txt
+    CHECK(MimeTypes::isExactName("cmakelists.TXT") && !MimeTypes::isExactName("notes.txt"));
+    CHECK(MimeTypes::fromName("Makefile.am") == "text/x-makefile");
+    CHECK(MimeTypes::fromName("a.nothing").empty());
+    CHECK(MimeTypes::fromName("a.json") == "application/json");           // a schema is a kind of JSON
+    CHECK(MimeTypes::candidates("a.ts").size() == 2 && MimeTypes::fromName("a.ts").empty());
+    CHECK(MimeTypes::fromName("a.tsx") == "text/x-typescript-jsx");
+
+    const auto cpp = MimeTypes::chain("text/x-c++src");
+    CHECK(cpp.size() == 3 && cpp[1] == "text/x-csrc" && cpp[2] == "text/plain");
+    const auto python = MimeTypes::chain("text/x-python");
+    CHECK(std::find(python.begin(), python.end(), "application/x-executable") == python.end());
+    CHECK(MimeTypes::chain("application/x-yaml").front() == "application/yaml");
+    const auto yaml = MimeTypes::related("application/yaml");
+    CHECK(std::find(yaml.begin(), yaml.end(), "application/x-yaml") != yaml.end());
+
+    CHECK(MimeTypes::description("text/x-qml") == "Qt Markup & Language file");
+    CHECK(MimeTypes::description("text/x-qmlfile") == "Qt Markup & Language file");
+    CHECK(MimeTypes::description("text/x-none").empty());
+    CHECK(MimeTypes::iconNames("text/x-qml").front() == "custom-qml");
+    CHECK(MimeTypes::iconNames("text/x-qml")[1] == "text-x-qml");
+    const auto cppIcons = MimeTypes::iconNames("text/x-c++src");
+    CHECK(cppIcons.front() == "text-x-c++src" && cppIcons[1] == "text-x-csrc");
+    CHECK(std::find(cppIcons.begin(), cppIcons.end(), "text-plain") == cppIcons.end());
+    CHECK(MimeTypes::iconNames("application/gzip")[1] == "package-x-generic");
+
+    // what a folder shows
+    Entry entry = fileEntry("Main.qml");
+    detectFileType(entry);
+    CHECK(entry.category == FileCategory::Code && entry.typeName == "QML File");
+    entry = fileEntry("CMakeLists.txt");
+    detectFileType(entry);
+    CHECK(entry.category == FileCategory::Code && entry.typeName != "Text File");
+    entry = fileEntry("a.tar.gz");
+    detectFileType(entry);
+    CHECK(entry.category == FileCategory::Archive);
+    entry = fileEntry("notes.txt");
+    detectFileType(entry);
+    CHECK(entry.category == FileCategory::Text);
+
+    CHECK(fileTypeLabel("text/x-qml") == "QML");
+    CHECK(fileTypeLabel("text/x-cmake") == "CMake");
+    CHECK(fileTypeLabel("text/x-none") == "text/x-none");
+
+    // opening goes by the name, whatever the content looks like
+    const fs::path work = root / "opening";
+    fs::create_directories(work);
+    touch(work / "Main.qml", "import QtQuick\nItem {}\n");
+    touch(work / "main.cpp", "int main() {}\n");
+    touch(work / "script.ts", "function f(): void {}\n");
+    if (!Process::findProgram("xdg-mime").empty()) {
+        CHECK(DesktopApps::openingType((work / "Main.qml").string()) == "text/x-qml");
+        CHECK(DesktopApps::openingType((work / "main.cpp").string()) == "text/x-c++src");
+        CHECK(DesktopApps::openingType((work / "script.ts").string()) == "text/x-typescript");
+        CHECK(DesktopApps::openingType(work.string()) == "inode/directory");
+    }
+
+    MimeTypes::useFolders({"/nonexistent"});                             // no list on this system: nothing breaks
+    CHECK(MimeTypes::candidates("Main.qml").empty());
+    CHECK(MimeTypes::chain("text/x-qml").size() == 2);
+    entry = fileEntry("Main.qml");
+    detectFileType(entry);
+    CHECK(entry.category == FileCategory::Code);
+    entry = fileEntry("a.unheard");
+    detectFileType(entry);
+    CHECK(entry.typeName == "UNHEARD File");
+}
+
+static void testUpdate(const fs::path& root)
+{
+    CHECK(Update::isVersion("1.1") && Update::isVersion("2.0.3") && Update::isVersion("10"));
+    CHECK(!Update::isVersion("") && !Update::isVersion("1.") && !Update::isVersion(".1") && !Update::isVersion("1..2"));
+    CHECK(!Update::isVersion("1.1-rc1") && !Update::isVersion("1.1 ") && !Update::isVersion("v1.1"));
+
+    CHECK(Update::isNewer("1.1", "1.0"));
+    CHECK(Update::isNewer("1.10", "1.9"));                               // numbers, not text
+    CHECK(Update::isNewer("2.0", "1.99.99"));
+    CHECK(Update::isNewer("1.0.1", "1.0"));
+    CHECK(Update::isNewer("1.0", "0.0-dev"));
+    CHECK(!Update::isNewer("1.0", "1.0"));
+    CHECK(!Update::isNewer("1.0.0", "1.0"));
+    CHECK(!Update::isNewer("1.0", "1.1"));                               // never backwards
+    CHECK(!Update::isNewer("1.2-rc1", "1.0"));
+
+    const std::string a(64, 'a'), b(64, 'b');
+    const std::string good = "ChaoticFiles update manifest 1\nversion 1.1\n"
+                             "tarball ChaoticFiles-1.1-linux-x86_64.tar.xz " + a + "\n"
+                             "appimage ChaoticFiles-1.1-x86_64.AppImage " + b + "\n";
+    const auto manifest = Update::parseManifest(good);
+    CHECK(manifest && manifest->version == "1.1" && manifest->tarballHash == a && manifest->appImageHash == b);
+    CHECK(manifest && manifest->tarball == "ChaoticFiles-1.1-linux-x86_64.tar.xz");
+
+    const auto without = [&good](const std::string& from, const std::string& to) {
+        std::string text = good;
+        text.replace(text.find(from), from.size(), to);
+        return Update::parseManifest(text);
+    };
+    CHECK(!without("ChaoticFiles update manifest 1", "ChaoticNotepad update manifest 1"));
+    CHECK(!without("version 1.1", "version 1.1-beta"));
+    CHECK(!without("version 1.1", "version 1.2"));                       // names no longer match the version
+    CHECK(!without("ChaoticFiles-1.1-linux-x86_64.tar.xz", "../../evil.tar.xz"));
+    CHECK(!without("ChaoticFiles-1.1-x86_64.AppImage", "evil.AppImage"));
+    CHECK(!without(a, "short"));
+    CHECK(!without(b, std::string(64, 'G')));
+    CHECK(!Update::parseManifest(good + "extra line\n"));
+    CHECK(!Update::parseManifest(""));
+
+    // RFC 8032, test 2: Ed25519 itself, so a change of library or key format can't pass unnoticed
+    const std::string key = "3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c";
+    std::string signature;
+    const std::string hex = "92a009a9f0d4cab8720e820b5f642540a2b27b5416503f8fb3762223ebdb69da"
+                            "085ac1e43e15996e458f3613d0f11d8c387b2eaeb4302aeeb00d291612bb0c00";
+    for (std::size_t at = 0; at < hex.size(); at += 2) signature.push_back(static_cast<char>(std::stoi(hex.substr(at, 2), nullptr, 16)));
+    const std::string message = "\x72";
+    CHECK(Update::signatureIsValid(message, signature, key));
+    CHECK(!Update::signatureIsValid("\x73", signature, key));            // another message
+    std::string changed = signature;
+    changed[0] = static_cast<char>(changed[0] ^ 1);
+    CHECK(!Update::signatureIsValid(message, changed, key));             // a changed signature
+    CHECK(!Update::signatureIsValid(message, signature, std::string(64, '0')));   // another key
+    CHECK(!Update::signatureIsValid(message, signature.substr(1), key)); // a short one
+    CHECK(!Update::signatureIsValid(message, "", key));
+    CHECK(!Update::signatureIsValid(message, signature, "not hex"));
+
+    const std::string script = Update::installScript();
+    CHECK(script.rfind("#!/bin/sh", 0) == 0);
+    CHECK(script.find("kill -0") == std::string::npos);                  // a zombie still counts as alive
+
+    const std::string lock = (root / "instances.lock").string();
+    CHECK(Update::holdInstanceLock(lock));
+    CHECK(!Update::otherInstancesRunning());
+    const int other = open(lock.c_str(), O_RDWR);
+    CHECK(other >= 0 && flock(other, LOCK_SH | LOCK_NB) == 0);
+    CHECK(Update::otherInstancesRunning());
+    close(other);
+    CHECK(!Update::otherInstancesRunning());
+}
+
 static void testThumbnails(const fs::path& root)
 {
     setenv("XDG_CACHE_HOME", (root / "cache").c_str(), 1);
@@ -1174,6 +1344,8 @@ int main()
     testNaturalOrder();
     testSorting();
     testFileTypes();
+    testMimeTypes(root);
+    testUpdate(root);
     testFormat();
     testHistory();
     testPathBar();

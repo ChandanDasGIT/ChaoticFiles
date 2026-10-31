@@ -19,6 +19,29 @@ Download from [Releases](https://github.com/ChandanDasGIT/ChaoticFiles/releases)
 
 `./uninstall-app.sh` removes it again and keeps your settings.
 
+**From source, for every user:** `sudo ./install.sh` from the project folder, and `sudo ./uninstall.sh` to remove it. You only need root for this one. The tarball and the AppImage don't.
+
+## Updates
+
+Once a day the app asks GitHub for the latest version. Nothing else is sent. When a new one is out, a green dot appears in the status bar, beside the disk space. Click it to open **Settings > About**. To stop the daily check, turn off **Check for updates once a day** there. It is on by default.
+
+Nothing updates until you choose to:
+
+- **Tarball and AppImage:** **Update now** downloads the new version and checks its signature. It waits for running copies and moves if you want it to, restarts the app and opens your tabs again. If the new version does not start, the old one comes back and the app says so. Close any other ChaoticFiles windows first.
+- **Installed with `sudo ./install.sh`, or anywhere you can't write:** this needs root, so the app offers the release page instead.
+
+### How updates are signed
+
+Every release has `update-manifest.txt`, which lists the version and the SHA-256 of each download, and `update-manifest.txt.sig`, its Ed25519 signature. The app has the public key built in and installs an update only if the signature, the version and the file's hash are all correct.
+
+Public key:
+
+```text
+4c55692ce1e8e9495b3daabc71d175489dc118649942fc23864a41b1215cffaa
+```
+
+The private key is never in this repository. The release workflow reads it from the GitHub secrets `UPDATE_SIGNING_KEY_BASE64` and `UPDATE_SIGNING_KEY_PASSWORD`, and `packaging/sign-update.sh` signs the release. A tag without those secrets stops before anything is published.
+
 ## Build
 
 Needs CMake, Ninja, a C and C++20 compiler, and Qt 6.10 or newer (Quick and DBus).
@@ -32,12 +55,18 @@ Folders named on the command line open in tabs: `build/appChaoticFiles ~/Music ~
 ## Optional programs
 
 The app works without these, and says what is missing when one is needed:
-libmagic (detailed file types), ffprobe (audio and video details), ffmpegthumbnailer or ffmpeg (video thumbnails),
+libmagic (detailed file types), shared-mime-info (exact file types by name), an icon theme (a file's type icon), ffprobe (audio and video details), ffmpegthumbnailer or ffmpeg (video thumbnails),
 pdfinfo and pdftoppm (PDF), tar, zip, unzip and 7z (archives), udisksctl and lsblk (drives), gio with gvfs (NAS).
 
 ## Test
 
     ctest --test-dir build --output-on-failure
+
+The update system has its own tests, which use a test key, a local server and a throwaway home folder. They need a
+Wayland session, and open real windows for a moment:
+
+    tests/update/make-test-packages.sh /tmp/update-tests
+    python3 tests/update/run-update-tests.py /tmp/update-tests
 
 ## Release
 

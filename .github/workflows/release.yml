@@ -53,6 +53,22 @@ jobs:
       - name: Run the backend tests
         run: ctest --test-dir build-release --output-on-failure
 
+      # The app only installs an update with this signature. A tag without the key stops here, so nothing is published.
+      - name: Sign the update
+        env:
+          UPDATE_SIGNING_KEY_BASE64: ${{ secrets.UPDATE_SIGNING_KEY_BASE64 }}
+          UPDATE_SIGNING_KEY_PASSWORD: ${{ secrets.UPDATE_SIGNING_KEY_PASSWORD }}
+        run: |
+          if [ -z "$UPDATE_SIGNING_KEY_BASE64" ]; then
+            if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+              echo "No signing key: this release cannot be published."
+              exit 1
+            fi
+            echo "No signing key: not signed."
+            exit 0
+          fi
+          bash ./packaging/sign-update.sh "${{ steps.ver.outputs.version }}"
+
       # The AppImage has to stay open for a few seconds. This catches start-up crashes before a release.
       # It does not stop the release if the virtual screen itself misbehaves (continue-on-error).
       - name: Smoke test
@@ -83,4 +99,6 @@ jobs:
             dist/*.AppImage
             dist/*.tar.xz
             dist/SHA256SUMS.txt
+            dist/update-manifest.txt
+            dist/update-manifest.txt.sig
           generate_release_notes: true

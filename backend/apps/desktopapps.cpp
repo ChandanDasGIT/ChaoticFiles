@@ -1,6 +1,7 @@
 #include "apps/desktopapps.h"
 
 #include "apps/localdefaults.h"
+#include "mimetypes/mimetypes.h"
 #include "pathbar/pathbar.h"
 #include "process/process.h"
 #include "sorting/sorting.h"
@@ -161,12 +162,16 @@ bool defaultsAreLocal()
 
 std::string defaultFor(const std::string& mime)
 {
-    // a type this app's list doesn't name, or names only apps since removed, follows the system
-    if (defaultsLocal)
-        for (const std::string& id : LocalDefaults::appsFor(mime))
-            if (isInstalled(id)) return id;
-    const auto result = Process::run({"xdg-mime", "query", "default", mime});
-    return firstLine(result.output);
+    // a type with no default of its own goes by what it is a kind of: QML is a kind of plain text
+    for (const std::string& type : MimeTypes::chain(mime)) {
+        // a type this app's list doesn't name, or names only apps since removed, follows the system
+        if (defaultsLocal)
+            for (const std::string& id : LocalDefaults::appsFor(type))
+                if (isInstalled(id)) return id;
+        const std::string id = firstLine(Process::run({"xdg-mime", "query", "default", type}).output);
+        if (!id.empty()) return id;
+    }
+    return {};
 }
 
 std::vector<std::string> defaultsFor(const std::vector<std::string>& mimes)
@@ -192,9 +197,25 @@ bool setDefault(const std::string& appId, const std::vector<std::string>& mimes)
     return Process::run(command).exitCode == 0;
 }
 
+// The name comes first and the content only settles what the name can't, as the standard says. Asking xdg-mime
+// alone is not enough: on a desktop with no file manager of its own it asks `file`, which calls a QML file plain text.
 std::string openingType(const std::string& path)
 {
-    return firstLine(Process::run({"xdg-mime", "query", "filetype", path}).output);
+    const auto content = [&path] { return firstLine(Process::run({"xdg-mime", "query", "filetype", path}).output); };
+    std::error_code error;
+    if (std::filesystem::is_directory(path, error)) return content();
+
+    const std::vector<std::string> types = MimeTypes::candidates(std::filesystem::path(path).filename().string());
+    if (types.size() == 1) return types.front();
+    const std::string found = content();
+    for (const std::string& type : types) {
+        const std::vector<std::string> kinds = MimeTypes::chain(found);
+        if (std::find(kinds.begin(), kinds.end(), type) != kinds.end()) return type;
+    }
+    if (found.rfind("text/", 0) == 0)                                 // a .ts file with text in it, not video
+        for (const std::string& type : types)
+            if (type.rfind("text/", 0) == 0) return type;
+    return found.empty() && !types.empty() ? types.front() : found;
 }
 
 std::string iconThemeName()
@@ -233,13 +254,16 @@ std::vector<DesktopApp> forMimeTypes(const std::vector<std::string>& mimes)
 {
     if (mimes.empty()) return {};
     const std::string chosen = defaultFor(mimes.front());
+    std::vector<std::string> wanted;
+    for (const std::string& mime : mimes) {
+        const std::vector<std::string> kinds = MimeTypes::related(mime);
+        wanted.insert(wanted.end(), kinds.begin(), kinds.end());
+    }
     std::vector<DesktopApp> apps;
     for (DesktopApp& app : all()) {
         const auto& types = app.mimeTypes;
-        const bool opens = app.id == chosen || std::any_of(mimes.begin(), mimes.end(), [&types](const std::string& mime) {
-            const bool text = mime.rfind("text/", 0) == 0;
-            return std::find(types.begin(), types.end(), mime) != types.end()
-                || (text && std::find(types.begin(), types.end(), "text/plain") != types.end());
+        const bool opens = app.id == chosen || std::any_of(wanted.begin(), wanted.end(), [&types](const std::string& mime) {
+            return std::find(types.begin(), types.end(), mime) != types.end();
         });
         if (!opens) continue;
         if (app.id == chosen) apps.insert(apps.begin(), std::move(app));
@@ -293,9 +317,8 @@ bool open(const std::string& appId, const std::vector<std::string>& paths)
     return false;
 }
 
-bool openWithLocalDefault(const std::string& path)
+bool openWithDefault(const std::string& path)
 {
-    if (!defaultsLocal) return false;
     const std::string id = defaultFor(openingType(path));
     return !id.empty() && open(id, {path});
 }

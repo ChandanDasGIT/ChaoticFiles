@@ -10,6 +10,7 @@ Item {
     required property string sizeText
     required property string modifiedText
     required property string category
+    required property string mimeIcon
     required property string path
     required property bool isDirectory
     required property bool isLink
@@ -50,11 +51,19 @@ Item {
     Text {
         anchors.horizontalCenter: picture.horizontalCenter
         anchors.verticalCenter: picture.verticalCenter
-        visible: thumbnail.status !== Image.Ready || thumbnail.paintedWidth === 0
+        visible: root.mimeIcon === "" && (thumbnail.status !== Image.Ready || thumbnail.paintedWidth === 0)
         text: root.isBroken ? Icons.warning : Icons.forItem(root.category, root.iconKey)
         font.family: Icons.fontFamily
         font.pixelSize: root.imageSize * 0.6
         color: root.isBroken ? Theme.danger : Theme.itemColor(root.category, root.colorKey)
+        opacity: root.isHidden ? Theme.hiddenOpacity : 1
+    }
+    TypeIcon {
+        anchors.horizontalCenter: picture.horizontalCenter
+        anchors.verticalCenter: picture.verticalCenter
+        visible: name !== "" && (thumbnail.status !== Image.Ready || thumbnail.paintedWidth === 0)
+        name: root.mimeIcon
+        size: root.imageSize * 0.75
         opacity: root.isHidden ? Theme.hiddenOpacity : 1
     }
 

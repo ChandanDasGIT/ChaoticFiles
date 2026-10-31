@@ -18,7 +18,7 @@ ICON_DIR="$DATA/icons/hicolor/scalable/apps"
 mkdir -p "$(dirname "$APP_DIR")" "$BIN_DIR" "$MENU_DIR" "$ICON_DIR"
 
 # the program
-rm -rf "$APP_DIR"
+rm -rf "$APP_DIR" "$APP_DIR.update" "$APP_DIR.update.failed"
 cp -a "$HERE/app" "$APP_DIR"
 
 # the "ChaoticFiles" command
@@ -47,6 +47,11 @@ fi
 
 if command -v update-desktop-database > /dev/null 2>&1; then
   update-desktop-database "$MENU_DIR" > /dev/null 2>&1 || true
+fi
+
+# A copy from sudo ./install.sh can stay beside this one. This script has no root rights to remove it.
+if [ -e /usr/local/bin/appChaoticFiles ]; then
+  echo "Note: another copy is installed in /usr/local. To keep only this one, run sudo ./uninstall.sh from the project folder."
 fi
 
 echo "ChaoticFiles is installed."

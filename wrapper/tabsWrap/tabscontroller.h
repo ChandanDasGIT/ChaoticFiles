@@ -27,7 +27,8 @@ public:
     static TabsController* create(QQmlEngine*, QJSEngine*);
 
     // the first tabs: the folders given, or else Home
-    void start(const QStringList& folders);
+    void start(const QStringList& folders, int current = 0);
+    QStringList folders() const;                             // where each tab is, in order
 
     int rowCount(const QModelIndex& parent = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;

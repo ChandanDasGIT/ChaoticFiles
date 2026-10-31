@@ -70,6 +70,9 @@ ChaoticFiles/
 │   ├── magic/                              // detailed file types
 │   │   ├── magicfile.cpp                   // dlopen of libmagic.so.1
 │   │   └── magicfile.h                     // libmagic, loaded when needed, so it is optional
+│   ├── mimetypes/                          // the system's list of file types
+│   │   ├── mimetypes.cpp                   // reads shared-mime-info: globs, kinds, icons, descriptions
+│   │   └── mimetypes.h                     // namespace MimeTypes: a type from a name, and what it is a kind of
 │   ├── mounts/                             // mounted filesystems
 │   │   ├── mounts.cpp                      // reads /proc/self/mountinfo
 │   │   └── mounts.h                        // Mount and namespace Mounts
@@ -125,6 +128,9 @@ ChaoticFiles/
 │   ├── undo/                               // undo
 │   │   ├── undostack.cpp                   // keeps the last 50 steps
 │   │   └── undostack.h                     // what was done and how to take it back
+│   ├── update/                             // the rules of an update, no network
+│   │   ├── update.cpp                      // versions, manifest, Ed25519 check, the swap script, the window lock
+│   │   └── update.h                        // namespace Update
 │   ├── watcher/                            // noticing changes
 │   │   ├── folderwatcher.cpp               // inotify on its own thread, groups bursts of changes
 │   │   └── folderwatcher.h                 // calls back when a folder changes
@@ -139,6 +145,12 @@ ChaoticFiles/
 │   │   ├── blake3_impl.h                   // unchanged
 │   │   ├── blake3_portable.c               // unchanged
 │   │   └── LICENSE_CC0                     // its license
+│   ├── monocypher/                         // checks the signature of an update
+│   │   ├── LICENCE.md                      // its license
+│   │   ├── monocypher-ed25519.c            // unchanged
+│   │   ├── monocypher-ed25519.h            // unchanged
+│   │   ├── monocypher.c                    // unchanged
+│   │   └── monocypher.h                    // unchanged
 │   └── README.md                           // what is here and what is used at run time
 ├── EducationPurpose/                       // this explanation of the project
 │   └── architecture.txt                    // this file
@@ -170,6 +182,7 @@ ChaoticFiles/
 │   │   ├── FileItemArea.qml                // mouse, drag and drop, shared by rows and cells
 │   │   ├── FileRow.qml                     // one row in the list
 │   │   ├── FileView.qml                    // the list and grid of one tab, and its keyboard
+│   │   ├── TypeIcon.qml                    // a file type's icon from the icon theme
 │   │   └── ViewBackground.qml              // empty space: rubber band selection and drops
 │   ├── foldericon/                         // choosing a folder's icon
 │   │   └── FolderIconDialog.qml            // the icons, the colours, and Reset
@@ -187,6 +200,7 @@ ChaoticFiles/
 │   ├── search/                             // searching
 │   │   └── SearchBar.qml                   // filter as you type, or all subfolders
 │   ├── settings/                           // the settings window
+│   │   ├── AboutSection.qml                // the version, and updates: only draws UpdateController
 │   │   ├── DefaultAppPicker.qml            // choose the default app for one type or a whole category
 │   │   ├── DefaultAppRow.qml               // one file type and the app that opens it
 │   │   ├── DefaultAppsDialog.qml           // the Default Apps panel, by category
@@ -194,7 +208,8 @@ ChaoticFiles/
 │   │   ├── SettingsLink.qml                // a line that opens its own panel
 │   │   ├── SettingsSection.qml             // a title with a choice of buttons
 │   │   ├── ShortcutRow.qml                 // one shortcut; click and press keys
-│   │   └── ShortcutsDialog.qml             // the Keyboard Shortcuts panel
+│   │   ├── ShortcutsDialog.qml             // the Keyboard Shortcuts panel
+│   │   └── UpdatePrompts.qml               // the restart question and the rollback notice
 │   ├── sidebar/                            // the left side
 │   │   ├── Sidebar.qml                     // places, pinned folders, drives, network
 │   │   ├── SidebarItem.qml                 // one place
@@ -217,18 +232,27 @@ ChaoticFiles/
 │   ├── ChaoticFiles.desktop                // the menu entry
 │   ├── ChaoticFiles.svg                    // the app icon
 │   ├── install-app.sh                      // installs the tarball for one user, no root
-│   └── uninstall-app.sh                    // removes what install-app.sh installed, keeps settings
+│   ├── sign-update.sh                      // writes and signs update-manifest.txt, in the release workflow
+│   ├── uninstall-app.sh                    // removes what install-app.sh installed, keeps settings
+│   └── update-public-key.txt               // the key the app checks updates with, built into it
 ├── resources/                              // files built into the app
 │   └── fonts/                              // fonts
 │       └── fa-solid-900.ttf                // Font Awesome 6 Free Solid, the icon font
-├── tests/                                  // tests, no Qt
-│   └── backendtests.cpp                    // the engine's tests, run by ctest
+├── tests/                                  // tests
+│   ├── update/                             // the update system, end to end, in a real window
+│   │   ├── make-test-packages.sh           // test versions signed with a test key, plus broken and forged ones
+│   │   ├── run-update-tests.py             // a local GitHub and a throwaway home, and every case
+│   │   ├── testdriver.cpp                  // presses real buttons for the tests
+│   │   └── testdriver.h                    // only in test builds, never in a release
+│   └── backendtests.cpp                    // the engine's tests, no Qt, run by ctest
 ├── wrapper/                                // Qt C++ between QML and the engine: controllers and list models
 │   ├── appsWrap/                           // Open With and default apps for QML
 │   │   ├── appiconprovider.cpp             // finds an icon in the system icon theme
 │   │   ├── appiconprovider.h               // app icons as image://appicon/ (AppIconProvider)
 │   │   ├── appscontroller.cpp              // its implementation
-│   │   └── appscontroller.h                // apps for a file, default apps, and the terminal (AppsController)
+│   │   ├── appscontroller.h                // apps for a file, default apps, and the terminal (AppsController)
+│   │   ├── fileicons.cpp                   // picks the first of a type's icons the theme has
+│   │   └── fileicons.h                     // a file's icon from the theme, or empty
 │   ├── clipboardWrap/                      // cut, copy, paste
 │   │   ├── clipboardcontroller.cpp         // its implementation
 │   │   └── clipboardcontroller.h           // in the format other file managers use (ClipboardController)
@@ -263,13 +287,18 @@ ChaoticFiles/
 │   ├── tabsWrap/                           // the tabs for QML
 │   │   ├── tabscontroller.cpp              // keeps one FolderSession per tab
 │   │   └── tabscontroller.h                // list model of tabs, and every tab action (TabsController)
-│   └── thumbnailsWrap/                     // thumbnails for QML
-│       ├── thumbnailprovider.cpp           // makes thumbnails off the UI thread, a few at a time
-│       └── thumbnailprovider.h             // image://thumb/ for QML (ThumbnailProvider)
+│   ├── thumbnailsWrap/                     // thumbnails for QML
+│   │   ├── thumbnailprovider.cpp           // makes thumbnails off the UI thread, a few at a time
+│   │   └── thumbnailprovider.h             // image://thumb/ for QML (ThumbnailProvider)
+│   └── updateWrap/                         // updates for QML
+│       ├── updatecontroller.cpp            // checks GitHub, downloads, starts the swap
+│       └── updatecontroller.h              // the green dot, Update now, restart and rollback (UpdateController)
 ├── .gitignore                              // what git leaves out
-├── CMakeLists.txt                          // the build: BLAKE3, fileengine library, app and QML module, tests
+├── CMakeLists.txt                          // the build: BLAKE3, Monocypher, fileengine library, app and QML module, tests
 ├── Features.txt                            // feature list
+├── install.sh                              // builds and installs for every user, with sudo
 ├── LICENSE                                 // the GNU GPL v3 license
 ├── main.cpp                                // start of the program: opens tabs, loads Main.qml
 ├── Main.qml                                // the window: layout, shortcuts, menus
 ├── README.md                               // what it is and how to build it
+├── uninstall.sh                            // removes what install.sh installed

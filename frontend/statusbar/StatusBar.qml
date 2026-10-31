@@ -6,6 +6,7 @@ Rectangle {
 
     property var session
     property string message: ""
+    signal updateClicked()
 
     function showMessage(text) {
         message = text
@@ -33,7 +34,7 @@ Rectangle {
     Row {
         anchors.left: parent.left
         anchors.leftMargin: Theme.statusPadding
-        anchors.right: disk.left
+        anchors.right: updateDot.left
         anchors.verticalCenter: parent.verticalCenter
         spacing: Theme.statusGap
         clip: true
@@ -61,6 +62,29 @@ Rectangle {
             text: root.message
             font.pixelSize: Theme.smallFontSize
             color: Theme.accent
+        }
+    }
+
+    // a new version is out
+    Item {
+        id: updateDot
+        objectName: "updateDot"
+        anchors.right: disk.left
+        width: UpdateController.available ? Theme.updateDotArea : 0
+        height: parent.height
+        visible: UpdateController.available
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: Theme.updateDotSize
+            height: Theme.updateDotSize
+            radius: width / 2
+            color: Theme.updateDot
+        }
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.updateClicked()
         }
     }
 

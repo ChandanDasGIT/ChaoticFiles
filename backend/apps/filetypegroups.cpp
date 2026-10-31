@@ -1,4 +1,5 @@
 #include "apps/filetypegroups.h"
+#include "mimetypes/mimetypes.h"
 
 #include <algorithm>
 
@@ -59,6 +60,14 @@ const std::vector<FileTypeGroup>& fileTypeGroups()
             {"Python", {"text/x-python", "text/x-python3"}},
             {"Shell Script", {"application/x-shellscript"}},
             {"C and C++", {"text/x-csrc", "text/x-c++src", "text/x-chdr", "text/x-c++hdr"}},
+            {"QML", {"text/x-qml"}},
+            {"TypeScript", {"text/x-typescript", "text/x-typescript-jsx"}},
+            {"Rust", {"text/rust"}},
+            {"Go", {"text/x-go"}},
+            {"Java", {"text/x-java"}},
+            {"CMake", {"text/x-cmake"}},
+            {"YAML", {"application/yaml"}},
+            {"TOML", {"application/toml"}},
         }},
         {"Archives", {
             {"ZIP", {"application/zip"}},
@@ -79,5 +88,9 @@ std::string fileTypeLabel(const std::string& mimeType)
         for (const FileTypeChoice& type : group.types)
             if (std::find(type.mimeTypes.begin(), type.mimeTypes.end(), mimeType) != type.mimeTypes.end())
                 return type.label;
-    return mimeType;
+
+    std::string name = MimeTypes::description(mimeType);              // "Qt Markup Language file" reads badly before "files"
+    const std::string tail = " file";
+    if (name.size() > tail.size() && name.compare(name.size() - tail.size(), tail.size(), tail) == 0) name.resize(name.size() - tail.size());
+    return name.empty() ? mimeType : name;
 }

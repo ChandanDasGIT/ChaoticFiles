@@ -4,7 +4,8 @@ set -euo pipefail
 
 DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
 
-rm -rf  "$HOME/.local/lib/ChaoticFiles"
+rm -rf  "$HOME/.local/lib/ChaoticFiles" "$HOME/.local/lib/ChaoticFiles.update"
+rm -f   "$HOME/.local/lib/ChaoticFiles.update.failed"
 rm -f   "$HOME/.local/bin/ChaoticFiles"
 rm -f   "$DATA/applications/ChaoticFiles.desktop"
 rm -f   "$DATA/icons/hicolor/scalable/apps/ChaoticFiles.svg"
