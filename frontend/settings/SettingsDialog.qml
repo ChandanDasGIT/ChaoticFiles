@@ -5,9 +5,6 @@ import QtQuick.Controls.Basic
 DialogFrame {
     id: root
 
-    property bool capturing: false         // while a shortcut is being set, Escape belongs to it
-
-    closePolicy: capturing ? Popup.NoAutoClose : Popup.CloseOnEscape
     width: Math.min(Theme.settingsWidth, parent.width - 2 * Theme.dialogMargin)
     height: Math.min(Theme.settingsHeight, parent.height - 2 * Theme.dialogMargin)
 
@@ -84,38 +81,13 @@ DialogFrame {
                 onChosen: (index) => SettingsController.windowButtons = index
             }
 
-            Item {
+            SettingsLink {
                 width: parent.width
-                height: Theme.settingsRowHeight
-
-                Text {
-                    anchors.left: parent.left
-                    anchors.bottom: parent.bottom
-                    anchors.bottomMargin: 6
-                    text: "Keyboard shortcuts"
-                    font.pixelSize: Theme.fontSize
-                    font.weight: Font.DemiBold
-                    color: Theme.text
-                }
-                DialogButton {
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "Restore Defaults"
-                    onClicked: ShortcutsController.resetAll()
-                }
-            }
-
-            Repeater {
-                model: ShortcutsController.actions
-                delegate: ShortcutRow {
-                    required property var modelData
-                    width: column.width
-                    actionId: modelData.id
-                    title: modelData.title
-                    keys: modelData.keys
-                    onCaptureChanged: (active) => root.capturing = active
-                }
+                title: "Keyboard shortcuts"
+                onClicked: shortcutsDialog.open()
             }
         }
     }
+
+    ShortcutsDialog { id: shortcutsDialog }
 }
