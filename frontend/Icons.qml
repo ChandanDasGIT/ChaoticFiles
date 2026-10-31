@@ -69,7 +69,7 @@ QtObject {
     readonly property string videos:        "\uf03d"   // video
     readonly property string drive:         "\uf0a0"   // hard-drive
     readonly property string recent:        "\uf017"   // clock
-    readonly property string bookmark:      "\uf02e"   // bookmark
+    readonly property string pin:           "\uf08d"   // thumbtack
     readonly property string search:        "\uf002"   // magnifying-glass
     readonly property string eject:         "\uf052"   // eject
     readonly property string network:       "\uf6ff"   // network-wired
@@ -104,7 +104,7 @@ QtObject {
         {key: "download", glyph: "\uf019"}, {key: "cloud", glyph: "\uf0c2"}, {key: "globe", glyph: "\uf0ac"},
         {key: "lock", glyph: "\uf023"}, {key: "archive", glyph: "\uf187"}, {key: "tools", glyph: "\uf0ad"},
         {key: "bolt", glyph: "\uf0e7"}, {key: "rocket", glyph: "\uf135"}, {key: "palette", glyph: "\uf53f"},
-        {key: "flask", glyph: "\uf0c3"}, {key: "leaf", glyph: "\uf06c"}, {key: "cube", glyph: "\uf1b2"},
+        {key: "flask", glyph: "\uf0c3"}, {key: "leaf", glyph: "\uf06c"},
     ]
 
     function forFolder(key) {

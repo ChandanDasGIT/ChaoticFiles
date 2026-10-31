@@ -22,11 +22,15 @@ Rectangle {
     required property string colorKey
 
     property alias dragText: itemArea.dragText
+    property alias dragImage: itemArea.dragImage
+    property alias dragReady: itemArea.dragReady
+    readonly property bool dragHeld: itemArea.dragHeld
 
     signal pressedWith(int button, int modifiers, real sceneX, real sceneY)
     signal releasedWithoutDrag(int modifiers)
     signal doubleClicked()
     signal urlsDropped(var urls)
+    signal dragRequested()
 
     x: Theme.rowMargin
     width: ListView.view.width - 2 * Theme.rowMargin
@@ -116,5 +120,6 @@ Rectangle {
         onReleasedWithoutDrag: (modifiers) => root.releasedWithoutDrag(modifiers)
         onDoubleClicked: root.doubleClicked()
         onUrlsDropped: (urls) => root.urlsDropped(urls)
+        onDragRequested: root.dragRequested()
     }
 }

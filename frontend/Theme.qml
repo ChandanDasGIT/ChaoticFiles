@@ -176,6 +176,12 @@ QtObject {
     readonly property int operationsWidth:  340
     readonly property int operationHeight:  68
     readonly property real cutOpacity:      0.5
+    readonly property int dragPreviewHeight: 34
+    readonly property int dragPreviewPadding: 12
+    readonly property int dragPreviewMaxWidth: 260
+    readonly property int dragStackOffset:  5
+    readonly property int dragHotSpot:      14
+    readonly property int offScreen:        -100000  // far past any window edge
 
     // ---- settings ----
     readonly property int folderIconCell:   40

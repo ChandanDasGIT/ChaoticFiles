@@ -9,6 +9,7 @@ Rectangle {
     property color iconColor: Theme.textMuted
     property bool active: false
     property bool dimmed: false            // a drive that is not mounted yet
+    property bool droppable: true
     signal clicked()
     signal middleClicked()
     signal menuRequested(real sceneX, real sceneY)
@@ -44,6 +45,7 @@ Rectangle {
     DropArea {
         id: dropArea
         anchors.fill: parent
+        enabled: root.droppable
         onEntered: (drag) => { drag.accepted = drag.hasUrls }
         onDropped: (drop) => {
             drop.accept(Qt.CopyAction)

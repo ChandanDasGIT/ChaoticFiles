@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QSettings>
 #include <QTimer>
+#include <QUrl>
 #include <QVariantList>
 #include <QtQml/qqmlregistration.h>
 
@@ -35,6 +36,8 @@ public:
     Q_INVOKABLE void addBookmark(const QString& path);
     Q_INVOKABLE void removeBookmark(const QString& path);
     Q_INVOKABLE bool isBookmarked(const QString& path) const;
+    Q_INVOKABLE void pinUrls(const QList<QUrl>& urls);                   // folders dropped on the sidebar
+    Q_INVOKABLE bool hasFolder(const QStringList& paths) const;
     Q_INVOKABLE void refreshBookmarks() { emit bookmarksChanged(); }     // one of them got a new icon
 
 signals:
@@ -43,6 +46,7 @@ signals:
     void mounted(const QString& path);                // a drive or share is ready: go there
     void connectFinished(const QString& failure);     // empty when it worked
     void problem(const QString& title, const QString& text);
+    void message(const QString& text);
 
 private:
     void updateDrives();

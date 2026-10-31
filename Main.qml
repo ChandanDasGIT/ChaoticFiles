@@ -32,7 +32,7 @@ Window {
                 entries.push({text: "Open in New Tab", icon: Icons.newTab, action: () => TabsController.openInBackground(path)})
                 entries.push({text: "Change Icon…", icon: Icons.palette, action: () => a.changeFolderIcon([])})
                 if (!PlacesController.isBookmarked(path))
-                    entries.push({text: "Add to Bookmarks", icon: Icons.bookmark, action: () => PlacesController.addBookmark(path)})
+                    entries.push({text: "Pin to Sidebar", icon: Icons.pin, action: () => PlacesController.addBookmark(path)})
             } else
                 entries.push({text: "Open With…", icon: Icons.open, action: a.openWith})
             entries.push({separator: true})
@@ -87,7 +87,7 @@ Window {
         if (place.kind !== "drive" || place.mounted)
             entries.push({text: "Open in New Tab", icon: Icons.newTab, action: () => TabsController.openInBackground(place.path)})
         if (place.kind === "bookmark")
-            entries.push({text: "Remove Bookmark", icon: Icons.close, action: () => PlacesController.removeBookmark(place.path)})
+            entries.push({text: "Unpin", icon: Icons.close, action: () => PlacesController.removeBookmark(place.path)})
         if (place.kind === "bookmark")
             entries.push({text: "Change Icon…", icon: Icons.palette, action: () => actions.changeFolderIcon([place.path])})
         if (place.kind === "drive" && place.mounted)
@@ -141,6 +141,7 @@ Window {
         target: PlacesController
         function onMounted(path) { window.session.navigate(path) }
         function onProblem(title, text) { actions.showError(title, text) }
+        function onMessage(text) { statusBar.showMessage(text) }
     }
     Connections {
         target: OperationsController
@@ -248,9 +249,9 @@ Window {
                             window.showRowMenu(isDirectory, path, name, sceneX, sceneY)
                         }
                         onBackgroundMenuRequested: (sceneX, sceneY) => window.showBackgroundMenu(sceneX, sceneY)
-                    }
                         onRestoreAllRequested: actions.restoreAll()
                         onDeleteAllRequested: actions.emptyTrash()
+                    }
                 }
             }
 

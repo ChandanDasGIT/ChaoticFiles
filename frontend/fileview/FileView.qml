@@ -62,6 +62,8 @@ FocusScope {
         event.accepted = true
     }
 
+    DragPreview { id: dragPreview }
+
     ColumnHeader {
         id: header
         visible: !root.gridMode
@@ -86,6 +88,17 @@ FocusScope {
         } else if (item.isDirectory) {
             TabsController.openInBackground(item.path)
         }
+    }
+
+    function startDrag(item) {
+        DragState.hasFolders = PlacesController.hasFolder(session.selectedItems())
+        const icon = item.isBroken ? Icons.warning : Icons.forItem(item.category, item.iconKey)
+        const color = item.isBroken ? Theme.danger : Theme.itemColor(item.category, item.colorKey)
+        dragPreview.capture(icon, color, item.name, session.selectedCount, (image) => {
+            if (!item || !item.dragHeld) return        // let go already, or the row is gone
+            item.dragImage = image
+            item.dragReady = true
+        })
     }
 
     function wheel(event) {
@@ -119,6 +132,7 @@ FocusScope {
             onReleasedWithoutDrag: (modifiers) => { if (wasSelected) root.session.click(index, modifiers) }
             onDoubleClicked: root.session.openRow(index)
             onUrlsDropped: (urls) => OperationsController.dropUrls(urls, path)
+            onDragRequested: root.startDrag(row)
         }
 
         ViewBackground {
@@ -165,6 +179,7 @@ FocusScope {
             onReleasedWithoutDrag: (modifiers) => { if (wasSelected) root.session.click(index, modifiers) }
             onDoubleClicked: root.session.openRow(index)
             onUrlsDropped: (urls) => OperationsController.dropUrls(urls, path)
+            onDragRequested: root.startDrag(cell)
         }
 
         ViewBackground {
@@ -192,21 +207,6 @@ FocusScope {
         ScrollBar.vertical: ThinScrollBar {}
     }
 
-    // ---- empty folder, or a folder that can't be opened ----
-    Column {
-        anchors.centerIn: parent
-        spacing: 10
-        visible: root.session.itemCount === 0 && !root.session.loading
-
-        Text {
-            visible: root.session.error !== ""
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: Icons.lock
-            font.family: Icons.fontFamily
-            font.pixelSize: 28
-            color: Theme.textDim
-        }
-        Text {
     // ---- the buttons at the bottom of the Trash ----
     Item {
         id: trashBar
@@ -236,6 +236,21 @@ FocusScope {
         }
     }
 
+    // ---- empty folder, or a folder that can't be opened ----
+    Column {
+        anchors.centerIn: parent
+        spacing: 10
+        visible: root.session.itemCount === 0 && !root.session.loading
+
+        Text {
+            visible: root.session.error !== ""
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: Icons.lock
+            font.family: Icons.fontFamily
+            font.pixelSize: 28
+            color: Theme.textDim
+        }
+        Text {
             width: Math.min(implicitWidth, root.width - 40)
             anchors.horizontalCenter: parent.horizontalCenter
             horizontalAlignment: Text.AlignHCenter

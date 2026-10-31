@@ -44,6 +44,7 @@ file(GLOB_RECURSE FRONTEND_QML CONFIGURE_DEPENDS RELATIVE "${CMAKE_CURRENT_LIST_
 
 set_source_files_properties(frontend/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 set_source_files_properties(frontend/Icons.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(frontend/common/DragState.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_executable(appChaoticFiles
     main.cpp

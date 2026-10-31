@@ -1,6 +1,6 @@
 import QtQuick
 
-// The places on the left: Home and the user folders, then mounted drives.
+// The places on the left: Home and the user folders, pinned folders, then mounted drives.
 Rectangle {
     id: root
 
@@ -36,15 +36,9 @@ Rectangle {
                 }
             }
 
-            Text {
-                visible: PlacesController.bookmarks.length > 0
-                height: Theme.sidebarHeaderHeight
-                leftPadding: Theme.sidebarPadding
-                verticalAlignment: Text.AlignBottom
-                bottomPadding: 6
-                text: "Bookmarks"
-                font.pixelSize: Theme.smallFontSize
-                color: Theme.textDim
+            SidebarPinZone {
+                width: column.width
+                onUrlsDropped: (urls) => PlacesController.pinUrls(urls)
             }
 
             Repeater {

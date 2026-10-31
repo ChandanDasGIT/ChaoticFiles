@@ -7,9 +7,18 @@
 #include "places/places.h"
 #include "trash/trash.h"
 
+#include <algorithm>
+#include <sys/stat.h>
+
 namespace {
 
 constexpr int kDriveCheckMs = 4000;
+
+bool isFolder(const QString& path)
+{
+    struct stat info {};
+    return !path.isEmpty() && stat(path.toStdString().c_str(), &info) == 0 && S_ISDIR(info.st_mode);
+}
 
 QVariantList drivesList(const std::vector<Place>& mountedDrives, const std::vector<DriveDevice>& others)
 {
@@ -110,6 +119,23 @@ void PlacesController::removeBookmark(const QString& path)
 bool PlacesController::isBookmarked(const QString& path) const
 {
     return m_settings.value("places/bookmarks").toStringList().contains(path);
+}
+
+void PlacesController::pinUrls(const QList<QUrl>& urls)
+{
+    bool pinned = false;
+    for (const QUrl& url : urls) {
+        const QString path = url.adjusted(QUrl::StripTrailingSlash).toLocalFile();
+        if (!isFolder(path)) continue;
+        addBookmark(path);
+        pinned = true;
+    }
+    if (!pinned) emit message(QStringLiteral("Only folders can be pinned."));
+}
+
+bool PlacesController::hasFolder(const QStringList& paths) const
+{
+    return std::any_of(paths.begin(), paths.end(), isFolder);
 }
 
 void PlacesController::updateDrives()

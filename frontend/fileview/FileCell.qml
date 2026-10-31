@@ -22,10 +22,14 @@ Item {
     required property string colorKey
 
     property alias dragText: itemArea.dragText
+    property alias dragImage: itemArea.dragImage
+    property alias dragReady: itemArea.dragReady
+    readonly property bool dragHeld: itemArea.dragHeld
     signal pressedWith(int button, int modifiers, real sceneX, real sceneY)
     signal releasedWithoutDrag(int modifiers)
     signal doubleClicked()
     signal urlsDropped(var urls)
+    signal dragRequested()
 
     readonly property int imageSize: SettingsController.gridSize
     readonly property string thumbnailKind: category === "image" || category === "video" || category === "pdf" ? category : ""
@@ -102,5 +106,6 @@ Item {
         onReleasedWithoutDrag: (modifiers) => root.releasedWithoutDrag(modifiers)
         onDoubleClicked: root.doubleClicked()
         onUrlsDropped: (urls) => root.urlsDropped(urls)
+        onDragRequested: root.dragRequested()
     }
 }
