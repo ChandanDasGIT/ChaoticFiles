@@ -1,36 +1,24 @@
 import QtQuick
 
 // The heading of Pinned Folders. Folders dropped here are pinned, and stay where they are on the disk.
-// A row appears under it during a drag, so there is a clear place to drop.
+// The heading itself asks for the drop during a drag, so nothing below it moves.
 Rectangle {
     id: root
 
     signal urlsDropped(var urls)
 
-    implicitHeight: column.implicitHeight
+    implicitHeight: Theme.sidebarHeaderHeight
     radius: Theme.controlRadius
     color: dropArea.containsDrag ? Theme.selectionBg : "transparent"
 
-    Column {
-        id: column
-        width: parent.width
-
-        Text {
-            height: Theme.sidebarHeaderHeight
-            leftPadding: Theme.sidebarPadding
-            verticalAlignment: Text.AlignBottom
-            bottomPadding: 6
-            text: "Pinned Folders"
-            font.pixelSize: Theme.smallFontSize
-            color: Theme.textDim
-        }
-        SidebarItem {
-            visible: DragState.active && DragState.hasFolders
-            width: parent.width
-            name: "Drop here to pin"
-            icon: Icons.pin
-            droppable: false
-        }
+    Text {
+        height: parent.height
+        leftPadding: Theme.sidebarPadding
+        verticalAlignment: Text.AlignBottom
+        bottomPadding: 6
+        text: DragState.active && DragState.hasFolders ? "Drop here to pin" : "Pinned Folders"
+        font.pixelSize: Theme.smallFontSize
+        color: Theme.textDim
     }
     DropArea {
         id: dropArea
