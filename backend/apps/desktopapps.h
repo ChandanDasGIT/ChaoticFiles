@@ -20,6 +20,8 @@ std::vector<DesktopApp> forMimeTypes(const std::vector<std::string>& mimes);   /
 std::string defaultFor(const std::string& mime);               // its id, or empty
 std::vector<std::string> defaultsFor(const std::vector<std::string>& mimes);   // the same, many at once, in that order
 bool setDefault(const std::string& appId, const std::vector<std::string>& mimes);
+void keepDefaultsLocal(bool local);                            // defaults live in this app's own list; see LocalDefaults
+bool defaultsAreLocal();
 std::string openingType(const std::string& path);             // the type xdg-open goes by for this file, or empty
 std::string iconThemeName();                                   // the one chosen in the GTK settings, or empty
 std::string defaultNameFor(const std::string& mime);
@@ -29,6 +31,7 @@ DesktopApp parse(const std::string& id, const std::string& text);
 std::vector<std::string> commandFor(const std::string& exec, const std::vector<std::string>& paths);
 
 bool open(const std::string& appId, const std::vector<std::string>& paths);
+bool openWithLocalDefault(const std::string& path);            // false if the system should choose the app instead
 bool openTerminal(const std::string& folder);
 
 } // namespace DesktopApps

@@ -70,7 +70,7 @@ File operations
 - The Trash covers every disk, and shows where each item came from and when it was deleted.
 - /, the folders directly under it, and Home can't be trashed or deleted.
 - Undo (Ctrl+Z) for rename, move, Trash, new items and copies. Undoing a copy moves it to the Trash.
-- Open With, showing the apps that fit with their icons, or all apps, and it can make one the default. Open Terminal Here.
+- Open With, showing the apps that fit with their icons, or all apps with a search box, and it can make one the default. Open Terminal Here.
 - Compress to .tar.gz, .tar.xz, .tar.zst, .zip or .7z. Extract always goes into a new folder.
 
 Interface
@@ -79,3 +79,4 @@ Interface
 - Right click menus on files, empty space and sidebar items. Copy Path.
 - Settings window (Ctrl+,). Keyboard shortcuts open in their own panel, editable, with Restore Defaults.
 - Default Apps in the settings: choose the app for each file type, by category, or for a whole category at once.
+- Default app changes can be system-wide, or for this app only. This app keeps its own list, which starts as a copy of the system's. The system's file is never changed in that mode.

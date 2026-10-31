@@ -2,6 +2,7 @@
 // ends with a non-zero code. Files are created under a temporary folder that is removed afterwards.
 #include "apps/desktopapps.h"
 #include "apps/filetypegroups.h"
+#include "apps/localdefaults.h"
 #include "archive/archiver.h"
 #include "contentinfo/contentinfo.h"
 #include "directory/directorylister.h"
@@ -881,7 +882,6 @@ static void testApps()
 }
 
 // xdg-mime reads and writes under these folders, so the real settings of whoever runs the tests stay untouched
-static void testDefaultApps(const fs::path& root)
 static void testDropTargets()
 {
     CHECK(FileOps::alreadyIn("/a/b", "/a"));
@@ -891,6 +891,7 @@ static void testDropTargets()
     CHECK(FileOps::alreadyIn("/a", "/"));
 }
 
+static void testDefaultApps(const fs::path& root)
 {
     if (Process::findProgram("xdg-mime").empty()) return;
     const fs::path work = root / "defaults";
@@ -919,6 +920,37 @@ static void testDropTargets()
 
     const auto apps = DesktopApps::forMimeTypes({"audio/mpeg", "video/mp4"});
     CHECK(apps.size() >= 2 && apps[0].id == "player.desktop");       // the default of the first type leads
+
+    // ---- this app's own list: the system's file is copied once and never changed
+    touch(work / "config" / "mimeapps.list", "[Added Associations]\ntext/plain=other.desktop;\n\n[Default Applications]\n"
+                                              "audio/mpeg=player.desktop\nvideo/mp4=gone.desktop;other.desktop;\n");
+    const auto readAll = [](const fs::path& path) { std::ifstream file(path); return std::string(std::istreambuf_iterator<char>(file), {}); };
+    const std::string systemList = readAll(work / "config" / "mimeapps.list");
+    CHECK(LocalDefaults::filePath() == (work / "config" / "ChaoticFiles" / "mimeapps.list").string());
+    CHECK(LocalDefaults::seed());
+    CHECK(readAll(LocalDefaults::filePath()) == systemList);
+    touch(LocalDefaults::filePath(), readAll(LocalDefaults::filePath()) + "# mine\n");
+    CHECK(!LocalDefaults::seed());                               // a second run leaves the copy alone
+    CHECK(readAll(LocalDefaults::filePath()).find("# mine") != std::string::npos);
+    CHECK(LocalDefaults::appsFor("video/mp4").size() == 2 && LocalDefaults::appsFor("video/mp4")[1] == "other.desktop");
+    CHECK(LocalDefaults::appsFor("text/plain").empty());         // that line is in another section
+
+    DesktopApps::keepDefaultsLocal(true);
+    CHECK(DesktopApps::defaultFor("video/mp4") == "other.desktop");   // skips the app that is gone
+    CHECK(DesktopApps::setDefault("other.desktop", {"audio/mpeg", "audio/flac"}));
+    CHECK(DesktopApps::defaultFor("audio/mpeg") == "other.desktop");
+    CHECK(DesktopApps::defaultFor("audio/flac") == "other.desktop");
+    CHECK(readAll(work / "config" / "mimeapps.list") == systemList);  // the system's list is exactly as it was
+    CHECK(readAll(LocalDefaults::filePath()).find("[Added Associations]") != std::string::npos);
+    CHECK(LocalDefaults::appsFor("audio/mpeg").size() == 1);          // replaced, not added beside the old one
+
+    fs::remove(LocalDefaults::filePath());
+    CHECK(LocalDefaults::set("player.desktop", {"audio/ogg"}));       // the list was deleted: it starts again
+    CHECK(LocalDefaults::appsFor("audio/ogg").size() == 1);
+    CHECK(DesktopApps::defaultFor("audio/mpeg") == "player.desktop"); // a type it doesn't name follows the system
+    DesktopApps::keepDefaultsLocal(false);
+    CHECK(DesktopApps::defaultFor("audio/ogg") != "player.desktop");
+    CHECK(!DesktopApps::openWithLocalDefault((work / "note.txt").string()));
 
     touch(work / "note.txt", "plain words\n");
     CHECK(DesktopApps::openingType((work / "note.txt").string()) == "text/plain");
@@ -1163,6 +1195,7 @@ int main()
     testArchives(root);
     testApps();
     testDefaultApps(root);
+    testDropTargets();
     testFolderIcons(root);
     testSearch(root);
     testRecent(root);
@@ -1175,4 +1208,3 @@ int main()
     if (failures == 0) std::printf("All backend tests passed.\n");
     return failures == 0 ? 0 : 1;
 }
-    testDropTargets();

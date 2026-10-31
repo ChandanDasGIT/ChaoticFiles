@@ -1,7 +1,7 @@
 This is the architecture of ChaoticFiles
 
 The three layers: frontend/ (QML) talks to wrapper/ (Qt C++), and wrapper/ talks to backend/ (plain C++).
-Left out: build/ (generated, not part of the code).
+Left out: build/ (generated, not part of the code) and .claude/ (private notes, ignored by git).
 
 ChaoticFiles/
 ├── backend/                                // pure C++20 engine, no Qt: built as its own static library, fileengine
@@ -9,7 +9,9 @@ ChaoticFiles/
 │   │   ├── desktopapps.cpp                 // parses Exec lines without a shell, starts apps
 │   │   ├── desktopapps.h                   // reads .desktop files; apps for a file type, default apps, the terminal
 │   │   ├── filetypegroups.cpp              // the file types the Default Apps panel offers
-│   │   └── filetypegroups.h                // FileTypeGroup and FileTypeChoice, by category
+│   │   ├── filetypegroups.h                // FileTypeGroup and FileTypeChoice, by category
+│   │   ├── localdefaults.cpp               // copies the system's list once; edits only its own
+│   │   └── localdefaults.h                 // this app's own mimeapps.list
 │   ├── archive/                            // archives
 │   │   ├── archiver.cpp                    // picks the program by extension; removes a failed archive
 │   │   └── archiver.h                      // compress and extract through tar, zip, unzip and 7z
@@ -255,11 +257,9 @@ ChaoticFiles/
 │       ├── thumbnailprovider.cpp           // makes thumbnails off the UI thread, a few at a time
 │       └── thumbnailprovider.h             // image://thumb/ for QML (ThumbnailProvider)
 ├── .gitignore                              // what git leaves out
-├── CLAUDE.md                               // the rules and layout, for AI assistants
 ├── CMakeLists.txt                          // the build: BLAKE3, fileengine library, app and QML module, tests
 ├── Features.txt                            // feature list
 ├── LICENSE                                 // the GNU GPL v3 license
 ├── main.cpp                                // start of the program: opens tabs, loads Main.qml
 ├── Main.qml                                // the window: layout, shortcuts, menus
 ├── README.md                               // what it is and how to build it
-└── ROADMAP.md                              // the plan

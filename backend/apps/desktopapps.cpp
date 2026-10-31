@@ -1,5 +1,6 @@
 #include "apps/desktopapps.h"
 
+#include "apps/localdefaults.h"
 #include "pathbar/pathbar.h"
 #include "process/process.h"
 #include "sorting/sorting.h"
@@ -8,6 +9,7 @@
 #include <atomic>
 #include <cstdlib>
 #include <dirent.h>
+#include <filesystem>
 #include <fstream>
 #include <map>
 #include <sstream>
@@ -16,6 +18,7 @@
 namespace {
 
 constexpr int kQueryThreads = 8;       // asking for a default runs a script, about 60 ms each
+std::atomic<bool> defaultsLocal {false};
 
 std::vector<std::string> applicationFolders()
 {
@@ -72,6 +75,14 @@ std::vector<std::string> execWords(const std::string& exec)
     }
     if (inWord) words.push_back(word);
     return words;
+}
+
+bool isInstalled(const std::string& appId)
+{
+    std::error_code error;
+    for (const std::string& folder : applicationFolders())
+        if (std::filesystem::exists(folder + "/" + appId, error)) return true;
+    return false;
 }
 
 std::string terminalProgram()
@@ -138,8 +149,22 @@ std::vector<DesktopApp> all()
     return apps;
 }
 
+void keepDefaultsLocal(bool local)
+{
+    defaultsLocal = local;
+}
+
+bool defaultsAreLocal()
+{
+    return defaultsLocal;
+}
+
 std::string defaultFor(const std::string& mime)
 {
+    // a type this app's list doesn't name, or names only apps since removed, follows the system
+    if (defaultsLocal)
+        for (const std::string& id : LocalDefaults::appsFor(mime))
+            if (isInstalled(id)) return id;
     const auto result = Process::run({"xdg-mime", "query", "default", mime});
     return firstLine(result.output);
 }
@@ -161,6 +186,7 @@ std::vector<std::string> defaultsFor(const std::vector<std::string>& mimes)
 bool setDefault(const std::string& appId, const std::vector<std::string>& mimes)
 {
     if (mimes.empty()) return false;
+    if (defaultsLocal) return LocalDefaults::set(appId, mimes);
     std::vector<std::string> command {"xdg-mime", "default", appId};
     command.insert(command.end(), mimes.begin(), mimes.end());
     return Process::run(command).exitCode == 0;
@@ -265,6 +291,13 @@ bool open(const std::string& appId, const std::vector<std::string>& paths)
         return Process::startDetached(command, paths.empty() ? std::string() : PathBar::parent(paths.front()));
     }
     return false;
+}
+
+bool openWithLocalDefault(const std::string& path)
+{
+    if (!defaultsLocal) return false;
+    const std::string id = defaultFor(openingType(path));
+    return !id.empty() && open(id, {path});
 }
 
 bool openTerminal(const std::string& folder)

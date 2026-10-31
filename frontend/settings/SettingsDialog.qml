@@ -86,6 +86,13 @@ DialogFrame {
                 title: "Keyboard shortcuts"
                 onClicked: shortcutsDialog.open()
             }
+            SettingsSection {
+                width: parent.width
+                title: "Default app changes"
+                choices: ["System-wide", "This app only"]
+                current: SettingsController.localDefaults ? 1 : 0
+                onChosen: (index) => SettingsController.localDefaults = index === 1
+            }
             SettingsLink {
                 width: parent.width
                 title: "Default apps"

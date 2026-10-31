@@ -1,5 +1,8 @@
 #include "settingscontroller.h"
 
+#include "apps/desktopapps.h"
+#include "apps/localdefaults.h"
+
 #include <QCoreApplication>
 #include <QJSEngine>
 
@@ -45,6 +48,21 @@ SettingsController::SettingsController(QObject* parent)
     , m_showPreview(m_settings.value("view/preview", false).toBool())
 {
     connect(&m_systemTheme, &SystemTheme::changed, this, &SettingsController::systemDarkChanged);
+    LocalDefaults::seed();
+    DesktopApps::keepDefaultsLocal(m_settings.value("apps/localDefaults", false).toBool());
+}
+
+bool SettingsController::localDefaults() const
+{
+    return DesktopApps::defaultsAreLocal();
+}
+
+void SettingsController::setLocalDefaults(bool local)
+{
+    if (local == localDefaults()) return;
+    DesktopApps::keepDefaultsLocal(local);
+    m_settings.setValue("apps/localDefaults", local);
+    emit localDefaultsChanged();
 }
 
 void SettingsController::setThemeMode(int mode)

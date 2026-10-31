@@ -2,7 +2,7 @@
 
 A file manager for Linux, written in C++20 and Qt 6 QML. The engine is plain C++ and does not depend on Qt.
 
-Status: Phases 0 to 4 of `ROADMAP.md` are done. There is no release package yet.
+Status: Phases 0 to 4 are done. There is no release package yet.
 
 ## Build
 

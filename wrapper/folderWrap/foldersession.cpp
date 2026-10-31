@@ -1,5 +1,6 @@
 #include "foldersession.h"
 
+#include "apps/desktopapps.h"
 #include "filetype/filetype.h"
 #include "foldericons/foldericons.h"
 #include "format/format.h"
@@ -276,7 +277,7 @@ void FolderSession::openRow(int row)
         emit message(QStringLiteral("\"%1\" is a broken link.").arg(qs(entry.name)));
     } else if (entry.isDirectory()) {
         navigate(qs(entry.path));
-    } else if (!QDesktopServices::openUrl(QUrl::fromLocalFile(qs(entry.path)))) {
+    } else if (!DesktopApps::openWithLocalDefault(entry.path) && !QDesktopServices::openUrl(QUrl::fromLocalFile(qs(entry.path)))) {
         emit message(QStringLiteral("No app could open \"%1\".").arg(qs(entry.name)));
     } else {
         RecentFiles::add(entry.path);

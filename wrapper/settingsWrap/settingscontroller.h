@@ -23,6 +23,7 @@ class SettingsController : public QObject {
     Q_PROPERTY(bool showPreview READ showPreview WRITE setShowPreview NOTIFY viewChanged)
     Q_PROPERTY(int windowButtons READ windowButtons WRITE setWindowButtons NOTIFY windowButtonsChanged)   // 0 automatic, 1 show, 2 hide
     Q_PROPERTY(bool windowButtonsVisible READ windowButtonsVisible NOTIFY windowButtonsChanged)
+    Q_PROPERTY(bool localDefaults READ localDefaults WRITE setLocalDefaults NOTIFY localDefaultsChanged)  // default apps stay in this app
 
 public:
     static SettingsController* instance();
@@ -44,6 +45,8 @@ public:
     int windowButtons() const { return m_windowButtons; }
     void setWindowButtons(int mode);
     bool windowButtonsVisible() const;
+    bool localDefaults() const;
+    void setLocalDefaults(bool local);
 
 signals:
     void themeModeChanged();
@@ -51,6 +54,7 @@ signals:
     void showHiddenChanged();
     void windowButtonsChanged();
     void viewChanged();
+    void localDefaultsChanged();
 
 private:
     explicit SettingsController(QObject* parent);
