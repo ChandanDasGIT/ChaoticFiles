@@ -26,7 +26,7 @@ public:
     static TabsController* instance();
     static TabsController* create(QQmlEngine*, QJSEngine*);
 
-    // the first tabs: the folders given, or else Home
+    // the first tabs: the folders given, or else what the settings say. A folder that is gone opens Home.
     void start(const QStringList& folders, int current = 0);
     QStringList folders() const;                             // where each tab is, in order
 

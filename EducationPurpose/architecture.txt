@@ -209,6 +209,7 @@ ChaoticFiles/
 │   │   ├── SettingsSection.qml             // a title with a choice of buttons
 │   │   ├── ShortcutRow.qml                 // one shortcut; click and press keys
 │   │   ├── ShortcutsDialog.qml             // the Keyboard Shortcuts panel
+│   │   ├── StartFolderRow.qml              // the folder the app opens to
 │   │   └── UpdatePrompts.qml               // the restart question and the rollback notice
 │   ├── sidebar/                            // the left side
 │   │   ├── Sidebar.qml                     // places, pinned folders, drives, network

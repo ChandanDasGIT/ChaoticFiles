@@ -15,6 +15,10 @@ DialogFrame {
         })
     }
 
+    function scrollToTop() {
+        flick.contentY = 0
+    }
+
     Text {
         id: title
         text: "Settings"
@@ -46,6 +50,20 @@ DialogFrame {
             width: parent.width - Theme.scrollbarWidth
             spacing: 4
 
+            SettingsSection {
+                width: parent.width
+                title: "Opens to"
+                choices: ["Home", "Last Tabs", "A Folder"]
+                current: SettingsController.startMode
+                onChosen: (index) => {
+                    if (index === 2 && SettingsController.startFolder === "") SettingsController.startFolder = TabsController.currentSession.path
+                    SettingsController.startMode = index
+                }
+            }
+            StartFolderRow {
+                width: parent.width
+                visible: SettingsController.startMode === 2
+            }
             SettingsSection {
                 width: parent.width
                 title: "Theme"

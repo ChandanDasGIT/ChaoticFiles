@@ -27,11 +27,16 @@ TabsController::TabsController(QObject* parent)
     connect(settings, &SettingsController::showHiddenChanged, this, [this, settings] {
         for (FolderSession* session : m_sessions) session->setShowHidden(settings->showHidden());
     });
+    connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this, [this, settings] {
+        settings->rememberTabs(folders(), m_tabs.current());
+    });
 }
 
 void TabsController::start(const QStringList& folders, int current)
 {
-    for (const QString& path : folders) {
+    SettingsController* settings = SettingsController::instance();
+    if (folders.isEmpty()) current = settings->startTab();
+    for (const QString& path : folders.isEmpty() ? settings->startFolders() : folders) {
         const std::string folder = PathBar::normalize(path.toStdString());
         const int place = m_tabs.count();
         insertTab(m_tabs.open(PathBar::isDirectory(folder) ? folder : PathBar::homeDirectory(), place), place);

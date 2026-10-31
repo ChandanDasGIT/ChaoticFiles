@@ -46,6 +46,8 @@ SettingsController::SettingsController(QObject* parent)
     , m_gridSize(m_settings.value("view/gridSize", 96).toInt())
     , m_showThumbnails(m_settings.value("view/thumbnails", true).toBool())
     , m_showPreview(m_settings.value("view/preview", false).toBool())
+    , m_startMode(m_settings.value("start/mode", 0).toInt())
+    , m_startFolder(m_settings.value("start/folder").toString())
 {
     connect(&m_systemTheme, &SystemTheme::changed, this, &SettingsController::systemDarkChanged);
     LocalDefaults::seed();
@@ -87,6 +89,43 @@ void SettingsController::setWindowButtons(int mode)
     m_windowButtons = mode;
     m_settings.setValue("window/buttons", mode);
     emit windowButtonsChanged();
+}
+
+void SettingsController::setStartMode(int mode)
+{
+    if (mode == m_startMode) return;
+    m_startMode = mode;
+    m_settings.setValue("start/mode", mode);
+    emit startChanged();
+}
+
+void SettingsController::setStartFolder(const QString& folder)
+{
+    if (folder == m_startFolder) return;
+    m_startFolder = folder;
+    m_settings.setValue("start/folder", folder);
+    emit startChanged();
+}
+
+QStringList SettingsController::startFolders() const
+{
+    QStringList folders;
+    if (m_startMode == 1) folders = m_settings.value("start/lastTabs").toStringList();
+    if (m_startMode == 2 && !m_startFolder.isEmpty()) folders << m_startFolder;
+    return folders;
+}
+
+int SettingsController::startTab() const
+{
+    return m_startMode == 1 ? m_settings.value("start/lastTab", 0).toInt() : 0;
+}
+
+void SettingsController::rememberTabs(const QStringList& folders, int current)
+{
+    if (m_startMode != 1) return;
+    m_settings.setValue("start/lastTabs", folders);
+    m_settings.setValue("start/lastTab", current);
+    m_settings.sync();
 }
 
 void SettingsController::setViewMode(int mode)

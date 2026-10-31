@@ -24,6 +24,8 @@ class SettingsController : public QObject {
     Q_PROPERTY(int windowButtons READ windowButtons WRITE setWindowButtons NOTIFY windowButtonsChanged)   // 0 automatic, 1 show, 2 hide
     Q_PROPERTY(bool windowButtonsVisible READ windowButtonsVisible NOTIFY windowButtonsChanged)
     Q_PROPERTY(bool localDefaults READ localDefaults WRITE setLocalDefaults NOTIFY localDefaultsChanged)  // default apps stay in this app
+    Q_PROPERTY(int startMode READ startMode WRITE setStartMode NOTIFY startChanged)           // 0 Home, 1 the last tabs, 2 a folder
+    Q_PROPERTY(QString startFolder READ startFolder WRITE setStartFolder NOTIFY startChanged)
 
 public:
     static SettingsController* instance();
@@ -47,6 +49,13 @@ public:
     bool windowButtonsVisible() const;
     bool localDefaults() const;
     void setLocalDefaults(bool local);
+    int startMode() const { return m_startMode; }
+    void setStartMode(int mode);
+    QString startFolder() const { return m_startFolder; }
+    void setStartFolder(const QString& folder);
+    QStringList startFolders() const;                        // what the app opens to; empty means Home
+    int startTab() const;                                    // which of them is the current one
+    void rememberTabs(const QStringList& folders, int current);   // kept for Last Tabs
 
 signals:
     void themeModeChanged();
@@ -55,6 +64,7 @@ signals:
     void windowButtonsChanged();
     void viewChanged();
     void localDefaultsChanged();
+    void startChanged();
 
 private:
     explicit SettingsController(QObject* parent);
@@ -68,4 +78,6 @@ private:
     int m_gridSize = 96;
     bool m_showThumbnails = true;
     bool m_showPreview = false;
+    int m_startMode = 0;
+    QString m_startFolder;
 };
