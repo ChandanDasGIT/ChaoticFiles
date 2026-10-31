@@ -26,7 +26,8 @@ SystemTheme::SystemTheme(QObject* parent)
     applyQtValue();
     connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, &SystemTheme::applyQtValue);
 
-    QDBusConnection bus = QDBusConnection::sessionBus();
+    // its own connection: a portal call on the shared one, before Qt registers the app, makes that registration fail
+    QDBusConnection bus = QDBusConnection::connectToBus(QDBusConnection::SessionBus, QStringLiteral("systemtheme"));
     bus.connect(kService, kPath, kInterface, QStringLiteral("SettingChanged"), this,
                 SLOT(settingChanged(QString,QString,QDBusVariant)));
 

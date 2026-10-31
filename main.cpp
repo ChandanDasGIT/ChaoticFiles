@@ -1,6 +1,7 @@
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QStandardPaths>
 
 #include "wrapper/tabsWrap/tabscontroller.h"
 #include "wrapper/thumbnailsWrap/thumbnailprovider.h"
@@ -10,7 +11,9 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
     QCoreApplication::setOrganizationName("ChaoticFiles");
     QCoreApplication::setApplicationName("ChaoticFiles");
-    QGuiApplication::setDesktopFileName("ChaoticFiles");
+    // Qt registers this name with the desktop portal, which refuses a name with no installed .desktop file
+    if (!QStandardPaths::locate(QStandardPaths::ApplicationsLocation, "ChaoticFiles.desktop").isEmpty())
+        QGuiApplication::setDesktopFileName("ChaoticFiles");
 
     // folders named on the command line open in tabs: appChaoticFiles ~/Music "My Folder"
     QStringList folders;
