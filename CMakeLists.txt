@@ -75,6 +75,21 @@ target_include_directories(appChaoticFiles PRIVATE ${WRAPPER_DIRS})
 
 target_link_libraries(appChaoticFiles PRIVATE Qt6::Quick Qt6::DBus fileengine)
 
+# ---------------------------------------------------------------- installing (used by packaging/build-appimage.sh)
+include(GNUInstallDirs)
+
+install(TARGETS appChaoticFiles RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# `ChaoticFiles` in a terminal (and in ChaoticFiles.desktop) starts the app: a link next to the real program.
+install(CODE "
+    set(link \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/ChaoticFiles\")
+    file(REMOVE \"\${link}\")
+    file(CREATE_LINK appChaoticFiles \"\${link}\" SYMBOLIC)
+")
+
+install(FILES packaging/ChaoticFiles.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+install(FILES packaging/ChaoticFiles.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
+
 # ---------------------------------------------------------------- the tests (no Qt)
 enable_testing()
 add_executable(backendtests tests/backendtests.cpp)

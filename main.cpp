@@ -7,8 +7,21 @@
 #include "wrapper/tabsWrap/tabscontroller.h"
 #include "wrapper/thumbnailsWrap/thumbnailprovider.h"
 
+// AppRun points the loader at the bundled libraries. The loader keeps that value from here on, so the user's
+// own one goes back: every app opened from this one would otherwise load the bundled libraries and may crash.
+static void restoreLibraryPath()
+{
+    if (!qEnvironmentVariableIsSet("CHAOTICFILES_USER_LD_LIBRARY_PATH")) return;
+    const QByteArray original = qgetenv("CHAOTICFILES_USER_LD_LIBRARY_PATH");
+    if (original.isEmpty()) qunsetenv("LD_LIBRARY_PATH");
+    else qputenv("LD_LIBRARY_PATH", original);
+    qunsetenv("CHAOTICFILES_USER_LD_LIBRARY_PATH");
+}
+
 int main(int argc, char *argv[])
 {
+    restoreLibraryPath();
+
     QGuiApplication app(argc, argv);
     QCoreApplication::setOrganizationName("ChaoticFiles");
     QCoreApplication::setApplicationName("ChaoticFiles");

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=ChaoticFiles
+GenericName=File Manager
+Comment=Browse and manage your files
+Exec=ChaoticFiles %F
+Icon=ChaoticFiles
+Categories=System;FileTools;FileManager;
+Keywords=files;folders;browser;explorer;
+Terminal=false

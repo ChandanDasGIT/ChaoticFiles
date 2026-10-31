@@ -1,9 +1,13 @@
 This is the architecture of ChaoticFiles
 
 The three layers: frontend/ (QML) talks to wrapper/ (Qt C++), and wrapper/ talks to backend/ (plain C++).
-Left out: build/ (generated, not part of the code) and .claude/ (private notes, ignored by git).
+Left out: build/, build-release/, AppDir/, dist/ and tools/ (generated or downloaded, not part of the code), and
+.claude/ (private notes, ignored by git).
 
 ChaoticFiles/
+├── .github/                                // GitHub settings
+│   └── workflows/                          // automatic jobs
+│       └── release.yml                     // a v* tag builds on Ubuntu 22.04 and publishes the release
 ├── backend/                                // pure C++20 engine, no Qt: built as its own static library, fileengine
 │   ├── apps/                               // installed apps
 │   │   ├── desktopapps.cpp                 // parses Exec lines without a shell, starts apps
@@ -208,6 +212,12 @@ ChaoticFiles/
 │   │   └── WindowButtons.qml               // minimise, maximise, close
 │   ├── Icons.qml                           // singleton: every icon as a \uf04b style code
 │   └── Theme.qml                           // singleton: every colour and size; dark, light or system
+├── packaging/                              // release files
+│   ├── build-appimage.sh                   // builds the AppImage, tarball and checksums into dist/
+│   ├── ChaoticFiles.desktop                // the menu entry
+│   ├── ChaoticFiles.svg                    // the app icon
+│   ├── install-app.sh                      // installs the tarball for one user, no root
+│   └── uninstall-app.sh                    // removes what install-app.sh installed, keeps settings
 ├── resources/                              // files built into the app
 │   └── fonts/                              // fonts
 │       └── fa-solid-900.ttf                // Font Awesome 6 Free Solid, the icon font

@@ -2,7 +2,22 @@
 
 A file manager for Linux, written in C++20 and Qt 6 QML. The engine is plain C++ and does not depend on Qt.
 
-Status: Phases 0 to 4 are done. There is no release package yet.
+## Install
+
+Download from [Releases](https://github.com/ChandanDasGIT/ChaoticFiles/releases). Linux x86_64 only.
+
+**AppImage:** make it executable and run it.
+
+    chmod +x ChaoticFiles-*-x86_64.AppImage
+    ./ChaoticFiles-*-x86_64.AppImage
+
+**Tarball:** installs for your user without root, and adds a menu entry and the `ChaoticFiles` command.
+
+    tar -xf ChaoticFiles-*-linux-x86_64.tar.xz
+    cd ChaoticFiles-*-linux-x86_64
+    ./install-app.sh
+
+`./uninstall-app.sh` removes it again and keeps your settings.
 
 ## Build
 
@@ -23,6 +38,12 @@ pdfinfo and pdftoppm (PDF), tar, zip, unzip and 7z (archives), udisksctl and lsb
 ## Test
 
     ctest --test-dir build --output-on-failure
+
+## Release
+
+`./packaging/build-appimage.sh 1.0` puts the AppImage, tarball and checksums in `dist/`. An AppImage only runs on
+systems as new as the one that built it, so public releases come from GitHub Actions on Ubuntu 22.04: pushing a tag
+like `v1.0` builds and publishes one.
 
 ## Layout
 
