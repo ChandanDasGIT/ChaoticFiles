@@ -153,7 +153,8 @@ ChaoticFiles/
 │   │   └── monocypher.h                    // unchanged
 │   └── README.md                           // what is here and what is used at run time
 ├── EducationPurpose/                       // this explanation of the project
-│   └── architecture.txt                    // this file
+│   ├── architecture.txt                    // this file
+│   └── ChaoticFilesMap.pdf                 // the same project as pictures: layers, flows, threads, updates
 ├── frontend/                               // everything you see
 │   ├── actions/                            // what the keys and menus do
 │   │   ├── ActionShortcut.qml              // a shortcut whose keys come from the settings
