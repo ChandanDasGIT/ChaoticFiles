@@ -2,6 +2,7 @@
 
 #include "archive/archiver.h"
 #include "fileops/fileops.h"
+#include "foldericons/foldericons.h"
 #include "format/format.h"
 #include "pathbar/pathbar.h"
 #include "trash/trash.h"
@@ -482,6 +483,23 @@ QString OperationsController::newFile(const QString& folder, const QString& name
 QString OperationsController::nameProblem(const QString& name) const
 {
     return qs(FileOps::nameProblem(name.toStdString()));
+}
+
+QString OperationsController::setFolderIcon(const QStringList& paths, const QString& icon, const QString& color)
+{
+    const std::string value = FolderIcons::make(icon.toStdString(), color.toStdString());
+    QString failure;
+    for (const QString& path : paths) {
+        const Outcome outcome = FolderIcons::write(path.toStdString(), value);
+        if (!outcome.ok) failure = qs(outcome.error);
+    }
+    return failure;
+}
+
+QVariantMap OperationsController::folderIcon(const QString& path) const
+{
+    const std::string value = FolderIcons::read(path.toStdString());
+    return {{"icon", qs(FolderIcons::iconOf(value))}, {"color", qs(FolderIcons::colorOf(value))}};
 }
 
 QString OperationsController::freeName(const QString& folder, const QString& name) const

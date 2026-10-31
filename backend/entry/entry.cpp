@@ -1,5 +1,7 @@
 #include "entry/entry.h"
 
+#include "foldericons/foldericons.h"
+
 #include <fcntl.h>
 #include <sys/stat.h>
 
@@ -47,6 +49,7 @@ bool readEntry(int dirFd, const std::string& dirPath, const std::string& name, E
     out.mode = st.stx_mode & 07777;
     out.modified = st.stx_mtime.tv_sec;
     out.modifiedNanos = st.stx_mtime.tv_nsec;
+    if (out.isDirectory()) out.customIcon = FolderIcons::read(out.path);
     return true;
 }
 
@@ -54,5 +57,5 @@ bool sameOnDisk(const Entry& a, const Entry& b)
 {
     return a.name == b.name && a.size == b.size && a.modified == b.modified
         && a.modifiedNanos == b.modifiedNanos && a.kind == b.kind && a.mode == b.mode
-        && a.symlink == b.symlink && a.brokenLink == b.brokenLink;
+        && a.symlink == b.symlink && a.brokenLink == b.brokenLink && a.customIcon == b.customIcon;
 }

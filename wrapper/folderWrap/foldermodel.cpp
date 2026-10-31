@@ -1,6 +1,7 @@
 #include "foldermodel.h"
 
 #include "filetype/filetype.h"
+#include "foldericons/foldericons.h"
 #include "folderview/folderview.h"
 #include "format/format.h"
 
@@ -35,6 +36,8 @@ QVariant FolderModel::data(const QModelIndex& index, int role) const
     case IsSelectedRole: return m_view->isSelected(row);
     case IsCurrentRole: return m_view->currentRow() == row;
     case IsCutRole: return m_view->isCut(row);
+    case IconKeyRole: return QString::fromStdString(FolderIcons::iconOf(entry.customIcon));
+    case ColorKeyRole: return QString::fromStdString(FolderIcons::colorOf(entry.customIcon));
     default: return {};
     }
 }
@@ -46,6 +49,7 @@ QHash<int, QByteArray> FolderModel::roleNames() const
         {ModifiedRole, "modifiedText"}, {CategoryRole, "category"}, {IsDirectoryRole, "isDirectory"},
         {IsLinkRole, "isLink"}, {IsHiddenRole, "isHidden"}, {IsBrokenRole, "isBroken"},
         {IsSelectedRole, "isSelected"}, {IsCurrentRole, "isCurrent"}, {IsCutRole, "isCut"},
+        {IconKeyRole, "iconKey"}, {ColorKeyRole, "colorKey"},
     };
 }
 

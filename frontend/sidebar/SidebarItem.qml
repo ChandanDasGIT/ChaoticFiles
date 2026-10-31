@@ -6,6 +6,7 @@ Rectangle {
 
     property string name: ""
     property string icon: ""
+    property color iconColor: Theme.textMuted
     property bool active: false
     property bool dimmed: false            // a drive that is not mounted yet
     signal clicked()
@@ -27,7 +28,7 @@ Rectangle {
         text: root.icon
         font.family: Icons.fontFamily
         font.pixelSize: Theme.iconSize
-        color: root.active ? Theme.accent : Theme.textMuted
+        color: root.active ? Theme.accent : root.iconColor
     }
     Text {
         anchors.left: iconText.right

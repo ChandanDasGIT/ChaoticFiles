@@ -7,6 +7,7 @@
 #include <QList>
 #include <QStringList>
 #include <QUrl>
+#include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 #include <future>
 #include <memory>
@@ -62,8 +63,10 @@ public:
     Q_INVOKABLE QString rename(const QString& path, const QString& newName);
     Q_INVOKABLE QString newFolder(const QString& folder, const QString& name);
     Q_INVOKABLE QString newFile(const QString& folder, const QString& name);
+    Q_INVOKABLE QString setFolderIcon(const QStringList& paths, const QString& icon, const QString& color);
     Q_INVOKABLE QString nameProblem(const QString& name) const;
     Q_INVOKABLE QString freeName(const QString& folder, const QString& name) const;
+    Q_INVOKABLE QVariantMap folderIcon(const QString& path) const;     // {icon, color}
     Q_INVOKABLE bool isArchive(const QString& name) const;
     Q_INVOKABLE QString withoutExtension(const QString& name) const;
 

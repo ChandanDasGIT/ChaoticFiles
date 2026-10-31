@@ -312,6 +312,11 @@ bool Transfer::copyFolder(const std::string& source, const std::string& target)
         complete = processItem(join(source, name), join(target, name), false) && complete;
     }
     if (created) {
+        const int sourceFd = open(source.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        const int targetFd = open(target.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        if (sourceFd >= 0 && targetFd >= 0) copyUserAttributes(sourceFd, targetFd);
+        if (sourceFd >= 0) close(sourceFd);
+        if (targetFd >= 0) close(targetFd);
         chmod(target.c_str(), from.st_mode & 07777);
         const struct timespec times[2] = {from.st_atim, from.st_mtim};
         utimensat(AT_FDCWD, target.c_str(), times, 0);

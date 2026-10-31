@@ -6,6 +6,7 @@
 #include "directory/directorylister.h"
 #include "drives/drives.h"
 #include "fileops/fileops.h"
+#include "foldericons/foldericons.h"
 #include "filetype/filetype.h"
 #include "folderview/folderview.h"
 #include "format/format.h"
@@ -870,6 +871,61 @@ static void testApps()
     CHECK(hidden.exec.empty());
 }
 
+static void testFolderIcons(const fs::path& root)
+{
+    CHECK(FolderIcons::make("music", "green") == "music;green");
+    CHECK(FolderIcons::make("", "") == "");
+    CHECK(FolderIcons::iconOf("music;green") == "music" && FolderIcons::colorOf("music;green") == "green");
+    CHECK(FolderIcons::iconOf(";green") == "" && FolderIcons::colorOf(";green") == "green");
+    CHECK(FolderIcons::iconOf("music") == "music" && FolderIcons::colorOf("music") == "");
+
+    const fs::path work = root / "foldericons";
+    fs::create_directories(work / "plain");
+    fs::create_directories(work / "styled" / "inside");
+    touch(work / "file.txt");
+    fs::create_directory_symlink(work / "styled", work / "link");
+
+    CHECK(FolderIcons::read((work / "plain").string()).empty());
+    const Outcome saved = FolderIcons::write((work / "styled").string(), "music;green");
+    if (!saved.ok) {                       // the temporary folder is on a filesystem without attributes
+        std::printf("skipped folder icon tests: %s\n", saved.error.c_str());
+        return;
+    }
+    CHECK(FolderIcons::read((work / "styled").string()) == "music;green");
+    CHECK(FolderIcons::read((work / "link").string()) == "music;green");
+
+    CHECK(FolderIcons::write((work / "file.txt").string(), "star;red").ok);    // a file is skipped, not changed
+    CHECK(FolderIcons::read((work / "file.txt").string()).empty());
+    CHECK(!FolderIcons::write((work / "missing").string(), "star;red").ok);
+
+    // it shows in a listing, and a change counts as a change
+    const auto find = [&work](const std::string& name) {
+        for (Entry& entry : listDirectory(work.string(), {}).entries)
+            if (entry.name == name) return entry;
+        return Entry();
+    };
+    Entry before = find("styled");
+    CHECK(before.customIcon == "music;green");
+    CHECK(find("link").customIcon == "music;green");
+    CHECK(find("plain").customIcon.empty());
+
+    // it follows a rename, and a copy of the folder keeps it
+    fs::rename(work / "styled", work / "renamed");
+    CHECK(FolderIcons::read((work / "renamed").string()) == "music;green");
+    fs::create_directories(work / "copies");
+    Transfer copy(TransferKind::Copy, {(work / "renamed").string()}, (work / "copies").string(), {});
+    copy.run();
+    CHECK(FolderIcons::read((work / "copies" / "renamed").string()) == "music;green");
+
+    CHECK(FolderIcons::write((work / "renamed").string(), "").ok);
+    CHECK(FolderIcons::read((work / "renamed").string()).empty());
+    Entry after = find("renamed");
+    after.name = before.name;
+    after.path = before.path;
+    CHECK(!sameOnDisk(before, after));
+    CHECK(FolderIcons::write((work / "plain").string(), "").ok);               // nothing to remove is fine
+}
+
 static void testSearch(const fs::path& root)
 {
     CHECK(FileSearch::nameMatches("Holiday Photo.PNG", "photo"));
@@ -1045,6 +1101,7 @@ int main()
     testUndo();
     testArchives(root);
     testApps();
+    testFolderIcons(root);
     testSearch(root);
     testRecent(root);
     testShortcuts();

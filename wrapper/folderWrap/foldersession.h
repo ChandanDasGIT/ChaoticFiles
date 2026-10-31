@@ -38,7 +38,7 @@ class FolderSession : public QObject {
     Q_PROPERTY(QString selectionText READ selectionText NOTIFY selectionChanged)
     Q_PROPERTY(int currentRow READ currentRow NOTIFY selectionChanged)
     Q_PROPERTY(QString currentPath READ currentPath NOTIFY selectionChanged)
-    Q_PROPERTY(QVariantMap currentItem READ currentItem NOTIFY selectionChanged)    // {name, type, size, date, category}
+    Q_PROPERTY(QVariantMap currentItem READ currentItem NOTIFY selectionChanged)    // {name, type, size, date, category, iconKey, colorKey}
     Q_PROPERTY(int sortKey READ sortKey NOTIFY sortChanged)
     Q_PROPERTY(bool sortAscending READ sortAscending NOTIFY sortChanged)
 

@@ -35,6 +35,7 @@ public:
     Q_INVOKABLE void addBookmark(const QString& path);
     Q_INVOKABLE void removeBookmark(const QString& path);
     Q_INVOKABLE bool isBookmarked(const QString& path) const;
+    Q_INVOKABLE void refreshBookmarks() { emit bookmarksChanged(); }     // one of them got a new icon
 
 signals:
     void drivesChanged();

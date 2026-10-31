@@ -18,6 +18,8 @@ Item {
     required property bool isSelected
     required property bool isCurrent
     required property bool isCut
+    required property string iconKey
+    required property string colorKey
 
     property alias dragText: itemArea.dragText
     signal pressedWith(int button, int modifiers, real sceneX, real sceneY)
@@ -45,10 +47,10 @@ Item {
         anchors.horizontalCenter: picture.horizontalCenter
         anchors.verticalCenter: picture.verticalCenter
         visible: thumbnail.status !== Image.Ready || thumbnail.paintedWidth === 0
-        text: root.isBroken ? Icons.warning : Icons.forCategory(root.category)
+        text: root.isBroken ? Icons.warning : Icons.forItem(root.category, root.iconKey)
         font.family: Icons.fontFamily
         font.pixelSize: root.imageSize * 0.6
-        color: root.isBroken ? Theme.danger : Theme.categoryColor(root.category)
+        color: root.isBroken ? Theme.danger : Theme.itemColor(root.category, root.colorKey)
         opacity: root.isHidden ? Theme.hiddenOpacity : 1
     }
 

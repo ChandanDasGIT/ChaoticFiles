@@ -1,6 +1,7 @@
 #include "foldersession.h"
 
 #include "filetype/filetype.h"
+#include "foldericons/foldericons.h"
 #include "format/format.h"
 #include "pathbar/pathbar.h"
 #include "recent/recentfiles.h"
@@ -114,6 +115,8 @@ QVariantMap FolderSession::currentItem() const
         {"size", entry.isDirectory() ? QString() : qs(Format::exactSize(entry.size))},
         {"date", qs(Format::date(entry.modified))},
         {"category", QString::fromLatin1(categoryName(entry.category))},
+        {"iconKey", qs(FolderIcons::iconOf(entry.customIcon))},
+        {"colorKey", qs(FolderIcons::colorOf(entry.customIcon))},
     };
 }
 

@@ -50,10 +50,10 @@ Rectangle {
             Text {
                 anchors.centerIn: parent
                 visible: thumbnail.status !== Image.Ready || thumbnail.paintedWidth === 0
-                text: Icons.forCategory(root.category)
+                text: Icons.forItem(root.category, root.item.iconKey ?? "")
                 font.family: Icons.fontFamily
                 font.pixelSize: picture.width * 0.4
-                color: Theme.categoryColor(root.category)
+                color: Theme.itemColor(root.category, root.item.colorKey ?? "")
             }
             Image {
                 id: thumbnail

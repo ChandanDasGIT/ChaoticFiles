@@ -13,7 +13,8 @@ class FolderModel : public QAbstractListModel {
 public:
     enum Role {
         NameRole = Qt::UserRole + 1, PathRole, TypeRole, SizeRole, ModifiedRole, CategoryRole,
-        IsDirectoryRole, IsLinkRole, IsHiddenRole, IsBrokenRole, IsSelectedRole, IsCurrentRole, IsCutRole
+        IsDirectoryRole, IsLinkRole, IsHiddenRole, IsBrokenRole, IsSelectedRole, IsCurrentRole, IsCutRole,
+        IconKeyRole, ColorKeyRole
     };
 
     explicit FolderModel(const FolderView* view, QObject* parent = nullptr);

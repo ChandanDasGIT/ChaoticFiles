@@ -53,7 +53,8 @@ Rectangle {
                     required property var modelData
                     width: column.width
                     name: modelData.name
-                    icon: Icons.forPlace(modelData.kind)
+                    icon: modelData.iconKey ? Icons.forFolder(modelData.iconKey) : Icons.forPlace(modelData.kind)
+                    iconColor: modelData.iconKey || modelData.colorKey ? Theme.folderColor(modelData.colorKey) : Theme.textMuted
                     active: root.session?.path === modelData.path
                     onClicked: root.session.navigate(modelData.path)
                     onMiddleClicked: TabsController.openInBackground(modelData.path)

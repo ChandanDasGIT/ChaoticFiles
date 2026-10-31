@@ -122,6 +122,10 @@ Item {
         if (items.length > 0) openWithDialog.ask(items)
     }
 
+    function changeFolderIcon(paths) {
+        folderIconDialog.ask(paths.length > 0 ? paths : session.selectedItems())
+    }
+
     function openTerminal() {
         if (session.canWrite && !AppsController.openTerminal(session.path))
             notice.ask({title: "No terminal was found", text: "Set the TERMINAL environment variable to your terminal app.", cancelText: ""})
@@ -146,6 +150,15 @@ Item {
     ConfirmDialog { id: confirm; onClosed: root.dialogClosed() }
     ConfirmDialog { id: notice; onClosed: root.dialogClosed() }
     OpenWithDialog { id: openWithDialog; onClosed: root.dialogClosed() }
+    FolderIconDialog {
+        id: folderIconDialog
+        onClosed: root.dialogClosed()
+        onFailed: (text) => root.showError("The folder icon was not changed", text)
+        onApplied: {
+            root.session.refresh()
+            PlacesController.refreshBookmarks()
+        }
+    }
     ConnectDialog { id: connectDialog; onClosed: root.dialogClosed() }
     ConflictDialog { onClosed: root.dialogClosed() }
 }

@@ -18,6 +18,8 @@ Rectangle {
     required property bool isSelected
     required property bool isCurrent
     required property bool isCut
+    required property string iconKey
+    required property string colorKey
 
     property alias dragText: itemArea.dragText
 
@@ -42,10 +44,10 @@ Rectangle {
         anchors.leftMargin: Theme.rowPadding
         anchors.verticalCenter: parent.verticalCenter
         width: Theme.rowIconWidth
-        text: root.isBroken ? Icons.warning : Icons.forCategory(root.category)
+        text: root.isBroken ? Icons.warning : Icons.forItem(root.category, root.iconKey)
         font.family: Icons.fontFamily
         font.pixelSize: Theme.iconSize + 1
-        color: root.isBroken ? Theme.danger : Theme.categoryColor(root.category)
+        color: root.isBroken ? Theme.danger : Theme.itemColor(root.category, root.colorKey)
         opacity: root.isHidden ? Theme.hiddenOpacity : 1
     }
     Text {

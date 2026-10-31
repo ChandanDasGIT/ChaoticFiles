@@ -57,6 +57,7 @@ QtObject {
     readonly property string pause:         "\uf04c"   // pause
     readonly property string lock:          "\uf023"   // lock
     readonly property string link:          "\uf0c1"   // link
+    readonly property string palette:       "\uf53f"   // palette
 
     // ---- places ----
     readonly property string home:          "\uf015"   // house
@@ -93,6 +94,28 @@ QtObject {
     readonly property string fileFont:      "\uf031"   // font
     readonly property string fileSystem:    "\uf085"   // gears
 
+    // ---- icons a folder can be given; the key is what is saved on the folder ----
+    readonly property var folderChoices: [
+        {key: "star", glyph: "\uf005"}, {key: "heart", glyph: "\uf004"}, {key: "music", glyph: "\uf001"},
+        {key: "image", glyph: "\uf03e"}, {key: "video", glyph: "\uf03d"}, {key: "camera", glyph: "\uf030"},
+        {key: "gamepad", glyph: "\uf11b"}, {key: "code", glyph: "\uf121"}, {key: "terminal", glyph: "\uf120"},
+        {key: "book", glyph: "\uf02d"}, {key: "school", glyph: "\uf19d"}, {key: "work", glyph: "\uf0b1"},
+        {key: "money", glyph: "\uf155"}, {key: "home", glyph: "\uf015"}, {key: "people", glyph: "\uf0c0"},
+        {key: "download", glyph: "\uf019"}, {key: "cloud", glyph: "\uf0c2"}, {key: "globe", glyph: "\uf0ac"},
+        {key: "lock", glyph: "\uf023"}, {key: "archive", glyph: "\uf187"}, {key: "tools", glyph: "\uf0ad"},
+        {key: "bolt", glyph: "\uf0e7"}, {key: "rocket", glyph: "\uf135"}, {key: "palette", glyph: "\uf53f"},
+        {key: "flask", glyph: "\uf0c3"}, {key: "leaf", glyph: "\uf06c"}, {key: "cube", glyph: "\uf1b2"},
+    ]
+
+    function forFolder(key) {
+        const choice = folderChoices.find(item => item.key === key)
+        return choice ? choice.glyph : folder
+    }
+
+    function forItem(category, iconKey) {
+        return iconKey ? forFolder(iconKey) : forCategory(category)
+    }
+
     function forCategory(category) {
         switch (category) {
         case "folder":       return folder
@@ -126,7 +149,7 @@ QtObject {
         case "root":      return root
         case "trash":     return trash
         case "recent":    return recent
-        case "bookmark":  return bookmark
+        case "bookmark":  return folder
         case "network":   return network
         default:          return drive
         }

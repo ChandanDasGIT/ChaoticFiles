@@ -45,6 +45,23 @@ QtObject {
 
     // ---- icon colours, by kind of file ----
     readonly property color folderIcon:   isDark ? "#f3c551" : "#e0a526"
+    readonly property var folderColorKeys: ["blue", "green", "red", "orange", "purple", "pink", "teal", "grey"]
+    function folderColor(key) {
+        switch (key) {
+        case "blue":   return isDark ? "#6ea8fe" : "#2b5fbf"
+        case "green":  return isDark ? "#7fd18b" : "#23893a"
+        case "red":    return isDark ? "#f07c6c" : "#c7392a"
+        case "orange": return isDark ? "#f4a261" : "#c4581c"
+        case "purple": return isDark ? "#d79bf0" : "#8a3fb0"
+        case "pink":   return isDark ? "#f08fa7" : "#c0335a"
+        case "teal":   return isDark ? "#8fd6d0" : "#14807a"
+        case "grey":   return isDark ? "#c8ccd2" : "#62666d"
+        default:       return folderIcon
+        }
+    }
+    function itemColor(category, colorKey) {
+        return colorKey ? folderColor(colorKey) : categoryColor(category)
+    }
     function categoryColor(category) {
         switch (category) {
         case "folder":       return folderIcon
@@ -161,6 +178,9 @@ QtObject {
     readonly property real cutOpacity:      0.5
 
     // ---- settings ----
+    readonly property int folderIconCell:   40
+    readonly property int folderColorSize:  26
+    readonly property int folderPreviewSize: 44
     readonly property int settingsWidth:    560
     readonly property int settingsHeight:   620
     readonly property int settingsRowHeight: 42

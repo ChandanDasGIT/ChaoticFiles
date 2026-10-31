@@ -1,6 +1,7 @@
 #include "placescontroller.h"
 
 #include "drives/drives.h"
+#include "foldericons/foldericons.h"
 #include "network/networkshares.h"
 #include "pathbar/pathbar.h"
 #include "places/places.h"
@@ -77,10 +78,13 @@ QVariantList PlacesController::bookmarks() const
 {
     QVariantList list;
     for (const QString& path : m_settings.value("places/bookmarks").toStringList()) {
+        const std::string icon = FolderIcons::read(path.toStdString());
         list.append(QVariantMap {
             {"name", QString::fromStdString(PathBar::tabTitle(path.toStdString()))},
             {"path", path},
             {"kind", QStringLiteral("bookmark")},
+            {"iconKey", QString::fromStdString(FolderIcons::iconOf(icon))},
+            {"colorKey", QString::fromStdString(FolderIcons::colorOf(icon))},
         });
     }
     return list;
