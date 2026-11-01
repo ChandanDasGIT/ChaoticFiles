@@ -2,6 +2,7 @@
 
 #include "hashing/hashing.h"
 #include "process/process.h"
+#include "update/update.h"
 #include "wrapper/operationsWrap/operationscontroller.h"
 #include "wrapper/tabsWrap/tabscontroller.h"
 
@@ -34,6 +35,8 @@ const int kFirstCheckDelayMs = 3000;
 const int kCheckIntervalMs = 60 * 60 * 1000;                     // a file manager can stay open for days
 const int kNetworkTimeoutMs = 30000;
 const int kStartedDelayMs = 2000;                                // a crash this early still counts as not started
+const int kWindowsCheckMs = 500;
+const int kWindowsPatience = 10;                                 // checks before saying that a window is taking its time
 const qint64 kUnfinishedAfterSeconds = 10 * 60;
 
 QString& startedFile()
@@ -128,6 +131,13 @@ UpdateController::UpdateController(QObject* parent)
     connect(OperationsController::instance(), &OperationsController::operationFinished, this, [this] {
         if (m_waiting && OperationsController::instance()->rowCount() == 0) restartNow();
     });
+
+    m_windowsTimer.setInterval(kWindowsCheckMs);
+    connect(&m_windowsTimer, &QTimer::timeout, this, &UpdateController::waitForOtherWindows);
+    m_requests.addPath(windowsFolder());
+    connect(&m_requests, &QFileSystemWatcher::directoryChanged, this, &UpdateController::closeIfAsked);
+    // windows closed for an update, by this version or by the one being replaced
+    QTimer::singleShot(kStartedDelayMs, this, &UpdateController::reopenWindows);
 
     m_dailyCheck.setInterval(kCheckIntervalMs);
     connect(&m_dailyCheck, &QTimer::timeout, this, &UpdateController::considerChecking);
@@ -369,11 +379,60 @@ void UpdateController::readyForRestart(const QString& newCopy)
 // Nothing here changes what quitting does. Only restartNow does, so Cancel leaves every later quit a normal one.
 void UpdateController::askToRestart()
 {
+    emit restartWanted(OperationsController::instance()->rowCount());
+}
+
+bool UpdateController::otherWindowsOpen() const
+{
+    return Update::otherInstancesRunning();
+}
+
+QString UpdateController::windowsFolder() const
+{
+    return QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) + QStringLiteral("/ChaoticFiles");
+}
+
+// Runs in the window that restarts, until the others are gone. Asking again keeps the request alive, and lets a
+// window that was busy, or has just been opened, see it.
+void UpdateController::waitForOtherWindows()
+{
     if (Update::otherInstancesRunning()) {
-        setStatus(QStringLiteral("Another ChaoticFiles window is open. Close it, then choose Restart to update."));
+        Update::askWindowsToClose(windowsFolder().toStdString(), QCoreApplication::applicationPid());
+        if (++m_windowsWaits == kWindowsPatience)
+            setStatus(QStringLiteral("Waiting for another ChaoticFiles window. It closes when its file operations finish, or you can close it."));
         return;
     }
-    emit restartWanted(OperationsController::instance()->rowCount());
+    m_windowsTimer.stop();
+    m_closingWindows = false;
+    Update::stopAskingWindowsToClose(windowsFolder().toStdString(), QCoreApplication::applicationPid());
+    if (OperationsController::instance()->rowCount() > 0) restartWhenFinished();
+    else restartNow();
+}
+
+// Runs in every other window. This window's own file operations finish first, as they do for a restart.
+void UpdateController::closeIfAsked()
+{
+    const int asking = Update::closeRequester(windowsFolder().toStdString());
+    if (asking == 0 || asking == QCoreApplication::applicationPid()) return;
+    if (m_installing || OperationsController::instance()->rowCount() > 0) return;
+
+    m_windowsTimer.stop();                                           // two windows asked at once, and the other one won
+    std::vector<std::string> arguments;
+    for (const QString& folder : TabsController::instance()->folders()) arguments.push_back(folder.toStdString());
+    arguments.push_back("--tab=" + std::to_string(TabsController::instance()->currentIndex()));
+    Update::rememberWindow(windowsFolder().toStdString(), QCoreApplication::applicationPid(), arguments);
+    QCoreApplication::quit();
+}
+
+void UpdateController::reopenWindows()
+{
+    const std::string folder = windowsFolder().toStdString();
+    if (Update::closeRequester(folder) != 0) return;                 // those windows wait for the update to finish
+    const std::string program = m_program.isEmpty() ? QCoreApplication::applicationFilePath().toStdString() : m_program.toStdString();
+    for (std::vector<std::string> arguments : Update::takeRememberedWindows(folder)) {
+        arguments.insert(arguments.begin(), program);
+        Process::startDetached(arguments, QDir::homePath().toStdString());
+    }
 }
 
 void UpdateController::restartWhenFinished()
@@ -386,6 +445,12 @@ void UpdateController::restartWhenFinished()
 void UpdateController::cancelRestart()
 {
     m_waiting = false;
+    if (m_closingWindows) {
+        m_windowsTimer.stop();
+        m_closingWindows = false;
+        Update::stopAskingWindowsToClose(windowsFolder().toStdString(), QCoreApplication::applicationPid());
+        reopenWindows();                                             // the ones that closed already
+    }
     setStatus(QStringLiteral("Version %1 is ready. Restart to finish.").arg(m_latest));
 }
 
@@ -393,8 +458,12 @@ void UpdateController::restartNow()
 {
     if (!m_ready) return;
     m_waiting = false;
-    if (Update::otherInstancesRunning()) {                           // one may have opened since the question
-        setStatus(QStringLiteral("Another ChaoticFiles window is open. Close it, then choose Restart to update."));
+    if (Update::otherInstancesRunning()) {
+        m_closingWindows = true;
+        m_windowsWaits = 0;
+        setStatus(QStringLiteral("Closing the other ChaoticFiles windows…"));
+        Update::askWindowsToClose(windowsFolder().toStdString(), QCoreApplication::applicationPid());
+        m_windowsTimer.start();
         return;
     }
     m_installing = true;

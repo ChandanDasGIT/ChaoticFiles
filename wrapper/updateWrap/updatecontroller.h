@@ -3,6 +3,7 @@
 #include "update/update.h"
 
 #include <QFile>
+#include <QFileSystemWatcher>
 #include <QObject>
 #include <QSettings>
 #include <QString>
@@ -25,7 +26,8 @@ class QQmlEngine;
 // the dot and a link to the release page.
 //
 // When the new files are ready the app asks before it restarts. Running file operations stand in for unsaved work:
-// it waits for them. A small script then swaps the copies (see Update::installScript), and the tabs open again.
+// it waits for them. Other windows of the app close too, each after its own file operations, and leave their tabs
+// behind. A small script then swaps the copies (see Update::installScript), and every window opens again.
 class UpdateController : public QObject {
     Q_OBJECT
     QML_ELEMENT
@@ -52,13 +54,14 @@ public:
     bool busy() const { return m_busy; }
     bool canInstall() const { return m_kind != Kind::Manual; }
     bool readyToRestart() const { return m_ready; }
-    bool waitingForOperations() const { return m_waiting; }
+    bool waitingForOperations() const { return m_waiting || m_closingWindows; }
     bool autoCheck() const { return m_autoCheck; }
     void setAutoCheck(bool on);
 
     Q_INVOKABLE void checkNow();
     Q_INVOKABLE void updateNow();
     Q_INVOKABLE void restartNow();                 // the answer to restartWanted
+    Q_INVOKABLE bool otherWindowsOpen() const;
     Q_INVOKABLE void restartWhenFinished();
     Q_INVOKABLE void cancelRestart();
     Q_INVOKABLE void openReleasePage();
@@ -90,6 +93,10 @@ private:
     void checkDownload();
     void readyForRestart(const QString& newCopy);
     void askToRestart();
+    void waitForOtherWindows();
+    void closeIfAsked();
+    void reopenWindows();
+    QString windowsFolder() const;
     void beginInstall();
     void fail(const QString& text);
     void setStatus(const QString& text);
@@ -98,6 +105,9 @@ private:
     QNetworkAccessManager* m_net = nullptr;        // made at the first request: the switch off means no network at all
     QTimer m_dailyCheck;
     BackgroundJob m_job;
+    QTimer m_windowsTimer;                         // renews the request while the other windows close
+    QFileSystemWatcher m_requests;                 // sees another window's request
+    int m_windowsWaits = 0;
 
     Kind m_kind = Kind::Manual;
     QString m_latest;                              // the newest version known, without the v
@@ -105,6 +115,7 @@ private:
     bool m_busy = false;
     bool m_ready = false;
     bool m_waiting = false;                        // restarts when the file operations finish
+    bool m_closingWindows = false;                 // restarts when the other windows have closed
     bool m_autoCheck = true;
     bool m_installing = false;                     // only set as the app quits for the update
 

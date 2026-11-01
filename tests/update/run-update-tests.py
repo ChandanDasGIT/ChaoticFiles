@@ -362,26 +362,101 @@ def wait_for_operations():
     assert (target / "big.bin").stat().st_size == source.stat().st_size, "the copy was cut short"
     user.send("quit"); user.finish()
 
+def second_window(user, program, *folders):
+    """A window with its own command file, so that it can be told things apart from the first one."""
+    commands = user.home / "c2"; answers = user.home / "a2"
+    commands.touch(); answers.write_text("")
+    process = subprocess.Popen([str(program), *map(str, folders)], env=dict(user.env(), CF_TEST_COMMANDS=str(commands), CF_TEST_ANSWERS=str(answers)),
+                               cwd=user.home, stdout=open(user.home / "log", "a"), stderr=subprocess.STDOUT)
+    end = time.time() + 15
+    while not answers.read_text() and time.time() < end: time.sleep(0.05)
+    assert answers.read_text(), "the second window did not start"
+    return process
+
+def windows_back(user, version, count, seconds=60):
+    """Every window that came back, as {tuple of its tabs: its current tab}. They all share the first window's files."""
+    found = {}; end = time.time() + seconds
+    while time.time() < end and len(found) < count:
+        for answer in user.fresh_answers():
+            if answer["command"] == "ready" and answer["version"] == version: found[answer["pid"]] = answer
+        time.sleep(0.05)
+    assert len(found) == count, f"{len(found)} of {count} windows came back; log end: {user.log_tail()}"
+    return {tuple(a["tabs"]): a["currentTab"] for a in found.values()}
+
 def other_window():
     user = User("other-window"); use(NEW)
     installed = install_tarball(user, OLD)
-    user.start(installed / "AppRun")
+    a = user.home / "first"; b = user.home / "second"; c = user.home / "third window"; d = user.home / "fourth"
+    for folder in (a, b, c, d): folder.mkdir()
+    user.start(installed / "AppRun", a, b, "--tab=1")
     user.ready(OLD)
+    process = second_window(user, installed / "AppRun", c, d, "--tab=1")
     user.until(lambda s: s["available"]); press_update(user)
-    user.until(lambda s: s["ready"], what="download"); user.send("click Cancel")
-    process = subprocess.Popen([str(installed / "AppRun")], env=dict(user.env(), CF_TEST_COMMANDS=str(user.home / "c2"), CF_TEST_ANSWERS=str(user.home / "a2")), cwd=user.home)
+    user.until(lambda s: s["ready"], 120, "download")
+    assert user.send("click Restart now")["ok"], "no Restart now with another window open"
+    process.wait(timeout=20)                     # closed by itself
+    back = windows_back(user, NEW, 2)
+    assert back == {(str(a), str(b)): 1, (str(c), str(d)): 1}, back
+    assert not list((user.home / ".cache/ChaoticFiles").glob("update-*")) or not any((user.home / ".cache/ChaoticFiles/update-windows").iterdir())
+    user.send("quit"); user.finish()
+
+def other_window_busy():
+    """A window that is copying files holds the restart up, and Don't restart lets everything go on."""
+    user = User("other-window-busy"); use(NEW)
+    installed = install_tarball(user, OLD)
+    a = user.home / "first"; c = user.home / "third"; (user.home / "to").mkdir()
+    for folder in (a, c): folder.mkdir()
+    with open(user.home / "big.bin", "wb") as file: file.truncate(1024 * 1024 * 1024)
+    user.start(installed / "AppRun", a)
+    user.ready(OLD)
+    process = second_window(user, installed / "AppRun", c)
+    commands = user.home / "c2"; answers = user.home / "a2"
+    user.until(lambda s: s["available"]); press_update(user)
+    user.until(lambda s: s["ready"], 120, "download")
+    with open(commands, "a") as file: file.write(f"copy {user.home / 'big.bin'}|{user.home / 'to'}\npause\n")
     end = time.time() + 15
-    while not (user.home / "a2").exists() and time.time() < end: time.sleep(0.05)
-    time.sleep(0.5)
-    user.send("click updateNowButton")
-    state = user.state()
-    assert "Another ChaoticFiles window" in state["status"], state["status"]
-    assert not user.send("visible Restart now")["ok"], "it offered a restart with another window open"
-    process.kill(); process.wait(); time.sleep(0.3)
-    # a killed window's lock goes with it
-    user.send("click updateNowButton")
-    assert user.send("visible Restart now")["ok"], "still blocked after the other window closed"
-    user.send("click Cancel"); user.send("quit"); user.finish()
+    while '"command":"pause"' not in answers.read_text() and time.time() < end: time.sleep(0.05)
+    assert user.send("click Restart now")["ok"]
+    user.until(lambda s: s["waiting"], what="the wait for the other window")
+    time.sleep(3)
+    assert process.poll() is None, "a window closed in the middle of a copy"
+    user.until(lambda s: "Waiting for another" in s["status"], 15, "the waiting message")
+    assert user.send("click cancelRestartButton")["ok"]
+    user.until(lambda s: not s["waiting"] and "ready" in s["status"], what="cancelled")
+    time.sleep(1.5)
+    assert process.poll() is None, "the window closed after the restart was cancelled"
+    assert user.state()["version"] == OLD
+    process.kill(); process.wait()
+    user.send("quit"); user.finish()
+
+def other_window_cancelled():
+    """Windows that already closed come back when the restart is cancelled."""
+    user = User("other-window-cancelled"); use(NEW)
+    installed = install_tarball(user, OLD)
+    a = user.home / "first"; c = user.home / "third"; d = user.home / "busy"; (user.home / "to").mkdir()
+    for folder in (a, c, d): folder.mkdir()
+    with open(user.home / "big.bin", "wb") as file: file.truncate(1024 * 1024 * 1024)
+    user.start(installed / "AppRun", a)
+    user.ready(OLD)
+    busy = second_window(user, installed / "AppRun", d)
+    commands = user.home / "c2"; answers = user.home / "a2"
+    with open(commands, "a") as file: file.write(f"copy {user.home / 'big.bin'}|{user.home / 'to'}\npause\n")
+    end = time.time() + 15
+    while '"command":"pause"' not in answers.read_text() and time.time() < end: time.sleep(0.05)
+    env = dict(user.env(), CF_TEST_COMMANDS=str(user.home / "c3"), CF_TEST_ANSWERS=str(user.home / "a3"))
+    (user.home / "c3").touch()
+    idle = subprocess.Popen([str(installed / "AppRun"), str(c)], env=env, cwd=user.home)
+    end = time.time() + 15
+    while not (user.home / "a3").exists() and time.time() < end: time.sleep(0.05)
+    user.until(lambda s: s["available"]); press_update(user)
+    user.until(lambda s: s["ready"], 120, "download")
+    assert user.send("click Restart now")["ok"]
+    idle.wait(timeout=20)                        # the idle window closes, the busy one holds the restart up
+    assert user.send("click cancelRestartButton")["ok"]
+    back = windows_back(user, OLD, 1, 20)
+    assert back == {(str(c),): 0}, back
+    busy.kill(); busy.wait()
+    user.send("quit"); user.finish()
 
 def stage_in_use():
     user = User("stage-in-use"); use(NEW)
@@ -719,6 +794,8 @@ TESTS = {
     "cancel-prompt": cancel_prompt,
     "wait-for-operations": wait_for_operations,
     "other-window": other_window,
+    "other-window-busy": other_window_busy,
+    "other-window-cancelled": other_window_cancelled,
     "stage-in-use": stage_in_use,
     "switch-off": switch_off,
     "offline": offline,

@@ -6,9 +6,15 @@ extern "C" {
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
+#include <cstdio>
 #include <fcntl.h>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <sstream>
 #include <sys/file.h>
+#include <system_error>
 #include <unistd.h>
 #include <vector>
 
@@ -57,6 +63,28 @@ std::string fromHex(const std::string& hex)
 }
 
 int instanceLock = -1;
+
+constexpr char kCloseRequestFile[] = "update-closing";
+constexpr char kWindowsFolder[] = "update-windows";
+
+// all at once, so that nothing ever reads half a file
+void writeWhole(const std::string& path, const std::string& text)
+{
+    const std::string temporary = path + ".part";
+    {
+        std::ofstream file(temporary, std::ios::binary | std::ios::trunc);
+        file << text;
+    }
+    std::rename(temporary.c_str(), path.c_str());
+}
+
+int requesterIn(const std::string& folder)
+{
+    std::ifstream file(folder + "/" + kCloseRequestFile);
+    int pid = 0;
+    file >> pid;
+    return pid;
+}
 
 } // namespace
 
@@ -177,9 +205,57 @@ bool holdInstanceLock(const std::string& path)
 bool otherInstancesRunning()
 {
     if (instanceLock < 0) return false;
-    if (flock(instanceLock, LOCK_EX | LOCK_NB) != 0) return true;   // someone else holds it too
+    // a refused change of lock loses the lock already held, so it is always taken back
+    const bool others = flock(instanceLock, LOCK_EX | LOCK_NB) != 0;
     flock(instanceLock, LOCK_SH | LOCK_NB);
-    return false;
+    return others;
+}
+
+void askWindowsToClose(const std::string& folder, int pid)
+{
+    writeWhole(folder + "/" + kCloseRequestFile, std::to_string(pid));
+}
+
+void stopAskingWindowsToClose(const std::string& folder, int pid)
+{
+    if (requesterIn(folder) == pid) std::remove((folder + "/" + kCloseRequestFile).c_str());
+}
+
+int closeRequester(const std::string& folder)
+{
+    std::error_code error;
+    const auto written = std::filesystem::last_write_time(folder + "/" + kCloseRequestFile, error);
+    if (error) return 0;
+    const auto age = std::filesystem::file_time_type::clock::now() - written;
+    return age < std::chrono::seconds(kCloseRequestLifetimeSeconds) ? requesterIn(folder) : 0;
+}
+
+void rememberWindow(const std::string& folder, int pid, const std::vector<std::string>& arguments)
+{
+    std::error_code error;
+    std::filesystem::create_directories(folder + "/" + kWindowsFolder, error);
+    std::string text;
+    for (const std::string& argument : arguments) text.append(argument).push_back('\0');   // a name can hold a new line
+    writeWhole(folder + "/" + kWindowsFolder + "/" + std::to_string(pid), text);
+}
+
+std::vector<std::vector<std::string>> takeRememberedWindows(const std::string& folder)
+{
+    std::vector<std::vector<std::string>> windows;
+    std::error_code error;
+    for (const auto& item : std::filesystem::directory_iterator(folder + "/" + kWindowsFolder, error)) {
+        std::ifstream file(item.path(), std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        if (std::remove(item.path().c_str()) != 0) continue;              // another window got there first
+        std::vector<std::string> arguments;
+        std::size_t start = 0;
+        for (std::size_t end = text.find('\0'); end != std::string::npos; end = text.find('\0', start)) {
+            arguments.push_back(text.substr(start, end - start));
+            start = end + 1;
+        }
+        if (!arguments.empty()) windows.push_back(std::move(arguments));
+    }
+    return windows;
 }
 
 } // namespace Update

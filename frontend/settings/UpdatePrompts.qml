@@ -15,10 +15,11 @@ Item {
         target: UpdateController
         function onRestartWanted(operationsRunning) {
             const running = operationsRunning > 0
+            const others = UpdateController.otherWindowsOpen() ? " The other ChaoticFiles windows close too, and open again with their tabs." : ""
             prompt.ask({
                 title: "Restart to update?",
-                text: running ? "Files are still being copied or moved. The app can restart when they finish, and your tabs will open again."
-                              : "ChaoticFiles will close and open again with the new version. Your tabs will open again.",
+                text: (running ? "Files are still being copied or moved. The app can restart when they finish, and your tabs will open again."
+                               : "ChaoticFiles will close and open again with the new version. Your tabs will open again.") + others,
                 confirmText: running ? "Restart when finished" : "Restart now",
                 onConfirm: running ? UpdateController.restartWhenFinished : UpdateController.restartNow,
             })

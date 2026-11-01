@@ -1479,6 +1479,53 @@ static void testUpdate(const fs::path& root)
     CHECK(!Update::otherInstancesRunning());
 }
 
+static void testUpdateWindows(const fs::path& root)
+{
+    const std::string folder = (root / "windows").string();
+    fs::create_directories(folder);
+
+    // a refused look at the lock must not lose it: the next window would think it was alone
+    const std::string lock = folder + "/instances.lock";
+    CHECK(Update::holdInstanceLock(lock));
+    CHECK(!Update::otherInstancesRunning());
+    const int other = open(lock.c_str(), O_RDWR);
+    CHECK(flock(other, LOCK_SH | LOCK_NB) == 0);
+    CHECK(Update::otherInstancesRunning());
+    close(other);
+    const int third = open(lock.c_str(), O_RDWR);
+    CHECK(flock(third, LOCK_EX | LOCK_NB) != 0);
+    close(third);
+    CHECK(!Update::otherInstancesRunning());
+
+    // a request needs renewing, so a crashed window can't close others later
+    CHECK(Update::closeRequester(folder) == 0);
+    Update::askWindowsToClose(folder, 111);
+    CHECK(Update::closeRequester(folder) == 111);
+    const fs::path request = fs::path(folder) / "update-closing";
+    fs::last_write_time(request, fs::last_write_time(request) - std::chrono::seconds(Update::kCloseRequestLifetimeSeconds + 1));
+    CHECK(Update::closeRequester(folder) == 0);
+    Update::askWindowsToClose(folder, 111);
+    CHECK(Update::closeRequester(folder) == 111);
+
+    // two windows asked at once: only the one still asking can take it back
+    Update::askWindowsToClose(folder, 222);
+    Update::stopAskingWindowsToClose(folder, 111);
+    CHECK(Update::closeRequester(folder) == 222);
+    Update::stopAskingWindowsToClose(folder, 222);
+    CHECK(Update::closeRequester(folder) == 0);
+
+    // the tabs of each window, once, with a line break in a name
+    CHECK(Update::takeRememberedWindows(folder).empty());
+    Update::rememberWindow(folder, 5, {"/a b", "/line\nbreak", "--tab=1"});
+    Update::rememberWindow(folder, 6, {"/c", "--tab=0"});
+    auto windows = Update::takeRememberedWindows(folder);
+    CHECK(windows.size() == 2);
+    std::sort(windows.begin(), windows.end());
+    CHECK(windows[0] == (std::vector<std::string> {"/a b", "/line\nbreak", "--tab=1"}));
+    CHECK(windows[1] == (std::vector<std::string> {"/c", "--tab=0"}));
+    CHECK(Update::takeRememberedWindows(folder).empty());
+}
+
 static void testAlbumArt(const fs::path& root)
 {
     const auto number = [](std::uint32_t value, int count) {
@@ -1643,6 +1690,7 @@ int main()
     testShortcuts();
     testDrives();
     testNetwork();
+    testUpdateWindows(root);
     testAlbumArt(root);
     testThumbnails(root);
 

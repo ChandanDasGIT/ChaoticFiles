@@ -1,6 +1,7 @@
 #pragma once
 #include <optional>
 #include <string>
+#include <vector>
 
 // The rules of an update, with no network and no Qt: which version is newer, whether a manifest is signed and
 // well formed, and the script that swaps the program. See UpdateController for how they are used.
@@ -43,5 +44,16 @@ inline constexpr char kInstallingFile[] = "installing";             // this fold
 // Every running copy of the app keeps this lock, so an update can tell when another window is open.
 bool holdInstanceLock(const std::string& path);
 bool otherInstancesRunning();
+
+// Closing every window for an update. The window that restarts keeps asking, in a file in `folder`, and the others
+// answer by leaving their tabs there and quitting. A request that nobody renews runs out, so a crash can't close
+// windows later on.
+inline constexpr int kCloseRequestLifetimeSeconds = 10;
+void askWindowsToClose(const std::string& folder, int pid);          // again every second or so, for as long as it waits
+void stopAskingWindowsToClose(const std::string& folder, int pid);   // does nothing if another window took over asking
+int closeRequester(const std::string& folder);                       // the pid that is asking, or 0 if none is
+
+void rememberWindow(const std::string& folder, int pid, const std::vector<std::string>& arguments);
+std::vector<std::vector<std::string>> takeRememberedWindows(const std::string& folder);   // each once, even with two callers
 
 } // namespace Update
