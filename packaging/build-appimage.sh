@@ -5,7 +5,7 @@
 #   SHA256SUMS.txt
 #
 # Usage:  ./packaging/build-appimage.sh 1.0
-# Needs:  Qt 6.10 or newer (qmake6 or qmake on PATH, or QMAKE=/path/to/qmake6), cmake, curl, a C++20 compiler.
+# Needs:  Qt 6.10 or newer (qmake6 or qmake on PATH, or QMAKE=/path/to/qmake6), cmake, curl, rsvg-convert, a C++20 compiler.
 set -euo pipefail
 
 VERSION="${1:?usage: $0 <version>   for example: $0 1.0}"
@@ -186,8 +186,9 @@ EOF
 chmod +x "$APPDIR/AppRun"
 
 # ------------------------------------------------------------------ the AppImage
-# appimagetool stopped making .DirIcon from an SVG (build 333): without it, it refuses to pack.
-ln -sf "$NAME.svg" "$APPDIR/.DirIcon"
+# appimagetool refuses an SVG here: .DirIcon has to be a PNG.
+rm -f "$APPDIR/.DirIcon"
+rsvg-convert -w 256 -h 256 "$ICON" -o "$APPDIR/.DirIcon"
 appimagetool-x86_64.AppImage --no-appstream "$APPDIR" "$DIST/$NAME-$VERSION-$ARCH.AppImage"
 
 # ------------------------------------------------------------------ the tarball
