@@ -20,6 +20,5 @@ std::vector<std::string> chain(const std::string& mimeType);
 std::vector<std::string> related(const std::string& mimeType);
 
 std::string description(const std::string& mimeType);                // "Rust source code", or empty
-std::vector<std::string> iconNames(const std::string& mimeType);     // icon theme names, best first
 
 } // namespace MimeTypes

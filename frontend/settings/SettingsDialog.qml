@@ -94,6 +94,13 @@ DialogFrame {
             }
             SettingsSection {
                 width: parent.width
+                title: "Album art"
+                choices: ["Off", "On"]
+                current: SettingsController.showAlbumArt ? 1 : 0
+                onChosen: (index) => SettingsController.showAlbumArt = index === 1
+            }
+            SettingsSection {
+                width: parent.width
                 title: "Preview panel"
                 choices: ["Off", "On"]
                 current: SettingsController.showPreview ? 1 : 0

@@ -63,6 +63,20 @@ QtObject {
     function itemColor(category, colorKey) {
         return colorKey ? folderColor(colorKey) : categoryColor(category)
     }
+    // a file with a tag: one colour per language, from the same set as the folders
+    function tagColor(tag, category) {
+        switch (tag) {
+        case "CPP": case "CC": case "CXX": case "TS": case "TSX": return folderColor("blue")
+        case "C": case "H": case "HPP": case "HH": case "HXX": case "GO": return folderColor("teal")
+        case "QML": case "SH": case "BASH": case "ZSH": case "FISH": return folderColor("green")
+        case "JS": case "MJS": case "JSX": case "PY": return folderColor("")
+        case "RS": case "HTML": case "HTM": case "JAVA": return folderColor("orange")
+        case "CSS": case "SCSS": case "SASS": case "LESS": case "PHP": return folderColor("purple")
+        case "CMAK": case "MAKE": case "DOCK": return folderColor("red")
+        case "RB": case "SWIF": case "VUE": return folderColor("pink")
+        default: return categoryColor(category)
+        }
+    }
     function categoryColor(category) {
         switch (category) {
         case "folder":       return folderIcon
@@ -121,6 +135,9 @@ QtObject {
     readonly property int sidebarRowHeight: 32
     readonly property int sidebarPadding:   8
     readonly property int sidebarHeaderHeight: 30
+    readonly property int pinInsertEdge:    9       // the top and bottom of a pinned row: a drop here goes between rows
+    readonly property int pinInsertLine:    2
+    readonly property real pinDragOpacity:  0.8
 
     // ---- file list ----
     readonly property int headerHeight:     30
@@ -129,6 +146,12 @@ QtObject {
     function foundWidth(rowWidth) { return Math.min(columnFound, Math.round(rowWidth * 0.55)) }
     readonly property int rowPadding:       12
     readonly property int rowIconWidth:     26
+    readonly property int rowArtSize:       20      // album art in a list row
+    readonly property int fileTagWidth:     23
+    readonly property int fileTagHeight:    13
+    readonly property int fileTagFontSize:  7
+    readonly property int fileTagSmallestFont: 5
+    readonly property int fileTagRadius:    3
     readonly property int rowRadius:        4
     readonly property int rowMargin:        4
     readonly property int columnModified:   150

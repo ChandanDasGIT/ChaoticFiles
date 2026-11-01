@@ -45,6 +45,7 @@ SettingsController::SettingsController(QObject* parent)
     , m_viewMode(m_settings.value("view/mode", 0).toInt())
     , m_gridSize(m_settings.value("view/gridSize", 96).toInt())
     , m_showThumbnails(m_settings.value("view/thumbnails", true).toBool())
+    , m_showAlbumArt(m_settings.value("view/albumArt", true).toBool())
     , m_showPreview(m_settings.value("view/preview", false).toBool())
     , m_startMode(m_settings.value("start/mode", 0).toInt())
     , m_startFolder(m_settings.value("start/folder").toString())
@@ -150,6 +151,14 @@ void SettingsController::setShowThumbnails(bool show)
     if (show == m_showThumbnails) return;
     m_showThumbnails = show;
     m_settings.setValue("view/thumbnails", show);
+    emit viewChanged();
+}
+
+void SettingsController::setShowAlbumArt(bool show)
+{
+    if (show == m_showAlbumArt) return;
+    m_showAlbumArt = show;
+    m_settings.setValue("view/albumArt", show);
     emit viewChanged();
 }
 

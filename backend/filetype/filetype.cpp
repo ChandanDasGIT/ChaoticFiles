@@ -175,6 +175,20 @@ void detectFileType(Entry& entry)
     if (entry.symlink) entry.typeName = "Link to " + entry.typeName;
 }
 
+std::string fileTag(const Entry& entry)
+{
+    constexpr std::size_t kLongest = 4;       // what fits on the small tag in a list row
+    if (entry.kind != EntryKind::File || entry.brokenLink) return {};
+    if (entry.category != FileCategory::Code && entry.category != FileCategory::Text) return {};
+
+    if (entry.name == "Dockerfile" || entry.name == "Containerfile") return "DOCK";
+    if (entry.name == "Makefile") return "MAKE";
+    if (entry.name == "CMakeLists.txt") return "CMAK";
+    std::string tag = extensionOf(entry.name).substr(0, kLongest);
+    std::transform(tag.begin(), tag.end(), tag.begin(), [](unsigned char c) { return std::toupper(c); });
+    return tag;
+}
+
 const char* categoryName(FileCategory category)
 {
     switch (category) {

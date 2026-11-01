@@ -33,8 +33,6 @@ struct Database {
     std::vector<Glob> patterns;                                     // anything else
     std::unordered_map<std::string, std::string> aliases;           // alias, real name
     std::unordered_map<std::string, std::vector<std::string>> parents;
-    std::unordered_map<std::string, std::string> icons;
-    std::unordered_map<std::string, std::string> genericIcons;
     std::vector<std::string> folders;
     std::mutex descriptionLock;
     std::unordered_map<std::string, std::string> descriptions;
@@ -112,8 +110,6 @@ std::shared_ptr<Database> load(const std::vector<std::string>& folders)
         readGlobs(mime + "globs2", *data);
         readPairs(mime + "aliases", ' ', [&](const std::string& alias, const std::string& type) { data->aliases.emplace(alias, type); });
         readPairs(mime + "subclasses", ' ', [&](const std::string& type, const std::string& parent) { data->parents[type].push_back(parent); });
-        readPairs(mime + "icons", ':', [&](const std::string& type, const std::string& icon) { data->icons.emplace(type, icon); });
-        readPairs(mime + "generic-icons", ':', [&](const std::string& type, const std::string& icon) { data->genericIcons.emplace(type, icon); });
     }
     return data;
 }
@@ -268,25 +264,6 @@ std::string description(const std::string& mimeType)
     }
     list->descriptions.emplace(type, text);
     return text;
-}
-
-std::vector<std::string> iconNames(const std::string& mimeType)
-{
-    const auto list = data();
-    std::vector<std::string> names;
-    const auto add = [&names](const std::string& name) {
-        if (!name.empty() && std::find(names.begin(), names.end(), name) == names.end()) names.push_back(name);
-    };
-    const std::vector<std::string> types = chain(mimeType);
-    for (const std::string& type : types) {
-        if (type == "text/plain" && types.front() != type) continue;   // any named type beats the plain text page
-        if (const auto it = list->icons.find(type); it != list->icons.end()) add(it->second);
-        std::string name = type;
-        std::replace(name.begin(), name.end(), '/', '-');
-        add(name);
-        if (const auto it = list->genericIcons.find(type); it != list->genericIcons.end()) add(it->second);
-    }
-    return names;
 }
 
 } // namespace MimeTypes

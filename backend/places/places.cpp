@@ -115,4 +115,24 @@ std::vector<Place> drives()
     return found;
 }
 
+std::vector<std::string> placePins(const std::vector<std::string>& pins, const std::vector<std::string>& moved,
+                                   std::size_t index)
+{
+    const auto isMoved = [&moved](const std::string& path) { return std::find(moved.begin(), moved.end(), path) != moved.end(); };
+
+    std::vector<std::string> placed;
+    std::size_t at = 0;
+    for (std::size_t i = 0; i < pins.size(); ++i) {
+        if (i == index) at = placed.size();
+        if (!isMoved(pins[i])) placed.push_back(pins[i]);
+    }
+    if (index >= pins.size()) at = placed.size();
+
+    std::vector<std::string> fresh;
+    for (const std::string& path : moved)
+        if (std::find(fresh.begin(), fresh.end(), path) == fresh.end()) fresh.push_back(path);
+    placed.insert(placed.begin() + static_cast<std::ptrdiff_t>(at), fresh.begin(), fresh.end());
+    return placed;
+}
+
 } // namespace Places

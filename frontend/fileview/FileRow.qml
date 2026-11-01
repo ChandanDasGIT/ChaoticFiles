@@ -10,7 +10,7 @@ Rectangle {
     required property string sizeText
     required property string modifiedText
     required property string category
-    required property string mimeIcon
+    required property string fileTag
     property bool showingMatches: false    // the type column shows the line found in the file, and fills the row
     required property string path
     required property bool isDirectory
@@ -54,14 +54,47 @@ Rectangle {
         font.family: Icons.fontFamily
         font.pixelSize: Theme.iconSize + 1
         color: root.isBroken ? Theme.danger : Theme.itemColor(root.category, root.colorKey)
-        opacity: root.mimeIcon !== "" ? 0 : root.isHidden ? Theme.hiddenOpacity : 1
+        opacity: root.fileTag !== "" || art.shown ? 0 : root.isHidden ? Theme.hiddenOpacity : 1
     }
-    TypeIcon {
+    Image {
+        id: art
+        readonly property bool shown: status === Image.Ready && paintedWidth > 0
         x: icon.x
         anchors.verticalCenter: parent.verticalCenter
-        name: root.mimeIcon
-        size: Theme.iconSize + 3
+        width: Theme.rowArtSize
+        height: Theme.rowArtSize
+        visible: shown
+        asynchronous: true
+        fillMode: Image.PreserveAspectFit
+        sourceSize.width: 2 * width
+        sourceSize.height: 2 * height
         opacity: root.isHidden ? Theme.hiddenOpacity : 1
+        source: SettingsController.showAlbumArt && root.category === "audio"
+                ? "image://thumb/audio/" + encodeURIComponent(root.path) + "#" + root.modifiedText : ""
+    }
+    Rectangle {
+        visible: root.fileTag !== ""
+        x: icon.x
+        anchors.verticalCenter: parent.verticalCenter
+        width: Theme.fileTagWidth
+        height: Theme.fileTagHeight
+        radius: Theme.fileTagRadius
+        color: Theme.tagColor(root.fileTag, root.category)
+        opacity: root.isHidden ? Theme.hiddenOpacity : 1
+
+        Text {
+            anchors.fill: parent
+            anchors.leftMargin: 1
+            anchors.rightMargin: 1
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            text: root.fileTag
+            fontSizeMode: Text.HorizontalFit
+            minimumPixelSize: Theme.fileTagSmallestFont
+            font.pixelSize: Theme.fileTagFontSize
+            font.bold: true
+            color: Theme.windowBg
+        }
     }
     Text {
         id: linkBadge

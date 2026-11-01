@@ -23,6 +23,7 @@
 #include "permissions/permissions.h"
 #include "places/places.h"
 #include "process/process.h"
+#include "albumart/albumart.h"
 #include "search/filesearch.h"
 #include "properties/properties.h"
 #include "recent/recentfiles.h"
@@ -116,6 +117,12 @@ static void testFileTypes()
     Entry docker = fileEntry("Dockerfile");
     CHECK(docker.category == FileCategory::Code && docker.typeName == "Dockerfile");
 
+    CHECK(fileTag(fileEntry("main.cpp")) == "CPP" && fileTag(fileEntry("a.H")) == "H");
+    CHECK(fileTag(fileEntry("Main.qml")) == "QML" && fileTag(fileEntry("lib.rs")) == "RS");
+    CHECK(fileTag(fileEntry("notes.txt")) == "TXT" && fileTag(fileEntry("x.swift")) == "SWIF");
+    CHECK(fileTag(fileEntry("Photo.png")).empty() && fileTag(fileEntry("something")).empty());
+    CHECK(fileTag(docker) == "DOCK");
+
     Entry dotfile = fileEntry(".bashrc");
     CHECK(dotfile.typeName == "File");
 
@@ -192,6 +199,18 @@ static void testPlaces()
     CHECK(Places::driveFromMountInfo("1 2 8:2 / /boot/efi rw - vfat /dev/sda1 rw").path.empty());
     CHECK(Places::driveFromMountInfo("1 2 8:2 / / rw - btrfs /dev/sda3 rw").path.empty());
     CHECK(!Places::userPlaces().empty());
+
+    using Paths = std::vector<std::string>;
+    const Paths pins {"/a", "/b", "/c", "/d"};
+    CHECK(Places::placePins(pins, {"/x"}, 2) == (Paths {"/a", "/b", "/x", "/c", "/d"}));     // between two rows
+    CHECK(Places::placePins(pins, {"/x"}, 0) == (Paths {"/x", "/a", "/b", "/c", "/d"}));
+    CHECK(Places::placePins(pins, {"/x"}, 99) == (Paths {"/a", "/b", "/c", "/d", "/x"}));
+    CHECK(Places::placePins(pins, {"/a"}, 3) == (Paths {"/b", "/c", "/a", "/d"}));           // down
+    CHECK(Places::placePins(pins, {"/d"}, 1) == (Paths {"/a", "/d", "/b", "/c"}));           // up
+    CHECK(Places::placePins(pins, {"/b"}, 1) == pins);                                       // onto its own place
+    CHECK(Places::placePins(pins, {"/b"}, 2) == pins);
+    CHECK(Places::placePins(pins, {"/c", "/x", "/x"}, 1) == (Paths {"/a", "/c", "/x", "/b", "/d"}));
+    CHECK(Places::placePins({}, {"/x"}, 0) == (Paths {"/x"}));
 }
 
 static void testFolderView()
@@ -1303,12 +1322,6 @@ static void testMimeTypes(const fs::path& root)
     CHECK(MimeTypes::description("text/x-qml") == "Qt Markup & Language file");
     CHECK(MimeTypes::description("text/x-qmlfile") == "Qt Markup & Language file");
     CHECK(MimeTypes::description("text/x-none").empty());
-    CHECK(MimeTypes::iconNames("text/x-qml").front() == "custom-qml");
-    CHECK(MimeTypes::iconNames("text/x-qml")[1] == "text-x-qml");
-    const auto cppIcons = MimeTypes::iconNames("text/x-c++src");
-    CHECK(cppIcons.front() == "text-x-c++src" && cppIcons[1] == "text-x-csrc");
-    CHECK(std::find(cppIcons.begin(), cppIcons.end(), "text-plain") == cppIcons.end());
-    CHECK(MimeTypes::iconNames("application/gzip")[1] == "package-x-generic");
 
     // what a folder shows
     Entry entry = fileEntry("Main.qml");
@@ -1466,6 +1479,88 @@ static void testUpdate(const fs::path& root)
     CHECK(!Update::otherInstancesRunning());
 }
 
+static void testAlbumArt(const fs::path& root)
+{
+    const auto number = [](std::uint32_t value, int count) {
+        std::string out;
+        for (int i = count - 1; i >= 0; --i) out += static_cast<char>((value >> (8 * i)) & 0xff);
+        return out;
+    };
+    const auto syncSafe = [](std::uint32_t value) {
+        std::string out;
+        for (int shift : {21, 14, 7, 0}) out += static_cast<char>((value >> shift) & 0x7f);
+        return out;
+    };
+    const auto file = [&root](const std::string& content) {
+        const auto path = root / "art-sample";
+        std::ofstream(path, std::ios::binary) << content;
+        return path.string();
+    };
+    const auto flacBlock = [&](int kind, bool last, const std::string& body) {
+        return std::string(1, static_cast<char>(kind | (last ? 0x80 : 0))) + number(static_cast<std::uint32_t>(body.size()), 3) + body;
+    };
+    const auto flacPicture = [&](int type, const std::string& image) {
+        return number(static_cast<std::uint32_t>(type), 4) + number(10, 4) + "image/jpeg" + number(2, 4) + "hi"
+             + number(1, 4) + number(1, 4) + number(24, 4) + number(0, 4) + number(static_cast<std::uint32_t>(image.size()), 4) + image;
+    };
+    const auto id3 = [&](int version, const std::string& frames) {
+        const auto size = static_cast<std::uint32_t>(frames.size());
+        return std::string("ID3") + static_cast<char>(version) + std::string(2, '\0') + syncSafe(size) + frames + "\xff\xfb audio";
+    };
+    const auto apic = [&](int version, int type, const std::string& description, const std::string& image, int encoding = 0) {
+        const std::string body = std::string(1, static_cast<char>(encoding)) + std::string("image/jpeg\0", 11)
+                               + static_cast<char>(type) + description + image;
+        const auto size = static_cast<std::uint32_t>(body.size());
+        return "APIC" + (version == 4 ? syncSafe(size) : number(size, 4)) + std::string(2, '\0') + body;
+    };
+    const std::string flac = "fLaC" + flacBlock(0, false, std::string(34, 'x'));
+    const std::string zero(1, '\0');
+
+    // FLAC, past other blocks, and the front cover before anything else
+    auto art = AlbumArt::read(file(flac + flacBlock(6, false, flacPicture(4, "BACK")) + flacBlock(1, false, "pad")
+                                   + flacBlock(6, true, flacPicture(3, "FRONT")) + "audio"));
+    CHECK(art.understood && art.picture == "FRONT");
+    art = AlbumArt::read(file(flac + flacBlock(6, true, flacPicture(4, "BACK"))));
+    CHECK(art.understood && art.picture == "BACK");
+    art = AlbumArt::read(file(flac + flacBlock(1, true, "pad")));
+    CHECK(art.understood && art.picture.empty());
+
+    // ID3 versions, with a description, and UTF-16 whose text has zero bytes in it
+    art = AlbumArt::read(file(id3(3, "TIT2" + number(2, 4) + std::string(2, '\0') + "ab" + apic(3, 3, "cover" + zero, "PICTURE"))));
+    CHECK(art.understood && art.picture == "PICTURE");
+    art = AlbumArt::read(file(id3(4, apic(4, 4, zero, "BACK") + apic(4, 3, zero, "FRONT") + std::string(20, '\0'))));
+    CHECK(art.understood && art.picture == "FRONT");
+    art = AlbumArt::read(file(id3(3, apic(3, 3, std::string("\xff\xfe" "a\0\0\0", 6), std::string("\xff\xd8PIC", 5), 1))));
+    CHECK(art.understood && art.picture == std::string("\xff\xd8PIC", 5));
+    const std::string pic = "PIC" + number(9, 3) + std::string(1, '\0') + "JPG\x03" + zero + "IMG";
+    art = AlbumArt::read(file(id3(2, pic)));
+    CHECK(art.understood && art.picture == "IMG");
+
+    // no picture, known for certain, so no need for ffmpeg
+    CHECK(AlbumArt::read(file(id3(3, "TIT2" + number(2, 4) + std::string(2, '\0') + "ab"))).understood);
+    CHECK(AlbumArt::read(file("\xff\xfb\x90 plain mp3 audio")).understood);
+
+    // what this can't read goes to ffmpeg, and damaged files stop safely wherever they end
+    CHECK(!AlbumArt::read(file("OggS and more bytes after it")).understood);
+    CHECK(!AlbumArt::read("/nope").understood);
+    const std::string flagged = "APIC" + number(20, 4) + zero + std::string(1, '\x01') + std::string(20, 'x');
+    CHECK(!AlbumArt::read(file(id3(3, flagged))).understood);
+    const std::string whole = id3(4, apic(4, 3, "text" + zero, "PICTURE"));
+    const std::string wholeFlac = flac + flacBlock(6, true, flacPicture(3, "PICTURE"));
+    for (const std::string* sample : {&whole, &wholeFlac})
+        for (std::size_t size = 0; size < sample->size(); ++size) {
+            const auto cut = AlbumArt::read(file(sample->substr(0, size)));
+            CHECK(cut.picture.empty() || cut.picture.size() <= 7);
+        }
+
+    fs::create_directories(root / "album");
+    std::ofstream(root / "album" / "song.flac");
+    CHECK(AlbumArt::coverBeside((root / "album" / "song.flac").string()).empty());
+    std::ofstream(root / "album" / "Front.png");
+    std::ofstream(root / "album" / "COVER.JPG");
+    CHECK(AlbumArt::coverBeside((root / "album" / "song.flac").string()) == (root / "album" / "COVER.JPG").string());
+}
+
 static void testThumbnails(const fs::path& root)
 {
     setenv("XDG_CACHE_HOME", (root / "cache").c_str(), 1);
@@ -1474,6 +1569,35 @@ static void testThumbnails(const fs::path& root)
           + Hashing::hashText("MD5", "file:///tmp/a%20b.png") + ".png");
     CHECK(Thumbnails::ensureCacheFolder() && fs::is_directory(root / "cache" / "thumbnails" / "large"));
     CHECK(!Thumbnails::generate("/nope", "other", (root / "x.png").string(), 256, {}));
+    CHECK(Thumbnails::failPath("/tmp/a b.png").find("/thumbnails/fail/chaoticfiles/") != std::string::npos);
+    CHECK(fs::is_directory(root / "cache" / "thumbnails" / "fail" / "chaoticfiles"));
+
+    if (Thumbnails::canMakeAlbumArt()) {
+        const fs::path music = root / "album art";
+        fs::create_directories(music);
+        const auto output = (root / "art.png").string();
+        const auto makePicture = [](const fs::path& file) {
+            return Process::run({"ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=red:s=64x64", "-frames:v", "1",
+                                 file.string()}).exitCode == 0;
+        };
+
+        // nothing inside the song and nothing beside it
+        { std::ofstream song(music / "song.mp3"); song << "not really a song"; }
+        CHECK(!Thumbnails::generate((music / "song.mp3").string(), "audio", output, 256, {}));
+
+        // a cover in the folder, whatever its capitals
+        CHECK(makePicture(music / "Folder.JPG"));
+        fs::remove(output);
+        CHECK(Thumbnails::generate((music / "song.mp3").string(), "audio", output, 256, {}) && fs::file_size(output) > 0);
+
+        // a picture inside the song comes first
+        CHECK(makePicture(root / "inside.png"));
+        CHECK(Process::run({"ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "anullsrc=d=0.1", "-i", (root / "inside.png").string(),
+                            "-map", "0", "-map", "1", "-disposition:v", "attached_pic", (music / "tagged.flac").string()}).exitCode == 0);
+        fs::remove(music / "Folder.JPG");
+        fs::remove(output);
+        CHECK(Thumbnails::generate((music / "tagged.flac").string(), "audio", output, 256, {}) && fs::file_size(output) > 0);
+    }
 }
 
 int main()
@@ -1519,6 +1643,7 @@ int main()
     testShortcuts();
     testDrives();
     testNetwork();
+    testAlbumArt(root);
     testThumbnails(root);
 
     fs::remove_all(root);

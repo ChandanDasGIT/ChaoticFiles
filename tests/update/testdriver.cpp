@@ -12,6 +12,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMimeData>
 #include <QQmlApplicationEngine>
 #include <QQuickItem>
 #include <QQuickItemGrabResult>
@@ -124,6 +125,27 @@ void TestDriver::run(const QByteArray& line)
     } else if (command == "clickrow" && window) {            // the mouse on a file: click <x>,<y> in the window
         const QStringList at = argument.split(QLatin1Char(','));
         QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, QPoint(at[0].toInt(), at[1].toInt()));
+    } else if (command == "drag" && window) {                // the mouse held down: drag <x>,<y>|<x>,<y>
+        const QStringList ends = argument.split(QLatin1Char('|'));
+        const auto point = [](const QString& text) { const QStringList at = text.split(QLatin1Char(',')); return QPoint(at[0].toInt(), at[1].toInt()); };
+        const QPoint from = point(ends[0]), to = point(ends[1]);
+        QTest::mousePress(window, Qt::LeftButton, Qt::NoModifier, from);
+        constexpr int kSteps = 12;
+        for (int step = 1; step <= kSteps; ++step) QTest::mouseMove(window, from + (to - from) * step / kSteps, 10);
+        if (ends.size() > 2) window->grabWindow().save(ends[2]);     // drag ...|<picture of the drag before letting go>
+        QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier, to);
+    } else if (command == "dropurl" && window) {             // a drop from another app: dropurl <x>,<y>|<path>
+        const QStringList parts = argument.split(QLatin1Char('|'));
+        const QStringList at = parts[0].split(QLatin1Char(','));
+        const QPointF point(at[0].toInt(), at[1].toInt());
+        QMimeData mime;
+        mime.setUrls({QUrl::fromLocalFile(parts[1])});
+        QDragEnterEvent enter(point.toPoint(), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(window, &enter);
+        QDragMoveEvent move(point.toPoint(), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(window, &move);
+        QDropEvent drop(point, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(window, &drop);
     } else if (command == "searchinside") {
         TabsController::instance()->currentSession()->search(argument, true);
     } else if (command == "diskusage") {

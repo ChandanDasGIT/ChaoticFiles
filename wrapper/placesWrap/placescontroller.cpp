@@ -121,16 +121,35 @@ bool PlacesController::isBookmarked(const QString& path) const
     return m_settings.value("places/bookmarks").toStringList().contains(path);
 }
 
-void PlacesController::pinUrls(const QList<QUrl>& urls)
+void PlacesController::pinUrls(const QList<QUrl>& urls, int index)
 {
-    bool pinned = false;
+    QStringList folders;
     for (const QUrl& url : urls) {
         const QString path = url.adjusted(QUrl::StripTrailingSlash).toLocalFile();
-        if (!isFolder(path)) continue;
-        addBookmark(path);
-        pinned = true;
+        if (isFolder(path)) folders << path;
     }
-    if (!pinned) emit message(QStringLiteral("Only folders can be pinned."));
+    if (folders.isEmpty()) emit message(QStringLiteral("Only folders can be pinned."));
+    else placeBookmarks(folders, index);
+}
+
+void PlacesController::moveBookmark(const QString& path, int index)
+{
+    if (isBookmarked(path)) placeBookmarks({path}, index);
+}
+
+void PlacesController::placeBookmarks(const QStringList& paths, int index)
+{
+    const QStringList saved = m_settings.value("places/bookmarks").toStringList();
+    std::vector<std::string> pins, moved;
+    for (const QString& path : saved) pins.push_back(path.toStdString());
+    for (const QString& path : paths) moved.push_back(path.toStdString());
+
+    QStringList placed;
+    const std::size_t at = index < 0 ? pins.size() : static_cast<std::size_t>(index);
+    for (const std::string& path : Places::placePins(pins, moved, at)) placed << QString::fromStdString(path);
+    if (placed == saved) return;
+    m_settings.setValue("places/bookmarks", placed);
+    emit bookmarksChanged();
 }
 
 bool PlacesController::hasFolder(const QStringList& paths) const

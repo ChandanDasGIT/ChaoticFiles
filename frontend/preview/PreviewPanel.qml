@@ -10,6 +10,7 @@ Rectangle {
     readonly property string path: session ? session.currentPath : ""
     readonly property string category: item.category ?? ""
     readonly property bool hasPicture: category === "image" || category === "video" || category === "pdf"
+                                       || (category === "audio" && SettingsController.showAlbumArt)
 
     function update() {
         if (visible && path !== "" && !hasPicture && category !== "folder") PreviewController.showText(path)

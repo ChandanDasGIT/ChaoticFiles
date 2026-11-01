@@ -20,6 +20,7 @@ class SettingsController : public QObject {
     Q_PROPERTY(int viewMode READ viewMode WRITE setViewMode NOTIFY viewChanged)               // 0 details, 1 grid
     Q_PROPERTY(int gridSize READ gridSize NOTIFY viewChanged)
     Q_PROPERTY(bool showThumbnails READ showThumbnails WRITE setShowThumbnails NOTIFY viewChanged)
+    Q_PROPERTY(bool showAlbumArt READ showAlbumArt WRITE setShowAlbumArt NOTIFY viewChanged)
     Q_PROPERTY(bool showPreview READ showPreview WRITE setShowPreview NOTIFY viewChanged)
     Q_PROPERTY(int windowButtons READ windowButtons WRITE setWindowButtons NOTIFY windowButtonsChanged)   // 0 automatic, 1 show, 2 hide
     Q_PROPERTY(bool windowButtonsVisible READ windowButtonsVisible NOTIFY windowButtonsChanged)
@@ -42,6 +43,8 @@ public:
     Q_INVOKABLE void zoomGrid(int steps);
     bool showThumbnails() const { return m_showThumbnails; }
     void setShowThumbnails(bool show);
+    bool showAlbumArt() const { return m_showAlbumArt; }
+    void setShowAlbumArt(bool show);
     bool showPreview() const { return m_showPreview; }
     void setShowPreview(bool show);
     int windowButtons() const { return m_windowButtons; }
@@ -77,6 +80,7 @@ private:
     int m_viewMode = 0;
     int m_gridSize = 96;
     bool m_showThumbnails = true;
+    bool m_showAlbumArt = true;
     bool m_showPreview = false;
     int m_startMode = 0;
     QString m_startFolder;

@@ -10,7 +10,7 @@ Item {
     required property string sizeText
     required property string modifiedText
     required property string category
-    required property string mimeIcon
+    required property string fileTag
     required property string path
     required property bool isDirectory
     required property bool isLink
@@ -33,7 +33,8 @@ Item {
     signal dragRequested()
 
     readonly property int imageSize: SettingsController.gridSize
-    readonly property string thumbnailKind: category === "image" || category === "video" || category === "pdf" ? category : ""
+    readonly property string thumbnailKind: category === "audio" ? (SettingsController.showAlbumArt ? category : "")
+        : SettingsController.showThumbnails && (category === "image" || category === "video" || category === "pdf") ? category : ""
 
     width: GridView.view.cellWidth
     height: GridView.view.cellHeight
@@ -51,20 +52,29 @@ Item {
     Text {
         anchors.horizontalCenter: picture.horizontalCenter
         anchors.verticalCenter: picture.verticalCenter
-        visible: root.mimeIcon === "" && (thumbnail.status !== Image.Ready || thumbnail.paintedWidth === 0)
-        text: root.isBroken ? Icons.warning : Icons.forItem(root.category, root.iconKey)
+        visible: thumbnail.status !== Image.Ready || thumbnail.paintedWidth === 0
+        text: root.isBroken ? Icons.warning : root.fileTag !== "" ? Icons.file : Icons.forItem(root.category, root.iconKey)
         font.family: Icons.fontFamily
         font.pixelSize: root.imageSize * 0.6
-        color: root.isBroken ? Theme.danger : Theme.itemColor(root.category, root.colorKey)
+        color: root.isBroken ? Theme.danger
+             : root.fileTag !== "" ? Theme.tagColor(root.fileTag, root.category)
+             : Theme.itemColor(root.category, root.colorKey)
         opacity: root.isHidden ? Theme.hiddenOpacity : 1
-    }
-    TypeIcon {
-        anchors.horizontalCenter: picture.horizontalCenter
-        anchors.verticalCenter: picture.verticalCenter
-        visible: name !== "" && (thumbnail.status !== Image.Ready || thumbnail.paintedWidth === 0)
-        name: root.mimeIcon
-        size: root.imageSize * 0.75
-        opacity: root.isHidden ? Theme.hiddenOpacity : 1
+
+        Text {
+            visible: root.fileTag !== ""
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenterOffset: parent.font.pixelSize * 0.12
+            width: parent.implicitWidth * 0.8
+            horizontalAlignment: Text.AlignHCenter
+            text: root.fileTag
+            fontSizeMode: Text.HorizontalFit
+            minimumPixelSize: Theme.fileTagSmallestFont
+            font.pixelSize: root.imageSize * 0.16
+            font.bold: true
+            color: Theme.windowBg
+        }
     }
 
     Item {
@@ -79,12 +89,12 @@ Item {
             id: thumbnail
             anchors.fill: parent
             asynchronous: true
-            cache: false
+            cache: root.category === "audio"    // album art stays in memory, so scrolling back doesn't load it again
             fillMode: Image.PreserveAspectFit
             sourceSize.width: root.imageSize
             sourceSize.height: root.imageSize
             // the date is in the address so a changed file gets a new thumbnail
-            source: SettingsController.showThumbnails && root.thumbnailKind !== ""
+            source: root.thumbnailKind !== ""
                     ? "image://thumb/" + root.thumbnailKind + "/" + encodeURIComponent(root.path) + "#" + root.modifiedText : ""
         }
     }

@@ -5,4 +5,8 @@ import QtQuick
 QtObject {
     property bool active: false
     property bool hasFolders: false
+
+    // a pinned folder being moved inside the sidebar
+    readonly property string pinKey: "chaoticfiles-pin"
+    property string pinPath: ""
 }

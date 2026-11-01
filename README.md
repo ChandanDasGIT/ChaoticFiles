@@ -53,11 +53,22 @@ Needs CMake, Ninja, a C and C++20 compiler, and Qt 6.10 or newer (Quick and DBus
 
 Folders named on the command line open in tabs: `build/appChaoticFiles ~/Music ~/Downloads`
 
-## Optional programs
+## Other programs
 
-The app works without these, and says what is missing when one is needed:
-libmagic (detailed file types), shared-mime-info (exact file types by name), an icon theme (a file's type icon), ffprobe (audio and video details), ffmpegthumbnailer or ffmpeg (video thumbnails),
-pdfinfo and pdftoppm (PDF), tar, zip, unzip and 7z (archives), udisksctl and lsblk (drives), gio with gvfs (NAS).
+The app runs without these, and says what is missing when one is needed. Install the ones for what you use.
+`ffmpeg` is worth having on any system: it is behind several features, and most distributions ship `ffprobe` with it.
+
+| Program | What it is for |
+| --- | --- |
+| `ffmpeg` | Video thumbnails, and album art in formats other than FLAC and MP3 |
+| `ffprobe` | Audio and video details |
+| `ffmpegthumbnailer` | Quicker video thumbnails, used before `ffmpeg` |
+| `pdfinfo`, `pdftoppm` (poppler) | PDF details and thumbnails |
+| `tar`, `zip`, `unzip`, `7z` | Making and opening archives |
+| `udisksctl`, `lsblk` | Listing and mounting drives |
+| `gio` with gvfs | Network folders (NAS) |
+| libmagic | Detailed file types |
+| shared-mime-info | Exact file types by name |
 
 ## Test
 

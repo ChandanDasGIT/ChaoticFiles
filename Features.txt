@@ -28,6 +28,7 @@ Address bar
 Views and search
 - Details and grid views. Ctrl+1, Ctrl+2. Ctrl+wheel changes the grid size.
 - Thumbnails for images, video and PDF, in the cache other Linux apps share.
+- Album art for music in the list, the grid and the preview panel: the picture inside the file, or a cover image in its folder. FLAC and MP3 are read directly, so it is quick, and other formats go through ffmpeg. Turn it off in Settings.
 - Rubber band selection: drag from an empty part of the list or grid.
 - Dragging shows what is being dragged, as a stack with a count when it is several items.
 - Folders can have their own icon and colour: Change Icon in the right click menu. It follows the folder when it is renamed or moved.
@@ -39,7 +40,7 @@ Views and search
 
 Sidebar and status bar
 - Home, Recent, the standard user folders, the file system, the Trash.
-- Pinned Folders: drop a folder on the heading, or use Pin to Sidebar in its right click menu. It stays where it is on the disk.
+- Pinned Folders: drop a folder on the heading or between two pinned folders, or use Pin to Sidebar in its right click menu. It stays where it is on the disk. Drag a pinned folder to put it in a new order.
 - Drives update by themselves. Click one that is not mounted to mount it; right click to unmount.
 - NAS and servers: Connect to Server in the gear menu, for SMB and SFTP. Passwords are not stored.
 - Recent shows files opened here and in other Linux apps.
@@ -89,7 +90,7 @@ Starting up
 
 File types
 - Types come from the system's own list, by name first and by content when the name can't tell, so a QML file is a QML file and not plain text.
-- Icons come from your icon theme when it has one for that type, so QML, C++, Rust and others each look like themselves. Otherwise the app draws its own.
+- Source and text files show a small coloured tag with their type, so CPP, H, QML, JS, RS and others each look different and match the app.
 - Open With and Default Apps go by the same types, and a type with no default of its own uses what it is a kind of.
 
 Updates

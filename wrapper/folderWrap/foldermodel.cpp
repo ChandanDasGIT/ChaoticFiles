@@ -1,5 +1,4 @@
 #include "foldermodel.h"
-#include "wrapper/appsWrap/fileicons.h"
 
 #include "filetype/filetype.h"
 #include "foldericons/foldericons.h"
@@ -39,7 +38,7 @@ QVariant FolderModel::data(const QModelIndex& index, int role) const
     case IsCutRole: return m_view->isCut(row);
     case IconKeyRole: return QString::fromStdString(FolderIcons::iconOf(entry.customIcon));
     case ColorKeyRole: return QString::fromStdString(FolderIcons::colorOf(entry.customIcon));
-    case MimeIconRole: return FileIcons::themeIconFor(entry);
+    case FileTagRole: return QString::fromStdString(fileTag(entry));
     default: return {};
     }
 }
@@ -51,7 +50,7 @@ QHash<int, QByteArray> FolderModel::roleNames() const
         {ModifiedRole, "modifiedText"}, {CategoryRole, "category"}, {IsDirectoryRole, "isDirectory"},
         {IsLinkRole, "isLink"}, {IsHiddenRole, "isHidden"}, {IsBrokenRole, "isBroken"},
         {IsSelectedRole, "isSelected"}, {IsCurrentRole, "isCurrent"}, {IsCutRole, "isCut"},
-        {IconKeyRole, "iconKey"}, {ColorKeyRole, "colorKey"}, {MimeIconRole, "mimeIcon"},
+        {IconKeyRole, "iconKey"}, {ColorKeyRole, "colorKey"}, {FileTagRole, "fileTag"},
     };
 }
 

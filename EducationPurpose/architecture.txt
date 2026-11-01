@@ -9,6 +9,9 @@ ChaoticFiles/
 │   └── workflows/                          // automatic jobs
 │       └── release.yml                     // a v* tag builds on Ubuntu 22.04 and publishes the release
 ├── backend/                                // pure C++20 engine, no Qt: built as its own static library, fileengine
+│   ├── albumart/                           // a song's picture
+│   │   ├── albumart.cpp                    // reads FLAC blocks and ID3v2 frames itself; finds cover.jpg and the like
+│   │   └── albumart.h                      // namespace AlbumArt: the stored image, or that ffmpeg should try
 │   ├── apps/                               // installed apps
 │   │   ├── desktopapps.cpp                 // parses Exec lines without a shell, starts apps
 │   │   ├── desktopapps.h                   // reads .desktop files; apps for a file type, default apps, the terminal
@@ -189,7 +192,6 @@ ChaoticFiles/
 │   │   ├── FileItemArea.qml                // mouse, drag and drop, shared by rows and cells
 │   │   ├── FileRow.qml                     // one row in the list
 │   │   ├── FileView.qml                    // the list and grid of one tab, and its keyboard
-│   │   ├── TypeIcon.qml                    // a file type's icon from the icon theme
 │   │   └── ViewBackground.qml              // empty space: rubber band selection and drops
 │   ├── foldericon/                         // choosing a folder's icon
 │   │   └── FolderIconDialog.qml            // the icons, the colours, and Reset
@@ -258,9 +260,7 @@ ChaoticFiles/
 │   │   ├── appiconprovider.cpp             // finds an icon in the system icon theme
 │   │   ├── appiconprovider.h               // app icons as image://appicon/ (AppIconProvider)
 │   │   ├── appscontroller.cpp              // its implementation
-│   │   ├── appscontroller.h                // apps for a file, default apps, and the terminal (AppsController)
-│   │   ├── fileicons.cpp                   // picks the first of a type's icons the theme has
-│   │   └── fileicons.h                     // a file's icon from the theme, or empty
+│   │   └── appscontroller.h                // apps for a file, default apps, and the terminal (AppsController)
 │   ├── clipboardWrap/                      // cut, copy, paste
 │   │   ├── clipboardcontroller.cpp         // its implementation
 │   │   └── clipboardcontroller.h           // in the format other file managers use (ClipboardController)

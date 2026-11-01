@@ -36,7 +36,8 @@ public:
     Q_INVOKABLE void addBookmark(const QString& path);
     Q_INVOKABLE void removeBookmark(const QString& path);
     Q_INVOKABLE bool isBookmarked(const QString& path) const;
-    Q_INVOKABLE void pinUrls(const QList<QUrl>& urls);                   // folders dropped on the sidebar
+    Q_INVOKABLE void pinUrls(const QList<QUrl>& urls, int index = -1);   // folders dropped on the sidebar; -1 is the end
+    Q_INVOKABLE void moveBookmark(const QString& path, int index);       // index: where it goes in the list as it is now
     Q_INVOKABLE bool hasFolder(const QStringList& paths) const;
     Q_INVOKABLE void refreshBookmarks() { emit bookmarksChanged(); }     // one of them got a new icon
 
@@ -50,6 +51,7 @@ signals:
 
 private:
     void updateDrives();
+    void placeBookmarks(const QStringList& paths, int index);
 
     QVariantList m_places;
     QVariantList m_drives;

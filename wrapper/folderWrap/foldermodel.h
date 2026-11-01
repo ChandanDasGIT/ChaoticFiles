@@ -14,7 +14,7 @@ public:
     enum Role {
         NameRole = Qt::UserRole + 1, PathRole, TypeRole, SizeRole, ModifiedRole, CategoryRole,
         IsDirectoryRole, IsLinkRole, IsHiddenRole, IsBrokenRole, IsSelectedRole, IsCurrentRole, IsCutRole,
-        IconKeyRole, ColorKeyRole, MimeIconRole
+        IconKeyRole, ColorKeyRole, FileTagRole
     };
 
     explicit FolderModel(const FolderView* view, QObject* parent = nullptr);

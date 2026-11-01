@@ -1,11 +1,14 @@
 #include "thumbnailprovider.h"
 
+#include "albumart/albumart.h"
 #include "pathbar/pathbar.h"
 #include "thumbnails/thumbnails.h"
 
+#include <QBuffer>
 #include <QFile>
 #include <QImage>
 #include <QImageReader>
+#include <QPainter>
 #include <QQuickTextureFactory>
 #include <QRunnable>
 #include <QTemporaryDir>
@@ -18,17 +21,64 @@ namespace {
 constexpr int kCacheSize = 256;           // the "large" size of the shared cache
 constexpr int kMaxThreads = 4;
 constexpr qint64 kMaxImageBytes = 200 * 1024 * 1024;
+constexpr qreal kArtCorner = 0.1;         // album art's round corners, as a part of its shorter side
+
+QImage withRoundCorners(const QImage& image)
+{
+    QImage rounded(image.size(), QImage::Format_ARGB32_Premultiplied);
+    rounded.fill(Qt::transparent);
+    const qreal radius = qMin(image.width(), image.height()) * kArtCorner;
+    QPainter painter(&rounded);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(image);
+    painter.drawRoundedRect(image.rect(), radius, radius);
+    return rounded;
+}
+
+// asks for the small size while decoding, which for a JPEG is many times quicker than shrinking it afterwards
+QImage readScaled(QImageReader& reader)
+{
+    reader.setAutoTransform(true);
+    const QSize size = reader.size();
+    if (size.isValid() && qMax(size.width(), size.height()) > kCacheSize)
+        reader.setScaledSize(size.scaled(kCacheSize, kCacheSize, Qt::KeepAspectRatio));
+    return reader.read();
+}
+
+QImage albumArt(const QString& path, bool* tryProgram)
+{
+    const AlbumArt::Found found = AlbumArt::read(path.toStdString());
+    *tryProgram = !found.understood;
+    if (!found.picture.empty()) {
+        QByteArray bytes = QByteArray::fromRawData(found.picture.data(), static_cast<qsizetype>(found.picture.size()));
+        QBuffer buffer(&bytes);
+        buffer.open(QIODevice::ReadOnly);
+        QImageReader reader(&buffer);
+        QImage image = readScaled(reader);
+        if (!image.isNull()) return image;
+        *tryProgram = true;                       // stored in a way Qt can't read
+        return {};
+    }
+    if (*tryProgram) return {};
+
+    const std::string cover = AlbumArt::coverBeside(path.toStdString());
+    if (cover.empty()) return {};
+    QImageReader reader(QString::fromStdString(cover));
+    return readScaled(reader);
+}
 
 QImage makeThumbnail(const QString& kind, const QString& path, const std::atomic<bool>& cancelled)
 {
     if (kind == QLatin1String("image")) {
         if (QFile(path).size() > kMaxImageBytes) return {};
         QImageReader reader(path);
-        reader.setAutoTransform(true);
-        const QSize size = reader.size();
-        if (size.isValid() && qMax(size.width(), size.height()) > kCacheSize)
-            reader.setScaledSize(size.scaled(kCacheSize, kCacheSize, Qt::KeepAspectRatio));
-        return reader.read();
+        return readScaled(reader);
+    }
+    if (kind == QLatin1String("audio")) {
+        bool tryProgram = false;
+        const QImage image = albumArt(path, &tryProgram);
+        if (!tryProgram) return image;
     }
 
     QTemporaryDir folder;
@@ -57,6 +107,7 @@ public:
         if (!m_cancelled) m_image = load();
         if (m_requested.isValid() && !m_image.isNull())
             m_image = m_image.scaled(m_requested, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        if (m_kind == QLatin1String("audio") && !m_image.isNull()) m_image = withRoundCorners(m_image);
         emit finished();
     }
 
@@ -72,8 +123,21 @@ private:
         QImage cached(cachePath);
         if (!cached.isNull() && cached.text(QStringLiteral("Thumb::MTime")) == mtime) return cached;
 
+        // most folders of music have songs without art: one try each, or scrolling would keep starting ffmpeg
+        const bool isAudio = m_kind == QLatin1String("audio");
+        const QString failPath = QString::fromStdString(Thumbnails::failPath(path));
+        if (isAudio && QImage(failPath).text(QStringLiteral("Thumb::MTime")) == mtime) return {};
+
         QImage image = makeThumbnail(m_kind, m_path, m_cancelled);
-        if (image.isNull()) return image;
+        if (image.isNull()) {
+            if (isAudio && !m_cancelled && Thumbnails::canMakeAlbumArt() && Thumbnails::ensureCacheFolder()) {
+                QImage note(1, 1, QImage::Format_ARGB32);
+                note.fill(Qt::transparent);
+                note.setText(QStringLiteral("Thumb::MTime"), mtime);
+                note.save(failPath, "PNG");
+            }
+            return image;
+        }
 
         image.setText(QStringLiteral("Thumb::URI"), QString::fromStdString(PathBar::fileUrl(path)));
         image.setText(QStringLiteral("Thumb::MTime"), mtime);

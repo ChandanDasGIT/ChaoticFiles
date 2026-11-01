@@ -45,8 +45,14 @@ Rectangle {
                 model: PlacesController.bookmarks
                 delegate: SidebarItem {
                     required property var modelData
+                    required property int index
                     width: column.width
+                    pinned: true
+                    path: modelData.path
                     name: modelData.name
+                    // later: changing the list here would remove this row while it is still handling the drop
+                    onPinDropped: (urls, after) => Qt.callLater(PlacesController.pinUrls, urls, index + (after ? 1 : 0))
+                    onPinMoved: (path, after) => Qt.callLater(PlacesController.moveBookmark, path, index + (after ? 1 : 0))
                     icon: modelData.iconKey ? Icons.forFolder(modelData.iconKey) : Icons.forPlace(modelData.kind)
                     iconColor: modelData.iconKey || modelData.colorKey ? Theme.folderColor(modelData.colorKey) : Theme.textMuted
                     active: root.session?.path === modelData.path
