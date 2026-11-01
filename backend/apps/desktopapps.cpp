@@ -19,7 +19,6 @@
 namespace {
 
 constexpr int kQueryThreads = 8;       // asking for a default runs a script, about 60 ms each
-std::atomic<bool> defaultsLocal {false};
 
 std::vector<std::string> applicationFolders()
 {
@@ -152,20 +151,21 @@ std::vector<DesktopApp> all()
 
 void keepDefaultsLocal(bool local)
 {
-    defaultsLocal = local;
+    LocalDefaults::setInUse(local);
 }
 
 bool defaultsAreLocal()
 {
-    return defaultsLocal;
+    return LocalDefaults::inUse();
 }
 
 std::string defaultFor(const std::string& mime)
 {
+    const bool local = defaultsAreLocal();
     // a type with no default of its own goes by what it is a kind of: QML is a kind of plain text
     for (const std::string& type : MimeTypes::chain(mime)) {
         // a type this app's list doesn't name, or names only apps since removed, follows the system
-        if (defaultsLocal)
+        if (local)
             for (const std::string& id : LocalDefaults::appsFor(type))
                 if (isInstalled(id)) return id;
         const std::string id = firstLine(Process::run({"xdg-mime", "query", "default", type}).output);
@@ -191,7 +191,7 @@ std::vector<std::string> defaultsFor(const std::vector<std::string>& mimes)
 bool setDefault(const std::string& appId, const std::vector<std::string>& mimes)
 {
     if (mimes.empty()) return false;
-    if (defaultsLocal) return LocalDefaults::set(appId, mimes);
+    if (defaultsAreLocal()) return LocalDefaults::set(appId, mimes);
     std::vector<std::string> command {"xdg-mime", "default", appId};
     command.insert(command.end(), mimes.begin(), mimes.end());
     return Process::run(command).exitCode == 0;

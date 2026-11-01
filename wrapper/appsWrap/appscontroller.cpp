@@ -3,6 +3,7 @@
 #include "apps/desktopapps.h"
 #include "apps/filetypegroups.h"
 #include "magic/magicfile.h"
+#include "mimetypes/mimetypes.h"
 #include "search/filesearch.h"
 
 #include <QMetaObject>
@@ -153,8 +154,11 @@ void AppsController::setDefault(const QString& appId, const QStringList& mimeTyp
         const std::vector<DesktopApp> apps = DesktopApps::all();
         const auto app = std::find_if(apps.begin(), apps.end(), [&appId](const DesktopApp& item) { return item.id == appId.toStdString(); });
         if (app == apps.end()) return;
-        std::erase_if(types, [&app](const std::string& type) {
-            return std::find(app->mimeTypes.begin(), app->mimeTypes.end(), type) == app->mimeTypes.end();
+        std::erase_if(types, [&app](const std::string& type) {             // an app may list a type under any of its names
+            const std::vector<std::string> names = MimeTypes::names(type);
+            return std::none_of(names.begin(), names.end(), [&app](const std::string& name) {
+                return std::find(app->mimeTypes.begin(), app->mimeTypes.end(), name) != app->mimeTypes.end();
+            });
         });
     }
     if (!DesktopApps::setDefault(appId.toStdString(), types)) emit message(QStringLiteral("The default app was not changed."));

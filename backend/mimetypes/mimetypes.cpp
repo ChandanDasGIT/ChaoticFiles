@@ -240,6 +240,17 @@ std::vector<std::string> related(const std::string& mimeType)
     return types;
 }
 
+std::vector<std::string> names(const std::string& mimeType)
+{
+    const auto list = data();
+    const std::string real = canonical(*list, mimeType);
+    std::vector<std::string> types {real};
+    if (mimeType != real) types.push_back(mimeType);
+    for (const auto& [alias, type] : list->aliases)
+        if (type == real && alias != mimeType) types.push_back(alias);
+    return types;
+}
+
 std::string description(const std::string& mimeType)
 {
     const auto list = data();

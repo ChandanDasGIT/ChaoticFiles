@@ -52,6 +52,7 @@ public:
     bool windowButtonsVisible() const;
     bool localDefaults() const;
     void setLocalDefaults(bool local);
+    Q_INVOKABLE void refreshLocalDefaults() { emit localDefaultsChanged(); }   // another window may have changed it
     int startMode() const { return m_startMode; }
     void setStartMode(int mode);
     QString startFolder() const { return m_startFolder; }

@@ -49,7 +49,7 @@ DialogFrame {
         searchable: root.showingAll
         defaultApp: root.currentApp
         onChosen: (appId) => {
-            AppsController.setDefault(appId, root.mimeTypes, root.wholeCategory)
+            AppsController.setDefault(appId, root.mimeTypes, root.wholeCategory && !root.showingAll)
             root.close()
         }
     }
@@ -60,7 +60,7 @@ DialogFrame {
         spacing: 8
         DialogButton {
             text: "Show All Apps"
-            visible: !root.wholeCategory && !root.showingAll
+            visible: !root.showingAll
             onClicked: root.showAll()
         }
         DialogButton { text: "Cancel"; onClicked: root.close() }

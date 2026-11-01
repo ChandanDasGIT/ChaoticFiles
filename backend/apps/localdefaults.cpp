@@ -1,5 +1,6 @@
 #include "apps/localdefaults.h"
 
+#include "mimetypes/mimetypes.h"
 #include "pathbar/pathbar.h"
 
 #include <algorithm>
@@ -33,6 +34,8 @@ std::vector<std::string> readLines(const std::string& path)
 
 bool isSectionStart(const std::string& line) { return !line.empty() && line.front() == '['; }
 
+std::string modeMarker() { return configFolder() + "/ChaoticFiles/use-local-defaults"; }
+
 } // namespace
 
 namespace LocalDefaults {
@@ -40,6 +43,24 @@ namespace LocalDefaults {
 std::string filePath()
 {
     return configFolder() + "/ChaoticFiles/mimeapps.list";
+}
+
+bool inUse()
+{
+    std::error_code error;
+    return std::filesystem::exists(modeMarker(), error);
+}
+
+void setInUse(bool local)
+{
+    const std::string path = modeMarker();
+    std::error_code error;
+    if (!local) {
+        std::filesystem::remove(path, error);
+        return;
+    }
+    std::filesystem::create_directories(std::filesystem::path(path).parent_path(), error);
+    std::ofstream marker(path);
 }
 
 bool seed()
@@ -58,17 +79,18 @@ bool seed()
 
 std::vector<std::string> appsFor(const std::string& mime)
 {
+    const std::vector<std::string> names = MimeTypes::names(mime);
     std::vector<std::string> apps;
     bool inSection = false;
-    const std::string prefix = mime + "=";
     for (const std::string& line : readLines(filePath())) {
         if (isSectionStart(line)) inSection = line == kSection;
-        else if (inSection && line.rfind(prefix, 0) == 0) {
-            std::istringstream ids(line.substr(prefix.size()));
+        else if (inSection) {
+            const auto equals = line.find('=');
+            if (equals == std::string::npos || std::find(names.begin(), names.end(), line.substr(0, equals)) == names.end()) continue;
+            std::istringstream ids(line.substr(equals + 1));
             std::string id;
             while (std::getline(ids, id, ';'))
                 if (!id.empty()) apps.push_back(id);
-            break;
         }
     }
     return apps;

@@ -31,7 +31,8 @@ public:
     Q_INVOKABLE bool openTerminal(const QString& folder) const;
 
     Q_INVOKABLE void loadFileTypes();                                // asks in the background
-    // onlySupported leaves out the types the app does not say it opens, for setting a whole category
+    // onlySupported leaves out the types the app does not say it opens: a category set from its suggested apps.
+    // An app picked from all apps gets every type asked for.
     Q_INVOKABLE void setDefault(const QString& appId, const QStringList& mimeTypes, bool onlySupported);
 
 signals:

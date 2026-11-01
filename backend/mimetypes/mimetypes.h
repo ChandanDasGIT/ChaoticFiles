@@ -18,6 +18,8 @@ bool isExactName(const std::string& fileName);        // the list knows this who
 std::vector<std::string> chain(const std::string& mimeType);
 // The same, with the other names each one goes by. Apps may list a type under any of them.
 std::vector<std::string> related(const std::string& mimeType);
+// Every name this one type goes by: video/vnd.avi, video/x-msvideo, video/avi. What it is a kind of is not included.
+std::vector<std::string> names(const std::string& mimeType);
 
 std::string description(const std::string& mimeType);                // "Rust source code", or empty
 

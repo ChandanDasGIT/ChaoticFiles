@@ -82,8 +82,8 @@ Interface
 - Draws its own title bar. Window buttons are off by default on tiling desktops, and can be switched on.
 - Right click menus on files, empty space and sidebar items. Copy Path.
 - Settings window (Ctrl+,). Keyboard shortcuts open in their own panel, editable, with Restore Defaults.
-- Default Apps in the settings: choose the app for each file type, by category, or for a whole category at once.
-- Default app changes can be system-wide, or for this app only. This app keeps its own list, which starts as a copy of the system's. The system's file is never changed in that mode.
+- Default Apps in the settings: choose the app for each file type, by category, or for a whole category at once. Show All Apps works for both.
+- Default app changes can be system-wide, or for this app only. This app keeps its own list, which starts as a copy of the system's. The system's file is never changed in that mode, and every open window follows the same choice.
 
 Starting up
 - Settings > Opens to: Home, Last Tabs, or a folder you choose. A folder that is gone opens Home, and folders named on the command line go first.

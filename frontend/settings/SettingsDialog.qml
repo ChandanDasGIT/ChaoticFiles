@@ -8,6 +8,8 @@ DialogFrame {
     width: Math.min(Theme.settingsWidth, parent.width - 2 * Theme.dialogMargin)
     height: Math.min(Theme.settingsHeight, parent.height - 2 * Theme.dialogMargin)
 
+    onAboutToShow: SettingsController.refreshLocalDefaults()
+
     function openAbout() {
         open()
         Qt.callLater(() => {
