@@ -158,6 +158,7 @@ QtObject {
     readonly property int columnType:       170
     readonly property int columnSize:       100
     readonly property int wheelRows:        3
+    readonly property int viewEndSpace:     90      // empty space after the last item, to right-click on
     readonly property int gridPadding:      8
     readonly property int gridTextHeight:   56
     readonly property int scrollbarWidth:   10

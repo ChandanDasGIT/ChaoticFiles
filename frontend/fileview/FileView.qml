@@ -124,6 +124,7 @@ FocusScope {
         boundsBehavior: Flickable.StopAtBounds
         model: root.gridMode ? null : root.session.model
         cacheBuffer: 0
+        footer: Item { height: Theme.viewEndSpace }   // the background shows through here, even in a full folder
 
         delegate: FileRow {
             id: row
@@ -172,6 +173,7 @@ FocusScope {
         cacheBuffer: 0
         cellWidth: Math.max(SettingsController.gridSize + 2 * Theme.gridPadding, width / Math.max(1, Math.floor(width / (SettingsController.gridSize + 2 * Theme.gridPadding))))
         cellHeight: SettingsController.gridSize + Theme.gridTextHeight
+        footer: Item { height: Theme.viewEndSpace }
 
         delegate: FileCell {
             id: cell
