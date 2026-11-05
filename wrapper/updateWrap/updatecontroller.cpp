@@ -11,6 +11,7 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QJSEngine>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -30,7 +31,7 @@
 
 namespace {
 
-const qint64 kCheckEverySeconds = 24 * 60 * 60;
+const qint64 kCheckEverySeconds = 6 * 60 * 60;                  // a release shows up the same day
 const int kFirstCheckDelayMs = 3000;
 const int kCheckIntervalMs = 60 * 60 * 1000;                     // a file manager can stay open for days
 const int kNetworkTimeoutMs = 30000;
@@ -122,7 +123,8 @@ UpdateController::UpdateController(QObject* parent)
         // left by an unfinished update, unless a script is working in there right now
         const QFileInfo inUse(m_stage + QLatin1Char('/') + QLatin1String(Update::kInstallingFile));
         const bool recent = inUse.exists() && inUse.lastModified().secsTo(QDateTime::currentDateTime()) < kUnfinishedAfterSeconds;
-        if (!recent) QDir(m_stage).removeRecursively();
+        // nor while another window is getting the update into it
+        if (!recent && Update::stageOwner(m_stage.toStdString()) == 0) QDir(m_stage).removeRecursively();
     }
 
     connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this, [this] {
@@ -138,6 +140,11 @@ UpdateController::UpdateController(QObject* parent)
     connect(&m_requests, &QFileSystemWatcher::directoryChanged, this, &UpdateController::closeIfAsked);
     // windows closed for an update, by this version or by the one being replaced
     QTimer::singleShot(kStartedDelayMs, this, &UpdateController::reopenWindows);
+
+    // another window may have found a new version: switching to this one shows it here too
+    connect(qGuiApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState state) {
+        if (state == Qt::ApplicationActive) readLatest();
+    });
 
     m_dailyCheck.setInterval(kCheckIntervalMs);
     connect(&m_dailyCheck, &QTimer::timeout, this, &UpdateController::considerChecking);
@@ -206,8 +213,18 @@ QNetworkReply* UpdateController::get(const QString& url)
 
 // ------------------------------------------------------------------ is there a new version?
 
+void UpdateController::readLatest()
+{
+    m_settings.sync();
+    const QString latest = m_settings.value("updates/latest").toString();
+    if (latest == m_latest) return;
+    m_latest = latest;
+    emit changed();
+}
+
 void UpdateController::considerChecking()
 {
+    readLatest();
     if (!m_autoCheck) return;
     const qint64 last = m_settings.value("updates/lastCheck", 0).toLongLong();
     if (QDateTime::currentSecsSinceEpoch() - last >= kCheckEverySeconds) check(false);
@@ -253,8 +270,14 @@ void UpdateController::updateNow()
     if (m_ready) { askToRestart(); return; }
     if (!available() || !canInstall()) return;
 
+    const int owner = Update::stageOwner(m_stage.toStdString());
+    if (owner != 0 && owner != QCoreApplication::applicationPid()) {
+        setStatus(QStringLiteral("Another ChaoticFiles window is getting this update. Restart from that window."));
+        return;
+    }
     QDir(m_stage).removeRecursively();
     if (!QDir().mkpath(m_stage)) { fail(QStringLiteral("Could not write the update next to the program.")); return; }
+    Update::claimStage(m_stage.toStdString(), QCoreApplication::applicationPid());
     m_busy = true;
     setStatus(QStringLiteral("Checking the update…"));
     downloadManifest();

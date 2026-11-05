@@ -211,6 +211,23 @@ bool otherInstancesRunning()
     return others;
 }
 
+void claimStage(const std::string& stage, int pid)
+{
+    writeWhole(stage + "/" + kOwnerFile, std::to_string(pid));
+}
+
+int stageOwner(const std::string& stage)
+{
+    std::ifstream file(stage + "/" + kOwnerFile);
+    int pid = 0;
+    file >> pid;
+    if (pid <= 0) return 0;
+    // a crashed window's pid can be reused by another program, so the owner also has to hold the instance lock
+    std::error_code error;
+    if (!std::filesystem::exists("/proc/" + std::to_string(pid), error)) return 0;
+    return pid == getpid() || otherInstancesRunning() ? pid : 0;
+}
+
 void askWindowsToClose(const std::string& folder, int pid)
 {
     writeWhole(folder + "/" + kCloseRequestFile, std::to_string(pid));

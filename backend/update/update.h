@@ -40,6 +40,12 @@ std::string appImageTarget(const std::string& installedPath, const std::string& 
 inline constexpr char kOldExitedFile[] = "old-exited";              // the old program is gone
 inline constexpr char kStartedFile[] = "started";                   // the new program really runs
 inline constexpr char kInstallingFile[] = "installing";             // this folder is in use: don't clean it up
+inline constexpr char kOwnerFile[] = "owner";                       // the pid of the window getting the update
+
+// The window that downloads an update owns the update's folder, and other windows leave it alone while that window
+// runs. Without this, a window opened in the meantime cleaned the folder up as if it were left over.
+void claimStage(const std::string& stage, int pid);
+int stageOwner(const std::string& stage);                            // a running window's pid, or 0
 
 // Every running copy of the app keeps this lock, so an update can tell when another window is open.
 bool holdInstanceLock(const std::string& path);

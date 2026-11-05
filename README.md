@@ -23,7 +23,7 @@ Download from [Releases](https://github.com/ChandanDasGIT/ChaoticFiles/releases)
 
 ## Updates
 
-Once a day the app asks GitHub for the latest version. Nothing else is sent. When a new one is out, a green dot appears in the status bar, beside the disk space. Click it to open **Settings > About**. To stop the daily check, turn off **Check for updates once a day** there. It is on by default.
+Every six hours the app asks GitHub for the latest version. Nothing else is sent. When a new one is out, a green dot appears in the status bar, beside the disk space. Click it to open **Settings > About**. To stop these checks, turn off **Check for updates automatically** there. It is on by default.
 
 Nothing updates until you choose to:
 

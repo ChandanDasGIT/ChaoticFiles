@@ -15,7 +15,7 @@ class QNetworkAccessManager;
 class QNetworkReply;
 class QQmlEngine;
 
-// New versions (UpdateController in QML). Once a day, if the switch is on, it asks GitHub for the latest release:
+// New versions (UpdateController in QML). Every six hours, if the switch is on, it asks GitHub for the latest release:
 // a newer one shows the green dot in the status bar. The update itself only starts from Update now in the settings.
 //
 // How an update stays safe: every release has update-manifest.txt (version, file names and their SHA-256) and
@@ -86,6 +86,7 @@ private:
     QNetworkAccessManager* net();
     QNetworkReply* get(const QString& url);
     QString releaseFileUrl(const QString& name) const;
+    void readLatest();                             // what any window found last, from the shared settings
     void considerChecking();
     void check(bool byHand);
     void downloadManifest();

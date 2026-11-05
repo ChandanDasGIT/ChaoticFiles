@@ -400,6 +400,33 @@ def other_window():
     assert not list((user.home / ".cache/ChaoticFiles").glob("update-*")) or not any((user.home / ".cache/ChaoticFiles/update-windows").iterdir())
     user.send("quit"); user.finish()
 
+def window_opened_later():
+    """A window opened after the download must not clean the update away, nor start a second one."""
+    user = User("window-opened-later"); use(NEW)
+    installed = install_tarball(user, OLD); stage = Path(str(installed) + ".update")
+    a = user.home / "first"; c = user.home / "opened later"
+    for folder in (a, c): folder.mkdir()
+    user.start(installed / "AppRun", a)
+    user.ready(OLD)
+    user.until(lambda s: s["available"]); press_update(user)
+    user.until(lambda s: s["ready"], 120, "download")
+    process = second_window(user, installed / "AppRun", c)
+    time.sleep(1)
+    assert stage.exists(), "the window opened later deleted the downloaded update"
+    commands = user.home / "c2"; answers = user.home / "a2"
+    with open(commands, "a") as file: file.write("click updateDot\n")
+    time.sleep(0.4)
+    with open(commands, "a") as file: file.write("click updateNowButton\nstate\n")
+    end = time.time() + 10
+    while "Another ChaoticFiles window" not in answers.read_text() and time.time() < end: time.sleep(0.05)
+    assert "Another ChaoticFiles window" in answers.read_text(), "the second window started its own update"
+    assert stage.exists(), "the second window's Update now deleted the first one's update"
+    assert user.send("click Restart now")["ok"], "no Restart now with another window open"
+    process.wait(timeout=20)
+    back = windows_back(user, NEW, 2)
+    assert back == {(str(a),): 0, (str(c),): 0}, back
+    user.send("quit"); user.finish()
+
 def other_window_busy():
     """A window that is copying files holds the restart up, and Don't restart lets everything go on."""
     user = User("other-window-busy"); use(NEW)
@@ -794,6 +821,7 @@ TESTS = {
     "cancel-prompt": cancel_prompt,
     "wait-for-operations": wait_for_operations,
     "other-window": other_window,
+    "window-opened-later": window_opened_later,
     "other-window-busy": other_window_busy,
     "other-window-cancelled": other_window_cancelled,
     "stage-in-use": stage_in_use,

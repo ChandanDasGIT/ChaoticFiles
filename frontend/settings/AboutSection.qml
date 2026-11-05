@@ -31,7 +31,7 @@ Column {
     SettingsSection {
         objectName: "autoCheckRow"
         width: parent.width
-        title: "Check for updates once a day"
+        title: "Check for updates automatically"
         choices: ["Off", "On"]
         current: UpdateController.autoCheck ? 1 : 0
         onChosen: (index) => UpdateController.autoCheck = index === 1

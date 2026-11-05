@@ -1533,6 +1533,21 @@ static void testUpdateWindows(const fs::path& root)
     close(third);
     CHECK(!Update::otherInstancesRunning());
 
+    // the update's folder belongs to the window getting it, while that window runs
+    const std::string stage = folder + "/stage";
+    fs::create_directories(stage);
+    CHECK(Update::stageOwner(stage) == 0);
+    Update::claimStage(stage, getpid());
+    CHECK(Update::stageOwner(stage) == getpid());
+    Update::claimStage(stage, getppid());            // a running program, but not a window: no lock held
+    CHECK(Update::stageOwner(stage) == 0);
+    const int window = open(lock.c_str(), O_RDWR);
+    CHECK(flock(window, LOCK_SH | LOCK_NB) == 0);    // now another window is open too
+    CHECK(Update::stageOwner(stage) == getppid());
+    close(window);
+    Update::claimStage(stage, 999999999);            // a window that is gone
+    CHECK(Update::stageOwner(stage) == 0);
+
     // a request needs renewing, so a crashed window can't close others later
     CHECK(Update::closeRequester(folder) == 0);
     Update::askWindowsToClose(folder, 111);
