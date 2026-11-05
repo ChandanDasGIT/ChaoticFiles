@@ -21,6 +21,7 @@
 #include "network/networkshares.h"
 #include "pathbar/pathbar.h"
 #include "permissions/permissions.h"
+#include "phones/phones.h"
 #include "places/places.h"
 #include "process/process.h"
 #include "albumart/albumart.h"
@@ -1261,6 +1262,27 @@ static void testDrives()
     CHECK(Places::driveFromMountInfo("36 25 8:17 / /run/media/me/USB rw - ext4 /dev/sdb1 rw").device == "/dev/sdb1");
 }
 
+static void testPhones()
+{
+    const auto phones = Phones::parseGioList(
+        "Drive(0): Samsung SSD 980 1TB\n"
+        "  Type: GProxyDrive (GProxyVolumeMonitorUDisks2)\n"
+        "  Volume(0): New Volume\n"
+        "    activation_root=file:///run/media/me/New\n"
+        "Volume(0): POCO X3 Pro\n"
+        "  Type: GProxyVolume (GProxyVolumeMonitorMTP)\n"
+        "  activation_root=mtp://Xiaomi_POCO_X3_Pro_6a91fef5/\n"
+        "  can_mount=1\n"
+        "Volume(1): Camera\n"
+        "  activation_root=gphoto2://Canon_EOS/\n", "/run/user/1000/gvfs");
+    CHECK(phones.size() == 2);
+    CHECK(phones[0].name == "POCO X3 Pro" && phones[0].uri == "mtp://Xiaomi_POCO_X3_Pro_6a91fef5/");
+    CHECK(phones[0].path == "/run/user/1000/gvfs/mtp:host=Xiaomi_POCO_X3_Pro_6a91fef5");
+    CHECK(phones[1].name == "Camera" && phones[1].path == "/run/user/1000/gvfs/gphoto2:host=Canon_EOS");
+    CHECK(Phones::isPhoneUri("mtp://x/") && !Phones::isPhoneUri("smb://nas/files"));
+    CHECK(Phones::parseGioList("", "/g").empty());
+}
+
 static void testNetwork()
 {
     const NetworkShare smb = NetworkShares::parseMountName("smb-share:server=nas,share=files");
@@ -1690,6 +1712,7 @@ int main()
     testShortcuts();
     testDrives();
     testNetwork();
+    testPhones();
     testUpdateWindows(root);
     testAlbumArt(root);
     testThumbnails(root);

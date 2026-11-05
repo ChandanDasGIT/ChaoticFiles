@@ -17,7 +17,7 @@ class PlacesController : public QObject {
 
     Q_PROPERTY(QVariantList places READ places CONSTANT)
     Q_PROPERTY(QVariantList bookmarks READ bookmarks NOTIFY bookmarksChanged)
-    Q_PROPERTY(QVariantList drives READ drives NOTIFY drivesChanged)      // [{name, path, kind, device, mounted}]
+    Q_PROPERTY(QVariantList drives READ drives NOTIFY drivesChanged)      // [{name, path, kind, device, mounted}]; a phone's device is its mtp:// address
     Q_PROPERTY(QVariantList shares READ shares NOTIFY drivesChanged)      // [{name, path, kind, uri}]
 
 public:

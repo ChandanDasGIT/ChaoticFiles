@@ -68,6 +68,7 @@ QtObject {
     readonly property string pictures:      "\uf03e"   // image
     readonly property string videos:        "\uf03d"   // video
     readonly property string drive:         "\uf0a0"   // hard-drive
+    readonly property string phone:         "\uf3cd"   // mobile-screen-button
     readonly property string recent:        "\uf017"   // clock
     readonly property string pin:           "\uf08d"   // thumbtack
     readonly property string search:        "\uf002"   // magnifying-glass
@@ -152,6 +153,7 @@ QtObject {
         case "recent":    return recent
         case "bookmark":  return folder
         case "network":   return network
+        case "phone":     return phone
         default:          return drive
         }
     }

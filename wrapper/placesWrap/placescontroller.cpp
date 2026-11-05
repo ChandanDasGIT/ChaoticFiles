@@ -4,6 +4,7 @@
 #include "foldericons/foldericons.h"
 #include "network/networkshares.h"
 #include "pathbar/pathbar.h"
+#include "phones/phones.h"
 #include "places/places.h"
 #include "trash/trash.h"
 
@@ -20,7 +21,8 @@ bool isFolder(const QString& path)
     return !path.isEmpty() && stat(path.toStdString().c_str(), &info) == 0 && S_ISDIR(info.st_mode);
 }
 
-QVariantList drivesList(const std::vector<Place>& mountedDrives, const std::vector<DriveDevice>& others)
+QVariantList drivesList(const std::vector<Place>& mountedDrives, const std::vector<DriveDevice>& others,
+                        const std::vector<Phone>& phones)
 {
     QVariantList list;
     for (const Place& place : mountedDrives) {
@@ -39,6 +41,15 @@ QVariantList drivesList(const std::vector<Place>& mountedDrives, const std::vect
             {"kind", QStringLiteral("drive")},
             {"device", QString::fromStdString(drive.device)},
             {"mounted", false},
+        });
+    }
+    for (const Phone& phone : phones) {
+        list.append(QVariantMap {
+            {"name", QString::fromStdString(phone.name)},
+            {"path", QString::fromStdString(phone.path)},
+            {"kind", QStringLiteral("phone")},
+            {"device", QString::fromStdString(phone.uri)},
+            {"mounted", !phone.path.empty()},
         });
     }
     return list;
@@ -75,7 +86,7 @@ QVariantList toList(const std::vector<Place>& places)
 } // namespace
 
 PlacesController::PlacesController(QObject* parent)
-    : QObject(parent), m_places(toList(Places::userPlaces())), m_drives(drivesList(Places::drives(), {}))
+    : QObject(parent), m_places(toList(Places::userPlaces())), m_drives(drivesList(Places::drives(), {}, {}))
 {
     Trash::ensureExists();
     connect(&m_timer, &QTimer::timeout, this, &PlacesController::updateDrives);
@@ -160,7 +171,7 @@ bool PlacesController::hasFolder(const QStringList& paths) const
 void PlacesController::updateDrives()
 {
     m_scan.start([this](const BackgroundJob::Handle& handle) {
-        QVariantList drives = drivesList(Places::drives(), Drives::unmounted());
+        QVariantList drives = drivesList(Places::drives(), Drives::unmounted(), Phones::list());
         QVariantList shares = sharesList(NetworkShares::list());
         handle.post([this, drives, shares] {
             QMetaObject::invokeMethod(this, [this, drives, shares] {
@@ -177,7 +188,8 @@ void PlacesController::mount(const QString& device)
 {
     m_action.start([this, device](const BackgroundJob::Handle& handle) {
         std::string mountPoint;
-        const Outcome outcome = Drives::mount(device.toStdString(), &mountPoint);
+        const std::string name = device.toStdString();
+        const Outcome outcome = Phones::isPhoneUri(name) ? Phones::mount(name, &mountPoint) : Drives::mount(name, &mountPoint);
         handle.post([this, outcome, mountPoint] {
             QMetaObject::invokeMethod(this, [this, outcome, mountPoint] {
                 updateDrives();
@@ -191,7 +203,8 @@ void PlacesController::mount(const QString& device)
 void PlacesController::unmount(const QString& device)
 {
     m_action.start([this, device](const BackgroundJob::Handle& handle) {
-        const Outcome outcome = Drives::unmount(device.toStdString());
+        const std::string name = device.toStdString();
+        const Outcome outcome = Phones::isPhoneUri(name) ? Phones::unmount(name) : Drives::unmount(name);
         handle.post([this, outcome] {
             QMetaObject::invokeMethod(this, [this, outcome] {
                 updateDrives();

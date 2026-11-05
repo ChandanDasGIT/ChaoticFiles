@@ -94,6 +94,9 @@ ChaoticFiles/
 │   ├── permissions/                        // permissions
 │   │   ├── permissions.cpp                 // reads the binary ACL and capability formats
 │   │   └── permissions.h                   // names, rwx text, ACLs, capabilities
+│   ├── phones/                             // phones and cameras by USB
+│   │   ├── phones.cpp                      // reads `gio mount -li`; mounts through gio, never a shell
+│   │   └── phones.h                        // MTP and PTP devices, which lsblk does not see
 │   ├── places/                             // the sidebar's logic
 │   │   ├── places.cpp                      // reads user-dirs.dirs and /proc/self/mountinfo
 │   │   └── places.h                        // namespace Places: user folders and mounted drives
