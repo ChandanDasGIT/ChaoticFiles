@@ -4,6 +4,7 @@
 #include <QAbstractListModel>
 #include <QList>
 #include <QStringList>
+#include <QUrl>
 #include <QtQml/qqmlregistration.h>
 
 class FolderSession;
@@ -41,6 +42,7 @@ public:
     Q_INVOKABLE void selectTab(int index);
     Q_INVOKABLE void newTab();                               // a new tab at Home, right after the current one
     Q_INVOKABLE void openInBackground(const QString& path);  // a new tab that does not take over
+    Q_INVOKABLE void openFolders(const QList<QUrl>& urls);   // folders dropped on the tab bar: new tabs at the end
     Q_INVOKABLE void closeTab(int index);                    // closing the last tab closes the window
     Q_INVOKABLE void closeCurrent();
     Q_INVOKABLE void nextTab();

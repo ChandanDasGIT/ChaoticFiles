@@ -124,6 +124,26 @@ void TabsController::openInBackground(const QString& path)
     updateCurrent(current);
 }
 
+void TabsController::openFolders(const QList<QUrl>& urls)
+{
+    FolderSession* previous = currentSession();
+    int opened = -1;
+    for (const QUrl& url : urls) {
+        const QString local = url.adjusted(QUrl::StripTrailingSlash).toLocalFile();
+        if (local.isEmpty()) continue;                       // not a local file
+        const std::string path = PathBar::normalize(local.toStdString());
+        if (!PathBar::isDirectory(path)) continue;
+        opened = m_tabs.count();
+        insertTab(m_tabs.open(path, opened), opened);
+    }
+    if (opened < 0) {
+        emit message(QStringLiteral("Only folders can be opened in a tab."));
+        return;
+    }
+    m_tabs.setCurrent(opened);
+    updateCurrent(previous);
+}
+
 void TabsController::closeTab(int index)
 {
     if (index < 0 || index >= m_tabs.count()) return;

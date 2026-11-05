@@ -70,6 +70,17 @@ Rectangle {
             onDoubleTapped: root.targetWindow.visibility === Window.Maximized ? root.targetWindow.showNormal()
                                                                               : root.targetWindow.showMaximized()
         }
+        FolderDropArea { id: spaceDrop }
+    }
+
+    // folders dropped on the free space or on "+" open in new tabs
+    component FolderDropArea: DropArea {
+        anchors.fill: parent
+        onEntered: (drag) => { drag.accepted = drag.hasUrls }
+        onDropped: (drop) => {
+            drop.accept(Qt.CopyAction)
+            TabsController.openFolders(drop.urls)
+        }
     }
 
     // ---- the tabs ----
@@ -153,7 +164,7 @@ Rectangle {
         width: Theme.addTabSize
         height: Theme.addTabSize
         radius: Theme.controlRadius
-        color: addArea.containsMouse ? Theme.hoverBg : "transparent"
+        color: addArea.containsMouse || addDrop.containsDrag || spaceDrop.containsDrag ? Theme.hoverBg : "transparent"
 
         Text {
             anchors.centerIn: parent
@@ -168,6 +179,7 @@ Rectangle {
             hoverEnabled: true
             onClicked: TabsController.newTab()
         }
+        FolderDropArea { id: addDrop }
     }
 
     WindowButtons {
