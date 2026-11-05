@@ -1,4 +1,5 @@
 #pragma once
+#include "folderscan/folderscan.h"
 #include "properties/propertyreport.h"
 #include "tasks/backgroundjob.h"
 
@@ -53,6 +54,7 @@ signals:
 private:
     void collect(const std::string& path);
     void setSection(PropertySection section);
+    void showTotals(const FolderScan& scan);             // the Size rows and the Contents section
     void toUi(const BackgroundJob::Handle& handle, quint64 generation, std::function<void()> work);
 
     BackgroundJob m_job;

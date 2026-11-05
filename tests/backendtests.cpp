@@ -566,6 +566,20 @@ static void testProperties(const fs::path& root)
     CHECK(scan.finished && scan.files == 3 && scan.folders == 1 && scan.links == 2 && scan.hidden == 1);
     CHECK(scan.totalSize == 53 && scan.largest.size() == 3 && scan.largest[0].first == 24);
     CHECK(!scanFolder(folder.string(), {}, [] { return true; }).finished);
+
+    // a folder's Size is everything inside it, not the folder entry itself
+    auto inner = Properties::collect((folder / "inner").string());
+    CHECK(rowValue(inner, "General", "Size") == "Counting…");
+    Properties::applyTotals(inner, scanFolder((folder / "inner").string(), {}, {}));
+    CHECK(rowValue(inner, "General", "Size") == "5 bytes");
+
+    // several items: files counted, folders walked into, the hard link counted once on disk
+    const FolderScan items = scanItems({(folder / "a.txt").string(), (folder / "inner").string(),
+                                        (folder / "link").string()}, {}, {});
+    CHECK(items.finished && items.files == 2 && items.folders == 1 && items.links == 1 && items.totalSize == 29);
+    auto both = Properties::collectSelection({(folder / "a.txt").string(), (folder / "inner").string()});
+    Properties::applyTotals(both, items);
+    CHECK(rowValue(both, "General", "Size") == "29 bytes");
 }
 
 static void testContent(const fs::path& root)

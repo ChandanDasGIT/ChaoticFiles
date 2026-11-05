@@ -32,6 +32,42 @@ struct Walker {
         if (list.size() > kLargestCount) list.pop_back();
     }
 
+    // one item: counted, and walked into when it is a folder. False when cancelled.
+    bool visit(int parentFd, const std::string& name, const std::string& full)
+    {
+        struct stat info {};
+        if (fstatat(parentFd, name.c_str(), &info, AT_SYMLINK_NOFOLLOW) != 0) return true;
+        if (oneDisk && info.st_dev != device) return true;
+        const auto slash = full.rfind('/');
+        if (full[slash == std::string::npos ? 0 : slash + 1] == '.') ++scan.hidden;
+
+        if (S_ISDIR(info.st_mode)) {
+            ++scan.folders;
+            scan.diskUsage += static_cast<std::uint64_t>(info.st_blocks) * 512;
+            const int child = openat(parentFd, name.c_str(), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+            if (child < 0) ++scan.unreadable;
+            else if (!walk(child, full)) return false;
+        } else if (S_ISLNK(info.st_mode)) {
+            ++scan.links;
+        } else if (S_ISREG(info.st_mode)) {
+            ++scan.files;
+            scan.totalSize += static_cast<std::uint64_t>(info.st_size);
+            addLargest(static_cast<std::uint64_t>(info.st_size), full);
+            const bool firstSighting = info.st_nlink < 2
+                || seenHardLinks.insert(std::to_string(info.st_dev) + ":" + std::to_string(info.st_ino)).second;
+            if (firstSighting) scan.diskUsage += static_cast<std::uint64_t>(info.st_blocks) * 512;
+        } else {
+            ++scan.others;
+        }
+
+        const auto now = std::chrono::steady_clock::now();
+        if (progress && now - lastReport >= kProgressEvery) {
+            lastReport = now;
+            progress(scan);
+        }
+        return true;
+    }
+
     // takes ownership of fd
     bool walk(int fd, const std::string& path)
     {
@@ -48,39 +84,9 @@ struct Walker {
             }
             const std::string name = item->d_name;
             if (name == "." || name == "..") continue;
-
-            struct stat info {};
-            if (fstatat(dirfd(dir), name.c_str(), &info, AT_SYMLINK_NOFOLLOW) != 0) continue;
-            if (oneDisk && info.st_dev != device) continue;
-            const std::string full = path == "/" ? "/" + name : path + "/" + name;
-            if (name[0] == '.') ++scan.hidden;
-
-            if (S_ISDIR(info.st_mode)) {
-                ++scan.folders;
-                scan.diskUsage += static_cast<std::uint64_t>(info.st_blocks) * 512;
-                const int child = openat(dirfd(dir), name.c_str(), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
-                if (child < 0) ++scan.unreadable;
-                else if (!walk(child, full)) {
-                    closedir(dir);
-                    return false;
-                }
-            } else if (S_ISLNK(info.st_mode)) {
-                ++scan.links;
-            } else if (S_ISREG(info.st_mode)) {
-                ++scan.files;
-                scan.totalSize += static_cast<std::uint64_t>(info.st_size);
-                addLargest(static_cast<std::uint64_t>(info.st_size), full);
-                const bool firstSighting = info.st_nlink < 2
-                    || seenHardLinks.insert(std::to_string(info.st_dev) + ":" + std::to_string(info.st_ino)).second;
-                if (firstSighting) scan.diskUsage += static_cast<std::uint64_t>(info.st_blocks) * 512;
-            } else {
-                ++scan.others;
-            }
-
-            const auto now = std::chrono::steady_clock::now();
-            if (progress && now - lastReport >= kProgressEvery) {
-                lastReport = now;
-                progress(scan);
+            if (!visit(dirfd(dir), name, path == "/" ? "/" + name : path + "/" + name)) {
+                closedir(dir);
+                return false;
             }
         }
         closedir(dir);
@@ -104,5 +110,24 @@ FolderScan scanFolder(const std::string& path, const std::function<void(const Fo
     fstat(fd, &info);
     Walker walker {scan, progress, cancelled, oneDisk, info.st_dev, {}};
     scan.finished = walker.walk(fd, path);
+    return scan;
+}
+
+FolderScan scanItems(const std::vector<std::string>& paths, const std::function<void(const FolderScan&)>& progress,
+                     const std::function<bool()>& cancelled)
+{
+    FolderScan scan;
+    Walker walker {scan, progress, cancelled, false, 0, {}};
+    scan.finished = true;
+    for (const std::string& path : paths) {
+        if (cancelled && cancelled()) {
+            scan.finished = false;
+            break;
+        }
+        if (!walker.visit(AT_FDCWD, path, path)) {
+            scan.finished = false;
+            break;
+        }
+    }
     return scan;
 }

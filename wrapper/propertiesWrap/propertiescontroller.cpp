@@ -58,6 +58,12 @@ void PropertiesController::setSection(PropertySection section)
     emit sectionsChanged();
 }
 
+void PropertiesController::showTotals(const FolderScan& scan)
+{
+    Properties::applyTotals(m_sections, scan);
+    setSection(Properties::folderContents(scan));       // emits sectionsChanged
+}
+
 void PropertiesController::show(const QStringList& paths)
 {
     if (paths.isEmpty()) return;
@@ -85,6 +91,13 @@ void PropertiesController::show(const QStringList& paths)
             auto sections = Properties::collectSelection(list);
             toUi(handle, generation, [this, sections] {
                 m_sections = sections;
+                emit sectionsChanged();
+            });
+            const FolderScan scan = scanItems(list, [&](const FolderScan& soFar) {
+                toUi(handle, generation, [this, soFar] { showTotals(soFar); });
+            }, [&handle] { return handle.cancelled(); });
+            toUi(handle, generation, [this, scan] {
+                showTotals(scan);
                 m_status.clear();
                 emit sectionsChanged();
             });
@@ -117,9 +130,9 @@ void PropertiesController::collect(const std::string& path)
             toUi(handle, generation, [this, rows] { setSection({"Content", rows}); });
         } else if (folder) {
             const FolderScan scan = scanFolder(path, [&](const FolderScan& soFar) {
-                toUi(handle, generation, [this, section = Properties::folderContents(soFar)] { setSection(section); });
+                toUi(handle, generation, [this, soFar] { showTotals(soFar); });
             }, cancelled);
-            toUi(handle, generation, [this, section = Properties::folderContents(scan)] { setSection(section); });
+            toUi(handle, generation, [this, scan] { showTotals(scan); });
         }
         toUi(handle, generation, [this] {
             m_status.clear();

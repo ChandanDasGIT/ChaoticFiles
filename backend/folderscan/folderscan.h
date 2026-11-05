@@ -23,3 +23,7 @@ struct FolderScan {
 // With `oneDisk`, a folder on another disk is left out.
 FolderScan scanFolder(const std::string& path, const std::function<void(const FolderScan&)>& progress,
                       const std::function<bool()>& cancelled, bool oneDisk = false);
+
+// The selected items together: files are counted, folders are walked into, and a hard link is counted once.
+FolderScan scanItems(const std::vector<std::string>& paths, const std::function<void(const FolderScan&)>& progress,
+                     const std::function<bool()>& cancelled);

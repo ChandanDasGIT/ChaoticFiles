@@ -23,6 +23,8 @@
 
 namespace {
 
+const char* const kCounting = "Counting…";
+
 constexpr int kMaxLinkChain = 40;
 
 std::optional<struct statx> readStat(const std::string& path)
@@ -69,9 +71,14 @@ PropertySection generalSection(const std::string& path, const struct statx& st)
     rows.push_back({"Full path", path});
     char real[PATH_MAX];
     if (realpath(path.c_str(), real) && path != real) rows.push_back({"Real path", real});
-    rows.push_back({"Size", Format::exactSize(st.stx_size)});
     const std::uint64_t onDisk = st.stx_blocks * 512;
-    rows.push_back({"Size on disk", Format::exactSize(onDisk)});
+    if (S_ISDIR(st.stx_mode)) {                      // filled in by applyTotals as the folder is scanned
+        rows.push_back({"Size", kCounting});
+        rows.push_back({"Size on disk", kCounting});
+    } else {
+        rows.push_back({"Size", Format::exactSize(st.stx_size)});
+        rows.push_back({"Size on disk", Format::exactSize(onDisk)});
+    }
     if (S_ISREG(st.stx_mode) && onDisk < st.stx_size) rows.push_back({"Sparse", "Yes, or compressed: it uses less disk than its size"});
     if (st.stx_mask & STATX_BTIME) rows.push_back({"Created", dateRow(st.stx_btime)});
     else rows.push_back({"Created", "This filesystem does not record it"});
@@ -264,8 +271,8 @@ std::vector<PropertySection> collectSelection(const std::vector<std::string>& pa
         {"Folders", Format::number(folders)},
         {"Links", Format::number(links)},
         {"Other items", Format::number(others)},
-        {"Size of files", Format::exactSize(size)},
-        {"Size on disk", Format::exactSize(disk)},
+        {"Size", folders > 0 ? kCounting : Format::exactSize(size)},
+        {"Size on disk", folders > 0 ? kCounting : Format::exactSize(disk)},
         {"Location", shared(parents)},
         {"Type", shared(types)},
         {"Owner", shared(owners)},
@@ -278,8 +285,6 @@ std::vector<PropertySection> collectSelection(const std::vector<std::string>& pa
 PropertySection folderContents(const FolderScan& scan)
 {
     PropertySection section {"Contents", {
-        {"Total size", Format::exactSize(scan.totalSize)},
-        {"Size on disk", Format::exactSize(scan.diskUsage)},
         {"Files", Format::number(scan.files)},
         {"Folders", Format::number(scan.folders)},
         {"Links", Format::number(scan.links)},
@@ -292,6 +297,18 @@ PropertySection folderContents(const FolderScan& scan)
         largest += (largest.empty() ? "" : "\n") + Format::size(size) + "  " + path;
     if (!largest.empty()) section.rows.push_back({"Largest files", largest});
     return section;
+}
+
+void applyTotals(std::vector<PropertySection>& sections, const FolderScan& scan)
+{
+    const std::string more = scan.finished ? "" : " (counting…)";
+    for (PropertySection& section : sections) {
+        if (section.title != "General") continue;
+        for (PropertyRow& row : section.rows) {
+            if (row.label == "Size") row.value = Format::exactSize(scan.totalSize) + more;
+            else if (row.label == "Size on disk") row.value = Format::exactSize(scan.diskUsage) + more;
+        }
+    }
 }
 
 } // namespace Properties

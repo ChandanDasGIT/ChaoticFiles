@@ -16,4 +16,7 @@ std::vector<PropertySection> collectSelection(const std::vector<std::string>& pa
 
 PropertySection folderContents(const FolderScan& scan);
 
+// A folder's Size rows say "Counting…" until this puts in everything inside it, subfolders included.
+void applyTotals(std::vector<PropertySection>& sections, const FolderScan& scan);
+
 } // namespace Properties
