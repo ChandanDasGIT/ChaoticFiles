@@ -31,9 +31,19 @@ bool makePrivate(const std::string& path)
     return mkdir(path.c_str(), 0700) == 0 || errno == EEXIST;
 }
 
+// lstat, so a link to a folder does not count
+bool isOwnRealFolder(const std::string& path)
+{
+    struct stat info {};
+    return lstat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode) && info.st_uid == getuid();
+}
+
 bool makeTrash(const std::string& trash)
 {
-    return makePrivate(trash) && makePrivate(trash + "/files") && makePrivate(trash + "/info");
+    if (!makePrivate(trash) || !makePrivate(trash + "/files") || !makePrivate(trash + "/info")) return false;
+    if (trash == trashDirectory() || Trash::isTrustworthy(trash)) return true;   // only this user writes in Home
+    errno = EACCES;                                     // someone else's, or a link: never put anything there
+    return false;
 }
 
 // Paths in a .trashinfo file are written like URLs: "My File" becomes "My%20File".
@@ -93,7 +103,7 @@ std::vector<std::string> allTrashes()
     for (const Mount& mount : Mounts::all()) {
         const std::string top = mount.mountPoint == "/" ? "" : mount.mountPoint;
         const std::string trash = top + "/" + userTrashName();
-        if (PathBar::isDirectory(trash + "/files") && std::find(trashes.begin(), trashes.end(), trash) == trashes.end())
+        if (Trash::isTrustworthy(trash) && std::find(trashes.begin(), trashes.end(), trash) == trashes.end())
             trashes.push_back(trash);
     }
     return trashes;
@@ -188,6 +198,11 @@ bool ensureExists()
     std::error_code error;
     std::filesystem::create_directories(PathBar::parent(trash), error);
     return !error && makeTrash(trash);
+}
+
+bool isTrustworthy(const std::string& trash)
+{
+    return isOwnRealFolder(trash) && isOwnRealFolder(trash + "/files") && isOwnRealFolder(trash + "/info");
 }
 
 bool contains(const std::string& path)

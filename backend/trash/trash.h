@@ -25,5 +25,8 @@ Outcome remove(const std::string& trashedPath);       // deletes one trashed ite
 std::vector<TrashItem> list();                        // every Trash on every disk
 Outcome empty();
 bool contains(const std::string& path);               // whether this path is inside any Trash
+// Whether a Trash folder can be trusted: it, its files and its info are real folders, not links, and belong to
+// this user. A disk's Trash can be made by anyone who can write to that disk, so one that fails is never used.
+bool isTrustworthy(const std::string& trash);
 
 } // namespace Trash

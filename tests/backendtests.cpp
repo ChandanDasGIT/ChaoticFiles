@@ -413,6 +413,25 @@ static void testTrash(const fs::path& root)
     struct stat info {};
     CHECK(stat((root / "data" / "Trash").c_str(), &info) == 0 && (info.st_mode & 0777) == 0700);
 
+    // a disk's Trash is used only if it, its files and its info are real folders: a link could point anywhere,
+    // for example into Home, and emptying that Trash would then delete what is there
+    const fs::path disk = root / "disk", diskTrash = disk / (".Trash-" + std::to_string(getuid()));
+    fs::create_directories(diskTrash / "files");
+    CHECK(!Trash::isTrustworthy(diskTrash.string()));                 // no info folder
+    fs::create_directories(diskTrash / "info");
+    CHECK(Trash::isTrustworthy(diskTrash.string()));
+    fs::create_directories(root / "victim");
+    fs::remove(diskTrash / "files");
+    fs::create_directory_symlink(root / "victim", diskTrash / "files");
+    CHECK(!Trash::isTrustworthy(diskTrash.string()));                 // files is a link
+    fs::remove_all(diskTrash);
+    fs::create_directory_symlink(root / "victim", diskTrash);
+    fs::create_directories(root / "victim" / "files");
+    fs::create_directories(root / "victim" / "info");
+    CHECK(!Trash::isTrustworthy(diskTrash.string()));                 // the Trash itself is a link
+    fs::remove_all(disk);
+    fs::remove_all(root / "victim");
+
     CHECK(PathBar::tabTitle(PathBar::kTrashLocation) == "Trash");
     CHECK(PathBar::split(PathBar::kTrashLocation).size() == 1);
     CHECK(PathBar::parent(PathBar::kTrashLocation) == PathBar::kTrashLocation);
