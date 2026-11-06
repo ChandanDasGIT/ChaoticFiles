@@ -1,5 +1,5 @@
+#include <QApplication>
 #include <QFileInfo>
-#include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QStandardPaths>
 #include <QTimer>
@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     restoreLibraryPath();
     UpdateController::readEnvironment();
 
-    QGuiApplication app(argc, argv);
+    QApplication app(argc, argv);           // not QGuiApplication: the menus are QMenus (Qt Widgets)
     QCoreApplication::setOrganizationName("ChaoticFiles");
     QCoreApplication::setApplicationName("ChaoticFiles");
     QCoreApplication::setApplicationVersion(QStringLiteral(APP_VERSION));
@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
     TestDriver driver(&engine);
 #endif
 
-    const int code = QGuiApplication::exec();
+    const int code = QApplication::exec();
     UpdateController::instance()->reportExited();
     return code;
 }

@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick DBus Network)
+find_package(Qt6 REQUIRED COMPONENTS Quick Widgets DBus Network)   # Widgets: the menus are QMenus
 find_package(Threads REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.10)
@@ -79,7 +79,7 @@ endforeach()
 list(REMOVE_DUPLICATES WRAPPER_DIRS)
 target_include_directories(appChaoticFiles PRIVATE ${WRAPPER_DIRS})
 
-target_link_libraries(appChaoticFiles PRIVATE Qt6::Quick Qt6::DBus Qt6::Network fileengine)
+target_link_libraries(appChaoticFiles PRIVATE Qt6::Quick Qt6::Widgets Qt6::DBus Qt6::Network fileengine)
 
 # The version the About section shows. A release passes its tag (-DAPP_VERSION=1.1), other builds use the project version.
 if(NOT DEFINED APP_VERSION)

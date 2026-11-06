@@ -202,8 +202,7 @@ ChaoticFiles/
 │   │   └── OperationsPanel.qml             // progress, pause and cancel
 │   ├── popupmenu/                          // things that pop up
 │   │   ├── FolderPopup.qml                 // the list of folders under the address bar
-│   │   ├── PopupMenu.qml                   // a menu built from a list of entries
-│   │   └── PopupMenuItem.qml               // one row of a menu
+│   │   └── PopupMenu.qml                   // a menu built from a list of entries, drawn by ContextMenu
 │   ├── preview/                            // the preview panel
 │   │   └── PreviewPanel.qml                // picture or text of the current file
 │   ├── properties/                         // the properties window
@@ -269,6 +268,9 @@ ChaoticFiles/
 │   ├── clipboardWrap/                      // cut, copy, paste
 │   │   ├── clipboardcontroller.cpp         // its implementation
 │   │   └── clipboardcontroller.h           // in the format other file managers use (ClipboardController)
+│   ├── contextMenuWrap/                    // right-click and settings menus for QML
+│   │   ├── contextmenu.cpp                 // its implementation
+│   │   └── contextmenu.h                   // a real desktop menu (QMenu) in the theme's colours (ContextMenu)
 │   ├── diskUsageWrap/                      // the Disk Usage window for QML
 │   │   ├── diskusagecontroller.cpp         // scans off the UI thread and fills the list
 │   │   └── diskusagecontroller.h           // the folder, its items and the summary (DiskUsageController)

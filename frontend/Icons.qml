@@ -37,6 +37,7 @@ QtObject {
 
     // ---- menus ----
     readonly property string check:         "\uf00c"   // check
+    readonly property string checkText:     "\u2713"   // a check mark in the ordinary font, for the right side of a menu row
     readonly property string copy:          "\uf0c5"   // copy
     readonly property string open:          "\uf07c"   // folder-open
     readonly property string newTab:        "\uf0fe"   // square-plus

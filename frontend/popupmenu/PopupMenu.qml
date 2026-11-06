@@ -1,60 +1,48 @@
 import QtQuick
-import QtQuick.Controls.Basic
 
-// A small themed menu. Each entry of `entries` is one of:
+// A menu in the colours of the theme. Each entry of `entries` is one of:
 //     {text, icon, shortcut, checked, enabled, action}     a row; action() runs when it is clicked
 //     {header: "Theme"}                                    a small title
 //     {separator: true}                                    a line
-Popup {
+// It is a real desktop menu (ContextMenu, a QMenu), like the menus of other apps: it opens at the pointer, can
+// reach past the edge of the window, and the desktop keeps it on screen. This file only hands over the rows
+// and the theme, and runs the action of the row that was chosen.
+Item {
     id: root
 
     property var entries: []
+    signal closed()
 
     function openAt(sceneX, sceneY) {
-        x = sceneX
-        y = sceneY
-        open()
+        menu.popup(root, sceneX, sceneY, entries, {
+            background: Theme.menuBg,
+            border: Theme.menuBorder,
+            textColor: Theme.text,
+            iconColor: Theme.textMuted,
+            headerColor: Theme.textDim,
+            disabledColor: Theme.textDisabled,
+            hoverColor: Theme.hoverBg,
+            dividerColor: Theme.divider,
+            radius: Theme.menuRadius,
+            rowRadius: Theme.controlRadius,
+            padding: Theme.menuPadding,
+            rowHeight: Theme.menuRowHeight,
+            rowPadding: Theme.menuRowPadding,
+            minWidth: Theme.menuMinWidth,
+            fontSize: Theme.fontSize,
+            smallFontSize: Theme.smallFontSize,
+            iconSize: Theme.iconSize,
+            iconFont: Icons.fontFamily,
+            checkGlyph: Icons.checkText,
+        })
     }
 
-    parent: Overlay.overlay
-    padding: Theme.menuPadding
-    margins: Theme.menuPadding
-    focus: true
-    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-    background: Rectangle {
-        color: Theme.menuBg
-        border.color: Theme.menuBorder
-        radius: Theme.menuRadius
-    }
-
-    contentWidth: column.width
-    contentHeight: column.height
-
-    Column {
-        id: column
-
-        width: {
-            let most = Theme.menuMinWidth
-            for (let i = 0; i < repeater.count; ++i) {
-                const item = repeater.itemAt(i)
-                if (item) most = Math.max(most, item.implicitWidth + Theme.menuShortcutSpace)
-            }
-            return most
+    ContextMenu {
+        id: menu
+        onTriggered: (index) => {
+            const entry = root.entries[index]
+            if (entry && entry.action) entry.action()
         }
-
-        Repeater {
-            id: repeater
-            model: root.entries
-            delegate: PopupMenuItem {
-                required property var modelData
-                width: column.width
-                entry: modelData
-                onTriggered: {
-                    root.close()
-                    if (entry.action) entry.action()
-                }
-            }
-        }
+        onClosed: root.closed()
     }
 }
