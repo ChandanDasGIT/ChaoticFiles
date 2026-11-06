@@ -42,18 +42,31 @@ Rectangle {
                                               Math.min(Theme.tabMaxWidth,
                                                        (spaceForTabs - Theme.tabRadius * 2) / Math.max(1, repeater.count) - Theme.tabGap))
 
+    // tabs sit at fixed slots; the slot is used here, not the tab's x, which may still be sliding
+    function slotX(index) { return index * (tabWidth + Theme.tabGap) }
+
     function revealCurrent() {
-        const item = repeater.itemAt(TabsController.currentIndex)
-        if (!item) return
-        const left = item.x + row.x - Theme.tabRadius
-        const right = item.x + row.x + item.width + Theme.tabRadius
+        const index = TabsController.currentIndex
+        if (index < 0 || index >= repeater.count) return
+        const left = slotX(index) + row.x - Theme.tabRadius
+        const right = slotX(index) + row.x + tabWidth + Theme.tabRadius
         if (left < strip.contentX) strip.contentX = left
         else if (right > strip.contentX + strip.width) strip.contentX = right - strip.width
     }
     Connections {
         target: TabsController
         function onCurrentIndexChanged() { Qt.callLater(root.revealCurrent) }
+
+        // a tab is about to be opened, closed or moved: let the tabs slide and resize to their new
+        // places together. A window resize does not do this, so the tabs follow it at once.
+        function onRowsAboutToBeInserted() { layoutTimer.restart() }
+        function onRowsAboutToBeRemoved() { layoutTimer.restart() }
+        function onRowsAboutToBeMoved() { layoutTimer.restart() }
     }
+
+    readonly property int slideDuration: 160
+    readonly property bool animateLayout: layoutTimer.running
+    Timer { id: layoutTimer; interval: root.slideDuration + 40 }
 
     // ---- the free space after the tabs moves the window; a double click maximises it ----
     Item {
@@ -98,13 +111,18 @@ Rectangle {
         interactive: false                 // the mouse drags tabs here; the wheel scrolls the strip
         clip: true
 
-        Row {
+        // keeps the strip inside its bounds while it shrinks after a tab closes
+        onContentWidthChanged: contentX = Math.max(0, Math.min(contentX, contentWidth - width))
+        onWidthChanged: contentX = Math.max(0, Math.min(contentX, contentWidth - width))
+
+        component SlideAnimation: NumberAnimation { duration: root.slideDuration; easing.type: Easing.OutCubic }
+
+        Item {
             id: row
             x: Theme.tabRadius
             height: strip.height
-            spacing: Theme.tabGap
-
-            move: Transition { NumberAnimation { properties: "x"; duration: 160; easing.type: Easing.OutCubic } }
+            width: Math.max(0, root.slotX(repeater.count) - Theme.tabGap)
+            Behavior on width { enabled: root.animateLayout; SlideAnimation {} }
 
             Repeater {
                 id: repeater
@@ -117,8 +135,11 @@ Rectangle {
                     required property bool isCurrent
                     required property int index
 
+                    x: root.slotX(index)
                     width: root.tabWidth
                     height: row.height
+                    Behavior on x { enabled: root.animateLayout; SlideAnimation {} }
+                    Behavior on width { enabled: root.animateLayout; SlideAnimation {} }
                     title: session.title
                     current: isCurrent
                     showDivider: !isCurrent && index !== TabsController.currentIndex - 1
