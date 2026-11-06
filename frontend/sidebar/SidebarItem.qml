@@ -49,6 +49,7 @@ Rectangle {
         color: root.active ? Theme.accent : root.iconColor
     }
     Text {
+        textFormat: Text.PlainText        // a name from outside is shown as it is, never as markup
         anchors.left: iconText.right
         anchors.leftMargin: 6
         anchors.right: parent.right
@@ -106,6 +107,7 @@ Rectangle {
         Drag.hotSpot.y: height / 2
 
         Text {
+            textFormat: Text.PlainText        // a name from outside is shown as it is, never as markup
             x: Theme.sidebarPadding
             anchors.verticalCenter: parent.verticalCenter
             text: root.name

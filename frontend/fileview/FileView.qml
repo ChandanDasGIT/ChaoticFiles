@@ -254,6 +254,7 @@ FocusScope {
             color: Theme.textDim
         }
         Text {
+            textFormat: Text.PlainText        // a name from outside is shown as it is, never as markup
             width: Math.min(implicitWidth, root.width - 40)
             anchors.horizontalCenter: parent.horizontalCenter
             horizontalAlignment: Text.AlignHCenter

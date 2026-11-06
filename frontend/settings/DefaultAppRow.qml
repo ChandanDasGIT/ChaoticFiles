@@ -10,6 +10,7 @@ Item {
     implicitHeight: Theme.popupRowHeight + 4
 
     Text {
+        textFormat: Text.PlainText        // a name from outside is shown as it is, never as markup
         anchors.left: parent.left
         anchors.right: box.left
         anchors.rightMargin: 8

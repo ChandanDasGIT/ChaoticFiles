@@ -59,6 +59,7 @@ DialogFrame {
                         height: Theme.settingsRowHeight
 
                         Text {
+                            textFormat: Text.PlainText        // a name from outside is shown as it is, never as markup
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
                             text: group.modelData.name

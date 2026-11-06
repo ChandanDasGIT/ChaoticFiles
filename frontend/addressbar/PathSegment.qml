@@ -23,6 +23,7 @@ Item {
         color: labelArea.containsMouse ? Theme.hoverBg : "transparent"
 
         Text {
+            textFormat: Text.PlainText        // a name from outside is shown as it is, never as markup
             id: labelText
             anchors.centerIn: parent
             text: root.icon !== "" ? root.icon : root.label

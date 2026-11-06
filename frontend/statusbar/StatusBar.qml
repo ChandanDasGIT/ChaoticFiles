@@ -58,6 +58,7 @@ Rectangle {
             color: Theme.textMuted
         }
         Text {
+            textFormat: Text.PlainText        // a name from outside is shown as it is, never as markup
             visible: text !== ""
             text: root.message
             font.pixelSize: Theme.smallFontSize

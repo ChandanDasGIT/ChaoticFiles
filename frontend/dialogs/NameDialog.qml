@@ -51,6 +51,7 @@ DialogFrame {
         spacing: 12
 
         Text {
+            textFormat: Text.PlainText        // a name from outside is shown as it is, never as markup
             text: root.title
             font.pixelSize: Theme.dialogTitleSize
             font.weight: Font.DemiBold

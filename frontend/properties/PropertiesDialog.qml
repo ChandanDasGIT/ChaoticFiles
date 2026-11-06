@@ -110,6 +110,7 @@ DialogFrame {
             spacing: 10
 
             Text {
+                textFormat: Text.PlainText        // a name from outside is shown as it is, never as markup
                 width: parent.width
                 wrapMode: Text.Wrap
                 text: PropertiesController.hashError !== "" ? PropertiesController.hashError
@@ -141,6 +142,7 @@ DialogFrame {
 
     // ---- bottom line ----
     Text {
+        textFormat: Text.PlainText        // a name from outside is shown as it is, never as markup
         anchors.left: parent.left
         anchors.verticalCenter: footer.verticalCenter
         text: PropertiesController.status

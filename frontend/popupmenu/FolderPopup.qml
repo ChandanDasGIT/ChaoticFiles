@@ -52,6 +52,7 @@ Popup {
                 color: Theme.folderIcon
             }
             Text {
+                textFormat: Text.PlainText        // a name from outside is shown as it is, never as markup
                 anchors.left: icon.right
                 anchors.leftMargin: Theme.menuRowPadding
                 anchors.right: parent.right

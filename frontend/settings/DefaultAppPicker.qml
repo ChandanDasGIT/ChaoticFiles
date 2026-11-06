@@ -31,6 +31,7 @@ DialogFrame {
     height: Math.min(Theme.openWithHeight, parent.height - 2 * Theme.dialogMargin)
 
     Text {
+        textFormat: Text.PlainText        // a name from outside is shown as it is, never as markup
         id: heading
         width: parent.width
         text: root.title
