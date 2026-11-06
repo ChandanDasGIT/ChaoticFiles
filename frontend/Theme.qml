@@ -164,6 +164,16 @@ QtObject {
     readonly property int scrollbarWidth:   10
     readonly property real hiddenOpacity:   0.6
 
+    // ---- quick look (Space on an image, full screen) ----
+    readonly property color quickLookBg:    "#0a0a0a"     // dark behind the picture, in both themes
+    readonly property color quickLookText:  "#f2f2f2"
+    readonly property color quickLookMuted: "#a0a0a0"
+    readonly property color quickLookHoverBg: "#26ffffff"
+    readonly property int quickLookMargin:  32           // room round the picture
+    readonly property int quickLookCloseMargin: 12      // the close button from the corner
+    readonly property int quickLookCaptionGap: 12
+    readonly property int quickLookIconSize: 48     // the picture icon shown while a big image loads
+
     // ---- preview panel ----
     readonly property int previewWidth:     300
     readonly property int previewPadding:   14

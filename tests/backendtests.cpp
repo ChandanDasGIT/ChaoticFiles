@@ -1426,6 +1426,19 @@ static void testTyping()
     CHECK(view.findTyped("fz", fennel) == -1);
     CHECK(view.findTyped("z", 0) == -1);
 
+    // quick look steps from image to image, over anything else, and stops at the ends
+    FolderView pictures;
+    std::vector<Entry> files;
+    for (const char* name : {"a.png", "b.txt", "c.jpg", "d", "e.webp"}) files.push_back(fileEntry(name));
+    pictures.setEntries(std::move(files), {});
+    const auto picture = [&pictures](int row) { return row >= 0 ? pictures.at(row).name : std::string(); };
+    const int a = pictures.findPrefix("a", 0);
+    CHECK(picture(pictures.findCategory(FileCategory::Image, a, 1)) == "c.jpg");
+    CHECK(picture(pictures.findCategory(FileCategory::Image, a + 2, 1)) == "e.webp");
+    CHECK(picture(pictures.findCategory(FileCategory::Image, a + 4, -1)) == "c.jpg");
+    CHECK(pictures.findCategory(FileCategory::Image, a + 4, 1) == -1);
+    CHECK(pictures.findCategory(FileCategory::Image, a, -1) == -1);
+
     // a letter of more than one byte is still one letter
     const int first = view.findPrefix("\xC3\xA9", 0);
     CHECK(first >= 0);

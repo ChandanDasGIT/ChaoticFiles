@@ -19,6 +19,7 @@ ShortcutMap::ShortcutMap()
         {"detailsView", "Details view", {"Ctrl+1"}},
         {"gridView", "Grid view", {"Ctrl+2"}},
         {"preview", "Preview panel", {"F3"}},
+        {"quickLook", "Quick look at an image", {"Space"}},
         {"properties", "Properties", {"Alt+Return", "Alt+Enter"}},
         {"copy", "Copy", {"Ctrl+C"}},
         {"cut", "Cut", {"Ctrl+X"}},

@@ -91,6 +91,7 @@ public:
     Q_INVOKABLE void selectAll();
     Q_INVOKABLE void clearSelection();
     Q_INVOKABLE void typeAhead(const QString& text);
+    Q_INVOKABLE bool stepToImage(int step);                  // selects the next (+1) or previous (-1) image; false if none
     Q_INVOKABLE void sortBy(int key);                        // the same column again flips the order
     Q_INVOKABLE QStringList selectedPaths() const;           // the selection, or the folder itself if nothing is selected
     Q_INVOKABLE QStringList selectedItems() const;           // only what is selected: anything that changes files uses this

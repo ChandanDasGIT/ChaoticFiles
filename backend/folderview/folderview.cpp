@@ -189,6 +189,15 @@ int FolderView::findTyped(const std::string& typed, int current) const
     return findPrefix(typed, std::max(current, 0));
 }
 
+int FolderView::findCategory(FileCategory category, int from, int step) const
+{
+    if (step == 0) return -1;
+    step = step > 0 ? 1 : -1;
+    for (int row = from + step; row >= 0 && row < count(); row += step)
+        if (at(row).category == category) return row;
+    return -1;
+}
+
 int FolderView::findPrefix(const std::string& prefix, int from) const
 {
     if (prefix.empty() || count() == 0) return -1;

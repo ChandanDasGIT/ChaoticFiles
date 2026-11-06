@@ -129,6 +129,7 @@ Window {
     minimumHeight: Theme.windowMinHeight
     visible: true
     flags: Qt.Window | Qt.FramelessWindowHint
+    onClosing: quickLook.close()            // so the app can quit
     title: session ? session.title + " - ChaoticFiles" : "ChaoticFiles"
     color: Theme.windowBg
 
@@ -172,6 +173,7 @@ Window {
     ActionShortcut { name: "detailsView"; onActivated: SettingsController.viewMode = 0 }
     ActionShortcut { name: "gridView"; onActivated: SettingsController.viewMode = 1 }
     ActionShortcut { name: "preview"; onActivated: SettingsController.showPreview = !SettingsController.showPreview }
+    ActionShortcut { name: "quickLook"; onActivated: quickLook.toggle() }
     ActionShortcut { name: "properties"; onActivated: actions.properties() }
     ActionShortcut { name: "copy"; onActivated: actions.copy() }
     ActionShortcut { name: "cut"; onActivated: actions.cut() }
@@ -300,6 +302,13 @@ Window {
         id: actions
         session: window.session
         onDialogClosed: window.focusFiles()
+    }
+
+    QuickLook {
+        id: quickLook
+        transientParent: window
+        session: window.session
+        onVisibleChanged: if (!visible) { window.requestActivate(); window.focusFiles() }
     }
 
     PropertiesDialog {

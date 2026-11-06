@@ -344,6 +344,14 @@ void FolderSession::typeAhead(const QString& text)
     if (row >= 0) moveCurrentTo(row, false);
 }
 
+bool FolderSession::stepToImage(int step)
+{
+    const int row = m_tab->view.findCategory(FileCategory::Image, currentRow(), step);
+    if (row < 0) return false;
+    moveCurrentTo(row, false);
+    return true;
+}
+
 void FolderSession::sortBy(int key)
 {
     SortSettings sort = m_tab->view.sort();

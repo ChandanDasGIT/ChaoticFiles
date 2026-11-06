@@ -46,6 +46,8 @@ public:
     // What typing in the list lands on: -1 if nothing. One letter, even pressed again and again, goes to the next
     // name starting with it. Different letters spell a name, from where the list is now.
     int findTyped(const std::string& typed, int current) const;
+    // the nearest row after `from` (step > 0) or before it (step < 0) of this category; -1 if there is none
+    int findCategory(FileCategory category, int from, int step) const;
 
 private:
     void rebuildRows();

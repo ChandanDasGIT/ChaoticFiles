@@ -209,6 +209,8 @@ ChaoticFiles/
 │   ├── properties/                         // the properties window
 │   │   ├── PropertiesDialog.qml            // tabs of properties and hashes
 │   │   └── PropertyRow.qml                 // one property
+│   ├── quicklook/                          // Space on an image
+│   │   └── QuickLook.qml                   // the picture full screen
 │   ├── search/                             // searching
 │   │   └── SearchBar.qml                   // filter as you type, or all subfolders
 │   ├── settings/                           // the settings window
@@ -286,7 +288,7 @@ ChaoticFiles/
 │   │   └── placescontroller.h              // places, pinned folders, drives, network shares (PlacesController)
 │   ├── previewWrap/                        // the preview panel for QML
 │   │   ├── previewcontroller.cpp           // its implementation
-│   │   └── previewcontroller.h             // the start of a text file (PreviewController)
+│   │   └── previewcontroller.h             // the start of a text file, and image details for quick look (PreviewController)
 │   ├── propertiesWrap/                     // the properties window for QML
 │   │   ├── propertiescontroller.cpp        // its implementation
 │   │   └── propertiescontroller.h          // fills the window from background threads (PropertiesController)

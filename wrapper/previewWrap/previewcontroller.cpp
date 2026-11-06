@@ -3,6 +3,9 @@
 #include "magic/magicfile.h"
 
 #include <QFile>
+#include <QImageIOHandler>
+#include <QImageReader>
+#include <QUrl>
 
 namespace {
 constexpr qint64 kPreviewBytes = 16 * 1024;
@@ -39,4 +42,17 @@ void PreviewController::showText(const QString& path)
             }, Qt::QueuedConnection);
         });
     });
+}
+
+QVariantMap PreviewController::imageDetails(const QString& path) const
+{
+    QImageReader reader(path);
+    QSize size = reader.size();
+    if (reader.transformation() & QImageIOHandler::TransformationRotate90) size.transpose();
+    return {
+        {"url", QUrl::fromLocalFile(path)},
+        {"animated", reader.supportsAnimation()},
+        {"width", size.width()},
+        {"height", size.height()},
+    };
 }
