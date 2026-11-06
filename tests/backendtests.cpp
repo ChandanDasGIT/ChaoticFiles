@@ -432,6 +432,25 @@ static void testTrash(const fs::path& root)
     fs::remove_all(disk);
     fs::remove_all(root / "victim");
 
+    // restoring from a disk's Trash only goes to places on that disk, whatever its .trashinfo files say
+    fs::create_directories(diskTrash / "files");
+    fs::create_directories(diskTrash / "info");
+    const auto diskTrashed = [&](const std::string& name, const std::string& recorded) {
+        touch(diskTrash / "files" / name);
+        std::ofstream(diskTrash / "info" / (name + ".trashinfo")) << "[Trash Info]\nPath=" << recorded << "\nDeletionDate=2026-01-01T00:00:00\n";
+        return (diskTrash / "files" / name).string();
+    };
+    std::string restoredTo;
+    CHECK(Trash::restore(diskTrashed("a", "sub/a"), &restoredTo).ok && restoredTo == (disk / "sub" / "a").string());
+    CHECK(!Trash::restore(diskTrashed("b", "../outside/b")).ok && !fs::exists(root / "outside"));
+    CHECK(!Trash::restore(diskTrashed("c", (root / "elsewhere" / "c").string())).ok && !fs::exists(root / "elsewhere"));
+    fs::create_directories(root / "victim");
+    fs::create_directory_symlink(root / "victim", disk / "link");
+    CHECK(!Trash::restore(diskTrashed("d", "link/new/d")).ok && !fs::exists(root / "victim" / "new"));
+    CHECK(fs::exists(diskTrash / "files" / "b"));                      // what was refused stays in the Trash
+    fs::remove_all(disk);
+    fs::remove_all(root / "victim");
+
     CHECK(PathBar::tabTitle(PathBar::kTrashLocation) == "Trash");
     CHECK(PathBar::split(PathBar::kTrashLocation).size() == 1);
     CHECK(PathBar::parent(PathBar::kTrashLocation) == PathBar::kTrashLocation);

@@ -38,6 +38,22 @@ bool isOwnRealFolder(const std::string& path)
     return lstat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode) && info.st_uid == getuid();
 }
 
+// Whether `path` is inside `top`, also after following links in the part of it that exists already
+bool staysInside(const std::string& path, const std::string& top)
+{
+    if (path.rfind(top + "/", 0) != 0) return false;
+    std::string existing = PathBar::parent(path);
+    struct stat info {};
+    while (existing.size() > top.size() && lstat(existing.c_str(), &info) != 0) existing = PathBar::parent(existing);
+    char* realTop = realpath(top.c_str(), nullptr);
+    char* realExisting = realpath(existing.c_str(), nullptr);
+    const bool inside = realTop && realExisting
+                        && (std::string(realExisting) == realTop || std::string(realExisting).rfind(std::string(realTop) + "/", 0) == 0);
+    std::free(realTop);
+    std::free(realExisting);
+    return inside;
+}
+
 bool makeTrash(const std::string& trash)
 {
     if (!makePrivate(trash) || !makePrivate(trash + "/files") || !makePrivate(trash + "/info")) return false;
@@ -241,15 +257,22 @@ Outcome restore(const std::string& trashedPath, std::string* restoredTo)
 {
     const std::string trash = trashOf(trashedPath), name = PathBar::baseName(trashedPath);
     const std::string infoPath = trash + "/info/" + name + ".trashinfo";
-    const InfoFile info = readInfo(infoPath, topOfTrash(trash));
+    const std::string top = topOfTrash(trash);
+    const InfoFile info = readInfo(infoPath, top);
     if (info.originalPath.empty()) return {false, "The Trash has no record of where \"" + name + "\" came from."};
 
+    // A disk's Trash can be written by anyone who can write to the disk, so what it records is only believed
+    // inside that disk. Nothing, not even a folder, is made before that is clear.
+    const std::string target = PathBar::normalize(info.originalPath);
+    if (!top.empty() && !staysInside(target, top))
+        return {false, "The Trash records a place for \"" + name + "\" outside its own disk, so it was not restored."};
+
     std::error_code ignored;
-    std::filesystem::create_directories(PathBar::parent(info.originalPath), ignored);
-    Outcome moved = FileOps::rename(trashedPath, info.originalPath);
+    std::filesystem::create_directories(PathBar::parent(target), ignored);
+    Outcome moved = FileOps::rename(trashedPath, target);
     if (!moved.ok) return moved;
     unlink(infoPath.c_str());
-    if (restoredTo) *restoredTo = info.originalPath;
+    if (restoredTo) *restoredTo = target;
     return {};
 }
 
