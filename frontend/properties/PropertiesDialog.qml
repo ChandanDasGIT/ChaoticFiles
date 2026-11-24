@@ -1,22 +1,28 @@
 import QtQuick
 import QtQuick.Controls.Basic
 
-// The properties window. The tabs come from PropertiesController; Hashes is added for files.
+// The properties window. The tabs come from PropertiesController; Hashes is added for files, before Advanced.
 DialogFrame {
     id: root
 
     property int currentTab: 0
     readonly property var sections: PropertiesController.sections
-    readonly property bool hashesTab: currentTab === sections.length && PropertiesController.canHash
+    readonly property var tabNames: {
+        const names = sections.map(section => section.title)
+        if (PropertiesController.canHash) names.splice(names[names.length - 1] === "Advanced" ? names.length - 1 : names.length, 0, "Hashes")
+        return names
+    }
+    readonly property string currentName: tabNames[currentTab] ?? ""
+    readonly property bool hashesTab: currentName === "Hashes" && PropertiesController.canHash
     readonly property var currentRows: hashesTab ? PropertiesController.hashes
-                                                 : (sections[currentTab]?.rows ?? [])
+                                                 : (sections.find(section => section.title === currentName)?.rows ?? [])
 
     visible: PropertiesController.isOpen
     onClosed: PropertiesController.close()
     onOpened: currentTab = 0
 
-    width: Math.min(Theme.propertiesWidth, parent.width - 2 * Theme.dialogMargin)
-    height: Math.min(Theme.propertiesHeight, parent.height - 2 * Theme.dialogMargin)
+    width: Math.min(Theme.propertiesWidth, maxWidth)
+    height: Math.min(Theme.propertiesHeight, maxHeight)
 
     // ---- title ----
     Text {
@@ -46,10 +52,10 @@ DialogFrame {
         spacing: 2
 
         Repeater {
-            model: root.sections.length + (PropertiesController.canHash ? 1 : 0)
+            model: root.tabNames
             delegate: Rectangle {
                 required property int index
-                readonly property bool isHashes: index === root.sections.length
+                required property string modelData
                 readonly property bool selected: index === root.currentTab
 
                 width: tabText.implicitWidth + 2 * Theme.propertyTabPadding
@@ -60,7 +66,7 @@ DialogFrame {
                 Text {
                     id: tabText
                     anchors.centerIn: parent
-                    text: parent.isHashes ? "Hashes" : (root.sections[parent.index]?.title ?? "")
+                    text: parent.modelData
                     font.pixelSize: Theme.smallFontSize
                     color: Theme.text
                 }
@@ -90,6 +96,19 @@ DialogFrame {
         Column {
             id: column
             width: scroller.width - Theme.scrollbarWidth
+
+            CheckRow {
+                id: runAllowed
+                visible: PropertiesController.canSetExecutable && root.currentName === "Permissions"
+                height: visible ? implicitHeight + Theme.propertyRowPadding : 0
+                text: "Allow running as program"
+                checked: PropertiesController.executable
+                onCheckedChanged: {
+                    if (checked === PropertiesController.executable) return
+                    PropertiesController.setExecutable(checked)
+                    checked = Qt.binding(() => PropertiesController.executable)
+                }
+            }
 
             Repeater {
                 model: root.currentRows

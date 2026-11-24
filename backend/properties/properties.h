@@ -16,6 +16,9 @@ std::vector<PropertySection> collectSelection(const std::vector<std::string>& pa
 
 PropertySection folderContents(const FolderScan& scan);
 
+// Puts a file's content rows in a Content tab before Advanced; the technical ones go into Advanced.
+void addContent(std::vector<PropertySection>& sections, const std::vector<PropertyRow>& rows);
+
 // A folder's Size rows say "Counting…" until this puts in everything inside it, subfolders included.
 void applyTotals(std::vector<PropertySection>& sections, const FolderScan& scan);
 

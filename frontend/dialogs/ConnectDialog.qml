@@ -72,7 +72,7 @@ DialogFrame {
         }
     }
 
-    width: Math.min(Theme.dialogWidth, parent.width - 2 * Theme.dialogMargin)
+    width: Math.min(Theme.dialogWidth, maxWidth)
 
     Column {
         width: parent.width

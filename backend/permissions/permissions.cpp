@@ -150,4 +150,18 @@ std::string parseCapabilities(const std::string& value)
     return text;
 }
 
+bool isExecutable(std::uint32_t fullMode)
+{
+    return (fullMode & 0111) != 0;
+}
+
+bool setExecutable(const std::string& path, bool on)
+{
+    struct stat info {};
+    if (lstat(path.c_str(), &info) != 0 || !S_ISREG(info.st_mode)) return false;
+    mode_t mode = info.st_mode & 07777;
+    mode = on ? mode | ((mode & 0444) >> 2) : mode & ~0111;
+    return chmod(path.c_str(), mode) == 0;
+}
+
 } // namespace Permissions

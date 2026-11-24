@@ -5,6 +5,7 @@
 #include <QTimer>
 
 #include "wrapper/appsWrap/appiconprovider.h"
+#include "wrapper/tabsWrap/filemanagerservice.h"
 #include "wrapper/tabsWrap/tabscontroller.h"
 #include "wrapper/thumbnailsWrap/thumbnailprovider.h"
 #include "wrapper/updateWrap/updatecontroller.h"
@@ -40,13 +41,16 @@ int main(int argc, char *argv[])
     // folders named on the command line open in tabs: appChaoticFiles ~/Music "My Folder"
     QStringList folders;
     int currentTab = 0;
+    bool startedByDBus = false;                                                  // see FileManagerService
     const QStringList args = app.arguments();
     for (int i = 1; i < args.size(); ++i) {
         if (args.at(i).startsWith(QStringLiteral("--tab="))) currentTab = args.at(i).mid(6).toInt();   // an update reopening the tabs
+        if (args.at(i) == QStringLiteral("--dbus")) startedByDBus = true;
         if (args.at(i).startsWith(QLatin1Char('-'))) continue;                   // an option, not a folder
         folders << QFileInfo(args.at(i)).absoluteFilePath();                     // relative names count from the current folder
     }
     TabsController::instance()->start(folders, currentTab);
+    new FileManagerService(startedByDBus, &app);
 
     QQmlApplicationEngine engine;
     QObject::connect(

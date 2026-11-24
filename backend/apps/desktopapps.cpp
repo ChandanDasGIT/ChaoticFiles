@@ -8,13 +8,16 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <cstdlib>
 #include <dirent.h>
 #include <filesystem>
 #include <fstream>
 #include <map>
 #include <sstream>
+#include <sys/stat.h>
 #include <thread>
+#include <unistd.h>
 
 namespace {
 
@@ -85,6 +88,30 @@ bool isInstalled(const std::string& appId)
     return false;
 }
 
+// mimeapps.list files, the ones that count most first, as the standard orders them
+std::vector<std::string> associationFiles()
+{
+    std::vector<std::string> desktops;
+    if (const char* current = std::getenv("XDG_CURRENT_DESKTOP"); current && *current)
+        for (std::string name : split(current, ':')) {
+            std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) { return std::tolower(c); });
+            desktops.push_back(name);
+        }
+    const auto both = [&desktops](std::vector<std::string>& files, const std::string& folder) {
+        for (const std::string& desktop : desktops) files.push_back(folder + "/" + desktop + "-mimeapps.list");
+        files.push_back(folder + "/mimeapps.list");
+    };
+
+    std::vector<std::string> files;
+    if (LocalDefaults::inUse()) files.push_back(LocalDefaults::filePath());
+    const char* configHome = std::getenv("XDG_CONFIG_HOME");
+    both(files, configHome && *configHome ? configHome : PathBar::homeDirectory() + "/.config");
+    const char* configDirs = std::getenv("XDG_CONFIG_DIRS");
+    for (const std::string& dir : split(configDirs && *configDirs ? configDirs : "/etc/xdg", ':')) both(files, dir);
+    for (const std::string& dir : applicationFolders()) both(files, dir);
+    return files;
+}
+
 std::string terminalProgram()
 {
     if (const char* chosen = std::getenv("TERMINAL"); chosen && *chosen && !Process::findProgram(chosen).empty()) return chosen;
@@ -120,13 +147,14 @@ DesktopApp parse(const std::string& id, const std::string& text)
         else if (key == "Type") isApplication = value == "Application";
         else if (key == "Terminal") app.terminal = value == "true";
         else if (key == "MimeType") app.mimeTypes = split(value, ';');
-        else if ((key == "NoDisplay" || key == "Hidden") && value == "true") hidden = true;
+        else if (key == "Hidden" && value == "true") hidden = true;        // Hidden means removed
+        else if (key == "NoDisplay") app.noDisplay = value == "true";
     }
     if (hidden || !isApplication || app.exec.empty() || app.name.empty()) app.exec.clear();
     return app;
 }
 
-std::vector<DesktopApp> all()
+static std::vector<DesktopApp> installed()
 {
     std::map<std::string, DesktopApp> found;
     for (const std::string& folder : applicationFolders()) {
@@ -147,6 +175,42 @@ std::vector<DesktopApp> all()
         if (!app.exec.empty()) apps.push_back(std::move(app));
     std::sort(apps.begin(), apps.end(), [](const DesktopApp& a, const DesktopApp& b) { return naturalCompare(a.name, b.name) < 0; });
     return apps;
+}
+
+std::vector<DesktopApp> all()
+{
+    std::vector<DesktopApp> apps = installed();
+    std::erase_if(apps, [](const DesktopApp& app) { return app.noDisplay; });
+    return apps;
+}
+
+// A file's removals hide only what the files after it add, so the user's own list can take back a system one.
+Associations associationsFor(const std::vector<std::string>& mimes)
+{
+    Associations found;
+    const auto has = [](const std::vector<std::string>& list, const std::string& id) { return std::find(list.begin(), list.end(), id) != list.end(); };
+    for (const std::string& path : associationFiles()) {
+        std::ifstream file(path);
+        if (!file) continue;
+        std::vector<std::string> removedHere;
+        std::string line, section;
+        while (std::getline(file, line)) {
+            if (!line.empty() && line.back() == '\r') line.pop_back();
+            if (!line.empty() && line.front() == '[') {
+                section = line;
+                continue;
+            }
+            const auto equals = line.find('=');
+            if (equals == std::string::npos || !has(mimes, line.substr(0, equals))) continue;
+            for (const std::string& id : split(line.substr(equals + 1), ';')) {
+                if (section == "[Added Associations]" && !has(found.removed, id) && !has(found.added, id)) found.added.push_back(id);
+                else if (section == "[Removed Associations]" && !has(removedHere, id)) removedHere.push_back(id);
+            }
+        }
+        for (const std::string& id : removedHere)
+            if (!has(found.removed, id) && !has(found.added, id)) found.removed.push_back(id);
+    }
+    return found;
 }
 
 void keepDefaultsLocal(bool local)
@@ -240,7 +304,7 @@ std::string defaultNameFor(const std::string& mime)
 {
     const std::string id = defaultFor(mime);
     if (id.empty()) return {};
-    for (const DesktopApp& app : all())
+    for (const DesktopApp& app : installed())
         if (app.id == id) return app.name;
     return id;
 }
@@ -259,16 +323,32 @@ std::vector<DesktopApp> forMimeTypes(const std::vector<std::string>& mimes)
         const std::vector<std::string> kinds = MimeTypes::related(mime);
         wanted.insert(wanted.end(), kinds.begin(), kinds.end());
     }
-    std::vector<DesktopApp> apps;
-    for (DesktopApp& app : all()) {
-        const auto& types = app.mimeTypes;
-        const bool opens = app.id == chosen || std::any_of(wanted.begin(), wanted.end(), [&types](const std::string& mime) {
-            return std::find(types.begin(), types.end(), mime) != types.end();
-        });
-        if (!opens) continue;
-        if (app.id == chosen) apps.insert(apps.begin(), std::move(app));
-        else apps.push_back(std::move(app));
+    const Associations associations = associationsFor(wanted);
+    const auto listed = [](const std::vector<std::string>& ids, const std::string& id) { return std::find(ids.begin(), ids.end(), id) != ids.end(); };
+
+    // the default first, then the ones mimeapps.list adds in its order, then the rest by name
+    std::vector<DesktopApp> first, added(associations.added.size()), rest;
+    for (DesktopApp& app : installed()) {
+        if (app.id == chosen) {
+            first.push_back(std::move(app));
+        } else if (const auto at = std::find(associations.added.begin(), associations.added.end(), app.id); at != associations.added.end()) {
+            added[at - associations.added.begin()] = std::move(app);
+        } else if (!listed(associations.removed, app.id)) {
+            const auto& types = app.mimeTypes;
+            if (std::any_of(wanted.begin(), wanted.end(), [&types, &listed](const std::string& mime) { return listed(types, mime); }))
+                rest.push_back(std::move(app));
+        }
     }
+    std::vector<DesktopApp> apps = std::move(first);
+    for (DesktopApp& app : added)
+        if (!app.exec.empty()) apps.push_back(std::move(app));
+    // a NoDisplay twin of an app already listed, such as Okular's per-type entries, would only show it twice
+    std::vector<std::string> shownNames;
+    for (const DesktopApp& app : apps) shownNames.push_back(app.name);
+    for (const DesktopApp& app : rest)
+        if (!app.noDisplay) shownNames.push_back(app.name);
+    for (DesktopApp& app : rest)
+        if (!app.noDisplay || !listed(shownNames, app.name)) apps.push_back(std::move(app));
     return apps;
 }
 
@@ -304,7 +384,7 @@ std::vector<std::string> commandFor(const std::string& exec, const std::vector<s
 
 bool open(const std::string& appId, const std::vector<std::string>& paths)
 {
-    for (const DesktopApp& app : all()) {
+    for (const DesktopApp& app : installed()) {
         if (app.id != appId) continue;
         std::vector<std::string> command = commandFor(app.exec, paths);
         if (app.terminal) {
@@ -321,6 +401,20 @@ bool openWithDefault(const std::string& path)
 {
     const std::string id = defaultFor(openingType(path));
     return !id.empty() && open(id, {path});
+}
+
+bool isRunnableProgram(const std::string& path)
+{
+    struct stat info {};
+    if (stat(path.c_str(), &info) != 0 || !S_ISREG(info.st_mode) || access(path.c_str(), X_OK) != 0) return false;
+    std::ifstream file(path, std::ios::binary);
+    char magic[4] {};
+    return file.read(magic, sizeof magic) && magic[0] == 0x7f && magic[1] == 'E' && magic[2] == 'L' && magic[3] == 'F';
+}
+
+bool run(const std::string& path)
+{
+    return Process::startDetached({path}, PathBar::parent(path));
 }
 
 bool openTerminal(const std::string& folder)

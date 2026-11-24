@@ -1,6 +1,7 @@
 #include "tests/update/testdriver.h"
 
 #include "wrapper/operationsWrap/operationscontroller.h"
+#include "wrapper/propertiesWrap/propertiescontroller.h"
 #include "wrapper/settingsWrap/settingscontroller.h"
 #include "wrapper/diskUsageWrap/diskusagecontroller.h"
 #include "wrapper/folderWrap/foldermodel.h"
@@ -9,6 +10,7 @@
 #include "wrapper/updateWrap/updatecontroller.h"
 
 #include <QCoreApplication>
+#include <QGuiApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -49,6 +51,21 @@ QQuickItem* find(QQuickWindow* window, const QString& wanted)
         if (item->property("text").toString() == wanted && item->property("primary").isValid()) byText = item;
     }
     return byText;
+}
+
+// dialogs are windows of their own: the main window first, then every other one that is showing
+QQuickItem* findAnywhere(QQuickWindow* main, const QString& wanted, QQuickWindow** where)
+{
+    QList<QQuickWindow*> windows {main};
+    for (QWindow* top : QGuiApplication::topLevelWindows())
+        if (auto* quick = qobject_cast<QQuickWindow*>(top); quick && quick != main && quick->isVisible()) windows << quick;
+    for (QQuickWindow* window : windows) {
+        if (QQuickItem* item = find(window, wanted)) {
+            *where = window;
+            return item;
+        }
+    }
+    return nullptr;
 }
 
 QStringList rowNames()
@@ -99,15 +116,17 @@ void TestDriver::run(const QByteArray& line)
     bool ok = window != nullptr;
 
     if (command == "click" && window) {
-        QQuickItem* item = find(window, argument);
+        QQuickWindow* where = window;
+        QQuickItem* item = findAnywhere(window, argument, &where);
         ok = item != nullptr;
         if (item) {
             const QPointF centre = item->mapToScene(QPointF(item->width() / 2, item->height() / 2));
-            ok = QRectF(0, 0, window->width(), window->height()).contains(centre);     // a user couldn't click it either
-            if (ok) QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, centre.toPoint());
+            ok = QRectF(0, 0, where->width(), where->height()).contains(centre);     // a user couldn't click it either
+            if (ok) QTest::mouseClick(where, Qt::LeftButton, Qt::NoModifier, centre.toPoint());
         }
     } else if (command == "visible" && window) {
-        ok = find(window, argument) != nullptr;
+        QQuickWindow* where = window;
+        ok = findAnywhere(window, argument, &where) != nullptr;
     } else if (command == "resize" && window) {
         const QStringList size = argument.split(QLatin1Char('x'));
         window->resize(size[0].toInt(), size[1].toInt());
@@ -162,6 +181,31 @@ void TestDriver::run(const QByteArray& line)
         QObject* settings = window->findChild<QObject*>(QStringLiteral("settingsDialog"));
         if (!settings) settings = m_engine->rootObjects().first()->findChild<QObject*>(QStringLiteral("settingsDialog"));
         ok = settings && QMetaObject::invokeMethod(settings, "openAbout");
+    } else if (command == "openrow") {                       // a double click on the row of that name
+        const int row = rowNames().indexOf(argument);
+        ok = row >= 0;
+        if (ok) TabsController::instance()->currentSession()->openRow(row);
+    } else if (command == "properties") {
+        auto* properties = m_engine->singletonInstance<PropertiesController*>("ChaoticFiles", "PropertiesController");
+        ok = properties != nullptr;
+        if (ok) properties->show({argument});
+    } else if (command == "clickin") {                       // clickin <window index as shotall counts>|<x>,<y>
+        const QStringList parts = argument.split(QLatin1Char('|'));
+        const QStringList at = parts[1].split(QLatin1Char(','));
+        QList<QQuickWindow*> shown;
+        for (QWindow* top : QGuiApplication::topLevelWindows())
+            if (auto* quick = qobject_cast<QQuickWindow*>(top); quick && quick->isVisible()) shown << quick;
+        const int index = parts[0].toInt();
+        ok = index < shown.size();
+        if (ok) QTest::mouseClick(shown[index], Qt::LeftButton, Qt::NoModifier, QPoint(at[0].toInt(), at[1].toInt()));
+    } else if (command == "shotall") {                       // every window that is showing: shotall <folder>
+        int index = 0;
+        for (QWindow* top : QGuiApplication::topLevelWindows()) {
+            auto* quick = qobject_cast<QQuickWindow*>(top);
+            if (!quick || !quick->isVisible()) continue;
+            quick->grabWindow().save(QStringLiteral("%1/%2-%3x%4.png").arg(argument).arg(index++).arg(quick->width()).arg(quick->height()));
+        }
+        ok = index > 0;
     } else if (command == "quit") {
         QCoreApplication::quit();
     }

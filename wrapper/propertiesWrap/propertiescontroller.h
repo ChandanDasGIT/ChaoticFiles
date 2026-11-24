@@ -25,6 +25,8 @@ class PropertiesController : public QObject {
     Q_PROPERTY(double hashProgress READ hashProgress NOTIFY hashesChanged)
     Q_PROPERTY(QVariantList hashes READ hashes NOTIFY hashesChanged)              // [{label, value}]
     Q_PROPERTY(QString hashError READ hashError NOTIFY hashesChanged)
+    Q_PROPERTY(bool canSetExecutable READ canSetExecutable NOTIFY sectionsChanged)   // one file of yours
+    Q_PROPERTY(bool executable READ executable NOTIFY sectionsChanged)
 
 public:
     explicit PropertiesController(QObject* parent = nullptr);
@@ -38,6 +40,8 @@ public:
     double hashProgress() const { return m_hashProgress; }
     QVariantList hashes() const { return m_hashes; }
     QString hashError() const { return m_hashError; }
+    bool canSetExecutable() const { return m_canSetExecutable; }
+    bool executable() const { return m_executable; }
 
     Q_INVOKABLE void show(const QStringList& paths);
     Q_INVOKABLE void close();
@@ -45,6 +49,7 @@ public:
     Q_INVOKABLE void cancelHashes();
     Q_INVOKABLE void copyText(const QString& text);
     Q_INVOKABLE void copyAll();          // every section as plain text
+    Q_INVOKABLE void setExecutable(bool on);
 
 signals:
     void openChanged();
@@ -55,6 +60,7 @@ private:
     void collect(const std::string& path);
     void setSection(PropertySection section);
     void showTotals(const FolderScan& scan);             // the Size rows and the Contents section
+    void readMode();                                    // canSetExecutable and executable, from the file now
     void toUi(const BackgroundJob::Handle& handle, quint64 generation, std::function<void()> work);
 
     BackgroundJob m_job;
@@ -70,4 +76,6 @@ private:
     double m_hashProgress = 0;
     QVariantList m_hashes;
     QString m_hashError;
+    bool m_canSetExecutable = false;
+    bool m_executable = false;
 };

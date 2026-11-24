@@ -129,6 +129,8 @@ Item {
         if (items.length > 0) openWithDialog.ask(items)
     }
 
+    function openWithFor(paths) { openWithDialog.ask(paths) }
+
     function changeFolderIcon(paths) {
         folderIconDialog.ask(paths.length > 0 ? paths : session.selectedItems())
     }

@@ -267,6 +267,16 @@ void FolderSession::refreshAndSelect(const QString& name)
     load(name.toStdString());
 }
 
+void FolderSession::showItem(const QString& folder, const QString& name)
+{
+    const std::string target = PathBar::normalize(folder.toStdString());
+    if (target != m_tab->history.current()) {
+        m_tab->history.visit(target);
+        emit locationChanged();
+    }
+    load(name.toStdString());
+}
+
 // ---------------------------------------------------------------- rows
 
 void FolderSession::openRow(int row)
@@ -278,6 +288,10 @@ void FolderSession::openRow(int row)
         emit message(QStringLiteral("\"%1\" is a broken link.").arg(qs(entry.name)));
     } else if (entry.isDirectory()) {
         navigate(qs(entry.path));
+    } else if (DesktopApps::isRunnableProgram(entry.path)) {
+        if (!DesktopApps::run(entry.path)) emit message(QStringLiteral("\"%1\" could not be started.").arg(qs(entry.name)));
+    } else if (DesktopApps::defaultFor(DesktopApps::openingType(entry.path)).empty()) {
+        emit chooseApp(qs(entry.path));
     } else if (!DesktopApps::openWithDefault(entry.path) && !QDesktopServices::openUrl(QUrl::fromLocalFile(qs(entry.path)))) {
         emit message(QStringLiteral("No app could open \"%1\".").arg(qs(entry.name)));
     } else {

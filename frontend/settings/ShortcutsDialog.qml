@@ -8,8 +8,8 @@ DialogFrame {
     property bool capturing: false         // while a shortcut is being set, Escape belongs to it
 
     closePolicy: capturing ? Popup.NoAutoClose : Popup.CloseOnEscape
-    width: Math.min(Theme.settingsWidth, parent.width - 2 * Theme.dialogMargin)
-    height: Math.min(Theme.settingsHeight, parent.height - 2 * Theme.dialogMargin)
+    width: Math.min(Theme.settingsWidth, maxWidth)
+    height: Math.min(Theme.settingsHeight, maxHeight)
 
     Text {
         text: "Keyboard Shortcuts"

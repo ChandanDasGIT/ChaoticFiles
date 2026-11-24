@@ -7,7 +7,7 @@ DialogFrame {
 
     closePolicy: Popup.NoAutoClose          // an answer is needed
     visible: OperationsController.hasConflict
-    width: Math.min(Theme.conflictWidth, parent.width - 2 * Theme.dialogMargin)
+    width: Math.min(Theme.conflictWidth, maxWidth)
 
     Column {
         width: parent.width

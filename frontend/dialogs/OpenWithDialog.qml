@@ -25,8 +25,8 @@ DialogFrame {
         apps = AppsController.allApps()
     }
 
-    width: Math.min(Theme.dialogWidth, parent.width - 2 * Theme.dialogMargin)
-    height: Math.min(Theme.openWithHeight, parent.height - 2 * Theme.dialogMargin)
+    width: Math.min(Theme.dialogWidth, maxWidth)
+    height: Math.min(Theme.openWithHeight, maxHeight)
 
     Text {
         id: title

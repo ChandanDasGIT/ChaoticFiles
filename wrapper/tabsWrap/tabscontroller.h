@@ -29,6 +29,11 @@ public:
 
     // the first tabs: the folders given, or else what the settings say. A folder that is gone opens Home.
     void start(const QStringList& folders, int current = 0);
+
+    // Another app asks to see these: a tab for each folder, with the item selected. `reuseCurrent` puts the first
+    // one in the current tab, for a window that was started only to answer.
+    void showFolders(const QStringList& paths, bool reuseCurrent);
+    void showItems(const QStringList& paths, bool reuseCurrent);
     QStringList folders() const;                             // where each tab is, in order
 
     int rowCount(const QModelIndex& parent = {}) const override;
@@ -56,11 +61,15 @@ signals:
     void currentChanged();
     void reopenChanged();
     void message(const QString& text);
+    void chooseApp(const QString& path);
+    void activateRequested();                                // bring the window to the front
+    void propertiesRequested(const QStringList& paths);
 
 private:
     explicit TabsController(QObject* parent);
 
     FolderSession* insertTab(const std::shared_ptr<Tab>& tab, int index);
+    void showIn(const std::vector<std::pair<QString, QString>>& places, bool reuseCurrent);   // folder, name to select
     void updateCurrent(FolderSession* previous);
 
     TabManager m_tabs;

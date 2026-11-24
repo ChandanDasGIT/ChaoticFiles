@@ -5,8 +5,8 @@ import QtQuick.Controls.Basic
 DialogFrame {
     id: root
 
-    width: Math.min(Theme.settingsWidth, parent.width - 2 * Theme.dialogMargin)
-    height: Math.min(Theme.settingsHeight, parent.height - 2 * Theme.dialogMargin)
+    width: Math.min(Theme.settingsWidth, maxWidth)
+    height: Math.min(Theme.settingsHeight, maxHeight)
 
     onAboutToShow: AppsController.loadFileTypes()
 

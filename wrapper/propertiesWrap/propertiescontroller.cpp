@@ -5,12 +5,16 @@
 #include "format/format.h"
 #include "hashing/hashing.h"
 #include "pathbar/pathbar.h"
+#include "permissions/permissions.h"
 #include "properties/properties.h"
+
+#include <algorithm>
 
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QVariantMap>
 #include <sys/stat.h>
+#include <unistd.h>
 
 namespace {
 
@@ -54,7 +58,8 @@ void PropertiesController::setSection(PropertySection section)
             return;
         }
     }
-    m_sections.push_back(std::move(section));
+    const auto advanced = std::find_if(m_sections.begin(), m_sections.end(), [](const PropertySection& s) { return s.title == "Advanced"; });
+    m_sections.insert(advanced, std::move(section));          // Advanced stays the last tab
     emit sectionsChanged();
 }
 
@@ -80,6 +85,9 @@ void PropertiesController::show(const QStringList& paths)
     m_hashes.clear();
     m_hashError.clear();
     m_hashProgress = 0;
+    m_canSetExecutable = false;
+    m_executable = false;
+    if (paths.size() == 1) readMode();
     emit openChanged();
     emit sectionsChanged();
     emit hashesChanged();
@@ -127,7 +135,10 @@ void PropertiesController::collect(const std::string& path)
 
         if (regular) {
             auto rows = ContentInfo::collect(path, cancelled);
-            toUi(handle, generation, [this, rows] { setSection({"Content", rows}); });
+            toUi(handle, generation, [this, rows] {
+                Properties::addContent(m_sections, rows);
+                emit sectionsChanged();
+            });
         } else if (folder) {
             const FolderScan scan = scanFolder(path, [&](const FolderScan& soFar) {
                 toUi(handle, generation, [this, soFar] { showTotals(soFar); });
@@ -139,6 +150,40 @@ void PropertiesController::collect(const std::string& path)
             emit sectionsChanged();
         });
     });
+}
+
+void PropertiesController::readMode()
+{
+    struct stat info {};
+    const bool found = lstat(m_path.toLocal8Bit().constData(), &info) == 0;
+    m_canSetExecutable = found && S_ISREG(info.st_mode) && (info.st_uid == getuid() || getuid() == 0);
+    m_executable = found && Permissions::isExecutable(info.st_mode);
+}
+
+void PropertiesController::setExecutable(bool on)
+{
+    if (!m_canSetExecutable) return;
+    const std::string path = m_path.toStdString();
+    if (!Permissions::setExecutable(path, on)) m_status = QStringLiteral("The permissions could not be changed.");
+    readMode();
+
+    // the rows that show the mode are read again; the rest of the window stays as it is
+    const std::vector<PropertySection> fresh = Properties::collect(path);
+    for (const PropertySection& section : fresh) {
+        if (section.title == "Permissions") {
+            for (PropertySection& existing : m_sections)
+                if (existing.title == section.title) existing = section;
+        } else if (section.title == "Advanced") {
+            for (PropertySection& existing : m_sections) {
+                if (existing.title != section.title) continue;
+                for (PropertyRow& row : existing.rows)
+                    for (const PropertyRow& now : section.rows)
+                        if (row.label == now.label && (row.label == "Mode" || row.label == "Octal" || row.label == "Metadata changed"))
+                            row.value = now.value;
+            }
+        }
+    }
+    emit sectionsChanged();
 }
 
 void PropertiesController::close()

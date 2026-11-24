@@ -140,6 +140,9 @@ Window {
         target: TabsController
         function onCurrentChanged() { Qt.callLater(window.focusFiles) }
         function onMessage(text) { statusBar.showMessage(text) }
+        function onChooseApp(path) { actions.openWithFor([path]) }
+        function onActivateRequested() { window.requestActivate() }
+        function onPropertiesRequested(paths) { PropertiesController.show(paths) }
     }
     Connections {
         target: PlacesController

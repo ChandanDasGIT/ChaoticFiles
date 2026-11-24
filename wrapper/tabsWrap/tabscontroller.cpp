@@ -5,6 +5,7 @@
 #include "settingscontroller.h"
 
 #include <QCoreApplication>
+#include <algorithm>
 #include <QJSEngine>
 
 TabsController* TabsController::instance()
@@ -47,6 +48,47 @@ void TabsController::start(const QStringList& folders, int current)
     updateCurrent(nullptr);
 }
 
+void TabsController::showFolders(const QStringList& paths, bool reuseCurrent)
+{
+    std::vector<std::pair<QString, QString>> places;
+    for (const QString& path : paths)
+        if (PathBar::isDirectory(PathBar::normalize(path.toStdString()))) places.emplace_back(path, QString());
+    showIn(places, reuseCurrent);
+}
+
+void TabsController::showItems(const QStringList& paths, bool reuseCurrent)
+{
+    std::vector<std::pair<QString, QString>> places;
+    for (const QString& path : paths) {
+        const std::string item = PathBar::normalize(path.toStdString());
+        const QString folder = QString::fromStdString(PathBar::parent(item));
+        if (std::none_of(places.begin(), places.end(), [&folder](const auto& place) { return place.first == folder; }))
+            places.emplace_back(folder, QString::fromStdString(PathBar::baseName(item)));   // one tab for each folder
+    }
+    showIn(places, reuseCurrent);
+}
+
+void TabsController::showIn(const std::vector<std::pair<QString, QString>>& places, bool reuseCurrent)
+{
+    if (places.empty()) return;
+    FolderSession* previous = currentSession();
+    std::vector<FolderSession*> sessions;
+    int last = m_tabs.current();
+    for (std::size_t i = 0; i < places.size(); ++i) {
+        if (i == 0 && reuseCurrent && previous) {
+            sessions.push_back(previous);
+            continue;
+        }
+        last = m_tabs.count();
+        sessions.push_back(insertTab(m_tabs.open(PathBar::normalize(places[i].first.toStdString()), last), last));
+    }
+    m_tabs.setCurrent(last);
+    updateCurrent(previous);
+    // after the switch: a tab that becomes current reads its folder, and this reading has to be the one that counts
+    for (std::size_t i = 0; i < places.size(); ++i) sessions[i]->showItem(places[i].first, places[i].second);
+    emit activateRequested();
+}
+
 QStringList TabsController::folders() const
 {
     QStringList paths;
@@ -83,6 +125,7 @@ FolderSession* TabsController::insertTab(const std::shared_ptr<Tab>& tab, int in
 {
     auto* session = new FolderSession(tab, SettingsController::instance()->showHidden(), this);
     connect(session, &FolderSession::message, this, &TabsController::message);
+    connect(session, &FolderSession::chooseApp, this, &TabsController::chooseApp);
     session->setCutPaths(m_cutPaths);
     beginInsertRows({}, index, index);
     m_sessions.insert(index, session);

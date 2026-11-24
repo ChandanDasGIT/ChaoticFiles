@@ -7,6 +7,7 @@ namespace Format {
 
 std::string size(std::uint64_t bytes);
 std::string date(std::int64_t secondsSince1970);     // local time, 2026-10-30 23:32
+std::string readableDate(std::int64_t secondsSince1970);   // 30 Oct 2026, 23:32
 std::string fullDate(std::int64_t secondsSince1970, std::uint32_t nanoseconds);    // 2026-10-30 23:32:05.123456789 +0530
 std::string number(std::uint64_t value);             // 12,345
 std::string exactSize(std::uint64_t bytes);          // 1.5 KiB (1,536 bytes)

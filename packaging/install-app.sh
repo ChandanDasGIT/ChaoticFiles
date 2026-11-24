@@ -13,6 +13,7 @@ DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
 APP_DIR="$HOME/.local/lib/ChaoticFiles"   # not $DATA/ChaoticFiles: the app keeps its own data there
 BIN_DIR="$HOME/.local/bin"
 MENU_DIR="$DATA/applications"
+DBUS_DIR="$DATA/dbus-1/services"
 ICON_DIR="$DATA/icons/hicolor/scalable/apps"
 
 mkdir -p "$(dirname "$APP_DIR")" "$BIN_DIR" "$MENU_DIR" "$ICON_DIR"
@@ -49,6 +50,20 @@ if command -v update-desktop-database > /dev/null 2>&1; then
   update-desktop-database "$MENU_DIR" > /dev/null 2>&1 || true
 fi
 
+# "Show in folder" in browsers: D-Bus starts this app when no file manager is answering yet.
+# A file another app put there is left alone.
+SERVICE="$DBUS_DIR/org.freedesktop.FileManager1.service"
+if [ ! -e "$SERVICE" ] || grep -q "ChaoticFiles" "$SERVICE"; then
+  mkdir -p "$DBUS_DIR"
+  cat > "$SERVICE" <<EOF
+[D-BUS Service]
+Name=org.freedesktop.FileManager1
+Exec="$APP_DIR/AppRun" --dbus
+EOF
+else
+  echo "Note: $SERVICE belongs to another app and was left as it is."
+fi
+
 # A copy from sudo ./install.sh can stay beside this one. This script has no root rights to remove it.
 if [ -e /usr/local/bin/appChaoticFiles ]; then
   echo "Note: another copy is installed in /usr/local. To keep only this one, run sudo ./uninstall.sh from the project folder."
@@ -58,6 +73,7 @@ echo "ChaoticFiles is installed."
 echo "  Program : $APP_DIR"
 echo "  Command : $BIN_DIR/ChaoticFiles"
 echo "  Menu    : $MENU_DIR/ChaoticFiles.desktop"
+if grep -qs "ChaoticFiles" "$SERVICE"; then echo "  D-Bus   : $SERVICE"; fi
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
   *) echo "Note: $BIN_DIR is not on your PATH, so the 'ChaoticFiles' command will not work until you add it." ;;

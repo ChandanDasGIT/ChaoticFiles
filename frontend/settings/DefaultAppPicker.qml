@@ -27,8 +27,8 @@ DialogFrame {
         open()
     }
 
-    width: Math.min(Theme.dialogWidth, parent.width - 2 * Theme.dialogMargin)
-    height: Math.min(Theme.openWithHeight, parent.height - 2 * Theme.dialogMargin)
+    width: Math.min(Theme.dialogWidth, maxWidth)
+    height: Math.min(Theme.openWithHeight, maxHeight)
 
     Text {
         textFormat: Text.PlainText        // a name from outside is shown as it is, never as markup

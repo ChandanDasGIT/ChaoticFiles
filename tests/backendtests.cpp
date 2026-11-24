@@ -581,11 +581,48 @@ static void testProperties(const fs::path& root)
     CHECK(rowValue(file, "General", "Name") == "a.txt");
     CHECK(rowValue(file, "General", "Size") == "24 bytes");
     CHECK(rowValue(file, "General", "Type") == "Text File");
-    CHECK(rowValue(file, "Permissions", "Octal") == "0640");
-    CHECK(rowValue(file, "Permissions", "Mode") == "-rw-r-----");
+    CHECK(rowValue(file, "Advanced", "Octal") == "0640");
+    CHECK(rowValue(file, "Advanced", "Mode") == "-rw-r-----");
+    CHECK(rowValue(file, "Permissions", "Octal") == "<missing>");
     CHECK(rowValue(file, "Permissions", "Others can") == "None");
-    CHECK(rowValue(file, "Filesystem", "Hard links") == "2");
-    CHECK(rowValue(file, "Filesystem", "Filesystem type") != "<missing>");
+    CHECK(rowValue(file, "Permissions", "Runs as owner") == "<missing>");     // shown only when on
+    CHECK(rowValue(file, "Permissions", "Owner").find('(') == std::string::npos);
+    CHECK(rowValue(file, "Advanced", "Hard links") == "2");
+    CHECK(rowValue(file, "Disk", "Other names").find("1 other name") != std::string::npos);
+    CHECK(rowValue(file, "Disk", "Filesystem") != "<missing>");
+    CHECK(rowValue(file, "Disk", "Inode") == "<missing>" && rowValue(file, "Advanced", "Inode") != "<missing>");
+    CHECK(rowValue(file, "General", "Modified").find('.') == std::string::npos);  // no nanoseconds
+    CHECK(rowValue(file, "Advanced", "Full path") == (folder / "a.txt").string());
+    CHECK(file.back().title == "Advanced");
+
+    auto withContent = file;
+    Properties::addContent(withContent, {{"MIME type", "text/plain"}, {"Lines", "2"}});
+    CHECK(withContent.back().title == "Advanced" && withContent[withContent.size() - 2].title == "Content");
+    CHECK(rowValue(withContent, "Content", "Lines") == "2" && rowValue(withContent, "Content", "MIME type") == "<missing>");
+    CHECK(rowValue(withContent, "Advanced", "Content: MIME type") == "text/plain");
+
+    fs::create_directories(root / "runnable");
+    touch(root / "runnable" / "tool.AppImage", "\x7f" "ELF");
+    const std::string tool = (root / "runnable" / "tool.AppImage").string();
+    const auto modeOf = [](const std::string& path) { struct stat st {}; lstat(path.c_str(), &st); return st.st_mode & 07777; };
+    chmod(tool.c_str(), 0640);
+    CHECK(!Permissions::isExecutable(modeOf(tool)));
+    CHECK(Permissions::setExecutable(tool, true) && modeOf(tool) == 0750);      // only those who may read it may run it
+    CHECK(Permissions::isExecutable(modeOf(tool)));
+    CHECK(Permissions::setExecutable(tool, false) && modeOf(tool) == 0640);
+    CHECK(!Permissions::setExecutable((folder / "inner").string(), true));      // files only
+    CHECK(!Permissions::setExecutable((folder / "link").string(), true));       // never through a link
+    CHECK(modeOf((folder / "a.txt").string()) == 0640);
+
+    CHECK(!DesktopApps::isRunnableProgram(tool));                                // not allowed to run yet
+    fs::copy_file("/usr/bin/true", root / "runnable" / "real.AppImage");
+    const std::string real = (root / "runnable" / "real.AppImage").string();
+    CHECK(DesktopApps::isRunnableProgram(real));
+    CHECK(DesktopApps::run(real));
+    touch(root / "runnable" / "script.sh", "#!/bin/sh\nexit 0\n");
+    chmod((root / "runnable" / "script.sh").c_str(), 0755);
+    CHECK(!DesktopApps::isRunnableProgram((root / "runnable" / "script.sh").string()));   // scripts open in an editor
+    CHECK(!DesktopApps::isRunnableProgram((root / "runnable").string()));
 
     const auto link = Properties::collect((folder / "link").string());
     CHECK(rowValue(link, "Link", "Points to") == "a.txt");
@@ -598,7 +635,8 @@ static void testProperties(const fs::path& root)
     const auto selection = Properties::collectSelection({(folder / "a.txt").string(), (folder / "inner").string()});
     CHECK(rowValue(selection, "General", "Files") == "1" && rowValue(selection, "General", "Folders") == "1");
     CHECK(rowValue(selection, "General", "Location") == folder.string());
-    CHECK(rowValue(selection, "General", "Mode").rfind("Mixed", 0) == 0);
+    CHECK(rowValue(selection, "Advanced", "Mode").rfind("Mixed", 0) == 0);
+    CHECK(rowValue(selection, "General", "Links") == "<missing>");          // zero counts are left out
 
     const FolderScan scan = scanFolder(folder.string(), {}, {});
     CHECK(scan.finished && scan.files == 3 && scan.folders == 1 && scan.links == 2 && scan.hidden == 1);
@@ -951,8 +989,9 @@ static void testApps()
     CHECK(single.size() == 3 && single[1] == "/tmp/x; rm -rf y");
     CHECK(DesktopApps::commandFor("edit", {"/f"}).back() == "/f");
 
-    const DesktopApp hidden = DesktopApps::parse("h.desktop", "[Desktop Entry]\nName=H\nType=Application\nExec=h\nNoDisplay=true\n");
-    CHECK(hidden.exec.empty());
+    const DesktopApp quiet = DesktopApps::parse("h.desktop", "[Desktop Entry]\nName=H\nType=Application\nExec=h\nNoDisplay=true\n");
+    CHECK(quiet.noDisplay && quiet.exec == "h");                    // kept: it only stays out of menus
+    CHECK(DesktopApps::parse("g.desktop", "[Desktop Entry]\nName=G\nType=Application\nExec=g\nHidden=true\n").exec.empty());
 
     CHECK(DesktopApps::parse("i.desktop", "[Desktop Entry]\nName=I\nType=Application\nExec=i\nIcon=org.app.Icon\n").icon == "org.app.Icon");
 
@@ -1035,6 +1074,30 @@ static void testDefaultApps(const fs::path& root)
 
     touch(work / "note.txt", "plain words\n");
     CHECK(DesktopApps::openingType((work / "note.txt").string()) == "text/plain");
+
+    // ---- apps mimeapps.list adds or takes away, and apps kept out of menus
+    const fs::path appsDir = work / "data" / "applications";
+    touch(appsDir / "cf-loader.desktop", "[Desktop Entry]\nName=Loader\nType=Application\nExec=/bin/sh %f\nNoDisplay=true\n");
+    touch(appsDir / "cf-viewer.desktop", "[Desktop Entry]\nName=Viewer\nType=Application\nExec=/bin/sh %f\nMimeType=application/x-cftest;\n");
+    touch(appsDir / "cf-viewer-twin.desktop", "[Desktop Entry]\nName=Viewer\nType=Application\nExec=/bin/sh %f\nNoDisplay=true\nMimeType=application/x-cftest;\n");
+    touch(appsDir / "cf-helper.desktop", "[Desktop Entry]\nName=Helper\nType=Application\nExec=/bin/sh %f\nNoDisplay=true\nMimeType=application/x-cftest;\n");
+    touch(appsDir / "cf-unwanted.desktop", "[Desktop Entry]\nName=Unwanted\nType=Application\nExec=/bin/sh %f\nMimeType=application/x-cftest;\n");
+    touch(work / "config" / "mimeapps.list", "[Added Associations]\napplication/x-cftest=cf-loader.desktop;\n\n"
+                                              "[Removed Associations]\napplication/x-cftest=cf-unwanted.desktop;\n");
+    touch(appsDir / "mimeapps.list", "[Added Associations]\napplication/x-cftest=cf-unwanted.desktop;\n");   // the user's list takes it back
+    const auto names = [](const std::vector<DesktopApp>& list) { std::vector<std::string> ids; for (const auto& a : list) ids.push_back(a.id); return ids; };
+    const auto listedApps = names(DesktopApps::forMimeType("application/x-cftest"));
+    const auto at = [&listedApps](const std::string& id) { return std::find(listedApps.begin(), listedApps.end(), id) - listedApps.begin(); };
+    const std::string chosen = DesktopApps::defaultFor("application/x-cftest");
+    CHECK(!listedApps.empty() && (chosen.empty() || listedApps.front() == chosen));
+    CHECK(at("cf-loader.desktop") == (chosen.empty() || chosen == "cf-loader.desktop" ? 0 : 1));   // added: right after the default, though NoDisplay
+    CHECK(at("cf-viewer.desktop") < static_cast<long>(listedApps.size()));
+    CHECK(at("cf-helper.desktop") < static_cast<long>(listedApps.size()));         // NoDisplay with the type is offered
+    CHECK(at("cf-viewer-twin.desktop") == static_cast<long>(listedApps.size()));   // a NoDisplay twin is not shown twice
+    CHECK(at("cf-unwanted.desktop") == static_cast<long>(listedApps.size()));      // removed
+    const auto menu = names(DesktopApps::all());
+    CHECK(std::find(menu.begin(), menu.end(), "cf-loader.desktop") == menu.end());  // still out of the app pickers
+    fs::remove(appsDir / "mimeapps.list");
 
     touch(work / "config" / "gtk-3.0" / "settings.ini", "[Settings]\ngtk-theme-name=X\ngtk-icon-theme-name = \"breeze\"\n");
     CHECK(DesktopApps::iconThemeName() == "breeze");

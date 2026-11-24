@@ -12,6 +12,10 @@ std::string modeText(std::uint32_t fullMode);        // "drwxr-xr-x", as ls prin
 std::string octalText(std::uint32_t fullMode);       // "0755"
 std::string whatYouCanDo(const std::string& path, bool isDirectory);
 
+// "Allow running as program": on gives run rights to whoever may read it, off takes them from everyone.
+bool isExecutable(std::uint32_t fullMode);
+bool setExecutable(const std::string& path, bool on);
+
 // Reads the value of system.posix_acl_access or system.posix_acl_default, as getfacl prints it.
 std::vector<std::string> parseAcl(const std::string& value);
 

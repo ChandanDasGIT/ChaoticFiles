@@ -10,8 +10,8 @@ DialogFrame {
     visible: DiskUsageController.isOpen
     onClosed: DiskUsageController.close()
 
-    width: Math.min(Theme.usageWidth, parent.width - 2 * Theme.dialogMargin)
-    height: Math.min(Theme.usageHeight, parent.height - 2 * Theme.dialogMargin)
+    width: Math.min(Theme.usageWidth, maxWidth)
+    height: Math.min(Theme.usageHeight, maxHeight)
 
     ToolbarButton {
         id: upButton

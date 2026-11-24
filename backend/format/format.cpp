@@ -31,6 +31,18 @@ std::string date(std::int64_t secondsSince1970)
     return text;
 }
 
+std::string readableDate(std::int64_t secondsSince1970)
+{
+    const std::time_t when = static_cast<std::time_t>(secondsSince1970);
+    std::tm local {};
+    if (!localtime_r(&when, &local)) return {};
+    static const char* const months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    char text[40];
+    std::snprintf(text, sizeof text, "%d %s %d, %02d:%02d", local.tm_mday, months[local.tm_mon], local.tm_year + 1900,
+                  local.tm_hour, local.tm_min);
+    return text;
+}
+
 std::string fullDate(std::int64_t secondsSince1970, std::uint32_t nanoseconds)
 {
     const std::time_t when = static_cast<std::time_t>(secondsSince1970);

@@ -81,6 +81,7 @@ public:
     Q_INVOKABLE void goUp();
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void refreshAndSelect(const QString& name);
+    void showItem(const QString& folder, const QString& name);   // goes there and selects it, if it is shown
 
     Q_INVOKABLE void openRow(int row);                       // double click or Enter
     Q_INVOKABLE void openCurrent();
@@ -110,6 +111,7 @@ signals:
     void aboutToRefresh();                 // the rows are about to be replaced in the same folder
     void refreshed();
     void message(const QString& text);     // something the status bar should say for a moment
+    void chooseApp(const QString& path);   // no app opens this file: ask which one should
 
 private:
     void load(const std::string& focusName);
