@@ -10,12 +10,18 @@ DialogFrame {
 
     onAboutToShow: SettingsController.refreshLocalDefaults()
 
+    // a window lays itself out when it is first drawn, so the scroll waits for that
+    property bool aboutPending: false
     function openAbout() {
+        aboutPending = true
         open()
-        Qt.callLater(() => {
-            flick.contentY = Math.max(0, flick.contentHeight - flick.height)
-        })
+        if (flick.height > 0) scrollToAbout()
     }
+    function scrollToAbout() {
+        aboutPending = false
+        flick.contentY = Math.max(0, flick.contentHeight - flick.height)
+    }
+    onFrameSwapped: if (aboutPending) scrollToAbout()
 
     function scrollToTop() {
         flick.contentY = 0
